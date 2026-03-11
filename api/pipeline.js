@@ -6,7 +6,11 @@ export default async function handler(req, res) {
   const GHL_TOKEN    = 'pit-c40b9d94-28dd-4d00-9602-d6f765877cd8';
   const GHL_LOCATION = 'AymErWPrH9U1ddRouslC';
   const GHL_PIPELINE = 'o4kqU2y8DYjA73aKUxNu';
-  const HDR = { 'Authorization': `Bearer ${GHL_TOKEN}`, 'Version': '2021-07-28' };
+  const HDR = {
+    'Authorization': `Bearer ${GHL_TOKEN}`,
+    'Version': '2021-07-28',
+    'Content-Type': 'application/json',
+  };
 
   const STAGE_MAP = {
     '92d0031c-00f8-4692-bc9f-235a76fa3201': 'New Lead',
@@ -26,9 +30,34 @@ export default async function handler(req, res) {
     '2a6c834c-4180-4833-b9e2-4d7e576e302f': 'Dead',
   };
 
+  const STAGE_ORDER = [
+    'Decision Pending', 'Contract Sent', 'Under Contract', 'Hot Follow Up',
+    'Warm Follow Up', 'New Lead', 'Cold Follow Up', 'Attempt 1', 'Attempt 2',
+    'Attempt 3-5', 'Unresponsive', 'Closed', 'Signed w/ Someone Else',
+    'Disposition', 'Dead',
+  ];
+
   const ADDR_FIELD = 'SGJdYcttaxyiWDHydcc6';
 
+  // Fetch last note for a contact from GHL notes API
+  async function fetchLastNote(contactId) {
+    if (!contactId) return null;
+    try {
+      const r = await fetch(
+        `https://services.leadconnectorhq.com/contacts/${contactId}/notes?limit=1`,
+        { headers: HDR }
+      );
+      if (!r.ok) return null;
+      const data = await r.json();
+      const notes = data.notes || [];
+      return notes.length ? (notes[0].body || notes[0].text || null) : null;
+    } catch {
+      return null;
+    }
+  }
+
   try {
+    // ── 1. Fetch all opportunities (paginated) ──────────────
     let allOpps = [];
     let page = 1;
     while (true) {
@@ -36,6 +65,7 @@ export default async function handler(req, res) {
         `https://services.leadconnectorhq.com/opportunities/search?pipeline_id=${GHL_PIPELINE}&location_id=${GHL_LOCATION}&limit=100&page=${page}`,
         { headers: HDR }
       );
+      if (!r.ok) throw new Error(`GHL opportunities error: ${r.status}`);
       const data = await r.json();
       const opps = data.opportunities || [];
       allOpps = allOpps.concat(opps);
@@ -43,31 +73,59 @@ export default async function handler(req, res) {
       page++;
     }
 
+    // ── 2. Build stage buckets ─────────────────────────────
     const stages = {};
     for (const opp of allOpps) {
       const stageName = STAGE_MAP[opp.pipelineStageId] || 'Unknown';
       if (!stages[stageName]) stages[stageName] = [];
-      const contact   = opp.contact || {};
-      const addrF     = (opp.customFields || []).find(f => f.id === ADDR_FIELD);
+      const contact    = opp.contact || {};
+      const contactId  = contact.id || opp.contactId || null;
+      const addrF      = (opp.customFields || []).find(f => f.id === ADDR_FIELD);
       const daysInStage = opp.lastStageChangeAt
         ? Math.floor((Date.now() - new Date(opp.lastStageChangeAt)) / 86400000) : null;
+
       stages[stageName].push({
-        id: opp.id, contactId: contact.id || opp.contactId,
-        name: contact.name || opp.name || 'Unknown',
-        phone: contact.phone || '',
-        address: addrF?.fieldValueString || contact.address1 || '',
-        tags: contact.tags || [], stage: stageName,
-        createdAt: opp.createdAt, updatedAt: opp.updatedAt,
-        lastChange: opp.lastStageChangeAt, daysInStage,
-        value: opp.monetaryValue || 0,
+        id:          opp.id,
+        contactId,
+        name:        contact.name || opp.name || 'Unknown',
+        phone:       contact.phone || '',
+        address:     addrF?.fieldValueString || contact.address1 || '',
+        tags:        contact.tags || [],
+        stage:       stageName,
+        createdAt:   opp.createdAt,
+        updatedAt:   opp.updatedAt,
+        lastChange:  opp.lastStageChangeAt,
+        daysInStage,
+        value:       opp.monetaryValue || 0,
+        lastNote:    null, // populated below for priority stages
       });
     }
 
+    // ── 3. Fetch last notes for high-value stages (rate-limit friendly)
+    //       Only do this for stages that matter for follow-up decisions
+    const PRIORITY_STAGES = [
+      'Hot Follow Up', 'Warm Follow Up', 'Decision Pending',
+      'Contract Sent', 'Under Contract',
+    ];
+    const notePromises = [];
+    for (const stage of PRIORITY_STAGES) {
+      const leads = stages[stage] || [];
+      for (const lead of leads) {
+        if (lead.contactId) {
+          notePromises.push(
+            fetchLastNote(lead.contactId).then(note => { lead.lastNote = note; })
+          );
+        }
+      }
+    }
+    // Fetch notes in parallel (GHL allows concurrent calls)
+    await Promise.allSettled(notePromises);
+
+    // ── 4. Respond ─────────────────────────────────────────
     res.json({
-      stages, total: allOpps.length,
-      stageOrder: ['Decision Pending','Contract Sent','Under Contract','Hot Follow Up',
-        'Warm Follow Up','New Lead','Cold Follow Up','Attempt 1','Attempt 2',
-        'Attempt 3-5','Unresponsive','Closed','Dead'],
+      stages,
+      total:      allOpps.length,
+      stageOrder: STAGE_ORDER,
     });
   } catch(e) {
     res.status(500).json({ error: e.message });

@@ -10,51 +10,56 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0a0f;--bg2:#0d0d16;--bg3:#111122;
+  --bg:#0a0a0f;--bg2:#0c0c18;--bg3:#101020;--bg4:#13132a;
   --green:#00ff88;--gold:#ffd700;--red:#ff3366;--orange:#ff8800;
-  --blue:#00aaff;--purple:#aa44ff;--cyan:#00ffff;
-  --dim:#33334d;--dimtext:#666688;--text:#c8d0e0;--textb:#e8f0f8;
-  --border:#1a1a2e;--border2:#22224a;
+  --blue:#00aaff;--purple:#aa44ff;--cyan:#00e5ff;
+  --dim:#2a2a46;--dimtext:#5a5a80;--text:#b8c0d8;--textb:#dde6f8;
+  --border:#16162e;--border2:#1e1e3a;
 }
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;font-size:13px}
-body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.12) 2px,rgba(0,0,0,.12) 4px);pointer-events:none;z-index:9000}
-::-webkit-scrollbar{width:6px;height:6px}
+/* scanline overlay */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px);pointer-events:none;z-index:9000}
+/* vignette */
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);pointer-events:none;z-index:9001}
+::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
-/* HEADER */
-#topbar{background:linear-gradient(135deg,#080812,#0d0d22);border-bottom:2px solid var(--green);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:500;box-shadow:0 0 30px rgba(0,255,136,.15)}
-#topbar-left h1{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:var(--green);text-shadow:0 0 20px rgba(0,255,136,.6),0 0 40px rgba(0,255,136,.3);letter-spacing:3px}
+/* ─── HEADER ─────────────────────────────────────── */
+#topbar{background:linear-gradient(135deg,#06060f,#0a0a1c);border-bottom:1px solid rgba(0,255,136,.18);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:500;box-shadow:0 0 40px rgba(0,255,136,.08),0 2px 0 rgba(0,255,136,.15)}
+#topbar-left h1{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--green);text-shadow:0 0 24px rgba(0,255,136,.7),0 0 48px rgba(0,255,136,.3);letter-spacing:4px}
 #topbar-left h1 span{color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.6)}
-#topbar-sub{font-size:11px;color:var(--dimtext);letter-spacing:2px;margin-top:2px}
-#topbar-right{display:flex;align-items:center;gap:16px}
-#live-clock{font-family:'Orbitron',monospace;font-size:16px;color:var(--cyan);text-shadow:0 0 10px rgba(0,255,255,.5);text-align:right}
-#live-date{font-size:10px;color:var(--dimtext);text-align:right}
-#refresh-btn{background:transparent;border:1px solid var(--green);color:var(--green);padding:7px 16px;font-family:'Share Tech Mono',monospace;font-size:12px;cursor:pointer;letter-spacing:1px;transition:all .2s;border-radius:2px}
-#refresh-btn:hover{background:var(--green);color:var(--bg);box-shadow:0 0 15px rgba(0,255,136,.4)}
+#topbar-sub{font-size:10px;color:var(--dimtext);letter-spacing:3px;margin-top:3px;text-transform:uppercase}
+#topbar-right{display:flex;align-items:center;gap:14px}
+#live-clock{font-family:'Orbitron',monospace;font-size:15px;color:var(--cyan);text-shadow:0 0 10px rgba(0,229,255,.5);text-align:right;letter-spacing:2px}
+#live-date{font-size:9px;color:var(--dimtext);text-align:right;letter-spacing:1px;margin-top:2px}
+#refresh-btn{background:transparent;border:1px solid rgba(0,255,136,.4);color:var(--green);padding:6px 15px;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:2px;transition:all .2s;border-radius:2px}
+#refresh-btn:hover{background:rgba(0,255,136,.08);box-shadow:0 0 14px rgba(0,255,136,.25)}
+#refresh-btn:disabled{opacity:.4;cursor:wait}
 
-/* TICKER */
-#status-ticker{background:var(--bg2);border-bottom:1px solid var(--border2);padding:6px 24px;display:flex;align-items:center;gap:20px;font-size:11px;color:var(--dimtext);flex-wrap:wrap}
-.ticker-item{display:flex;align-items:center;gap:6px;white-space:nowrap}
+/* ─── STATUS TICKER ──────────────────────────────── */
+#status-ticker{background:var(--bg2);border-bottom:1px solid var(--border2);padding:5px 24px;display:flex;align-items:center;gap:0;font-size:10px;color:var(--dimtext);overflow-x:auto}
+.ticker-item{display:flex;align-items:center;gap:7px;white-space:nowrap;padding:0 16px;border-right:1px solid var(--border2)}
+.ticker-item:first-child{padding-left:0}
 .ticker-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.ticker-dot.online{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
-.ticker-dot.offline{background:var(--red)}
-#countdown-wrap{margin-left:auto;color:var(--cyan);font-size:11px;white-space:nowrap}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.ticker-dot.online{background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s infinite}
+.ticker-dot.offline{background:#333355}
+#countdown-wrap{margin-left:auto;color:var(--cyan);font-size:10px;white-space:nowrap;padding-left:16px;letter-spacing:1px;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* MAIN */
-#main{padding:20px;max-width:1700px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""goals county"}
-@media(max-width:900px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""goals""county"}}
+/* ─── MAIN GRID ──────────────────────────────────── */
+#main{padding:18px;max-width:1800px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""goals county"}
+@media(max-width:880px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""goals""county"}}
 
-/* PANELS */
-.panel{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:18px;position:relative;overflow:hidden}
-.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent,var(--green)),transparent)}
-.panel::after{content:'';position:absolute;bottom:0;right:0;width:18px;height:18px;border-bottom:2px solid var(--accent,var(--green));border-right:2px solid var(--accent,var(--green));opacity:.35}
-.corner-tl{position:absolute;top:0;left:0;width:18px;height:18px;border-top:2px solid var(--accent,var(--green));border-left:2px solid var(--accent,var(--green));opacity:.35}
-.panel-title{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--accent,var(--green));letter-spacing:3px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.panel-title::before{content:'[';color:var(--dimtext)}.panel-title::after{content:']';color:var(--dimtext)}
-.panel-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:2px;padding:2px 8px;font-size:10px;color:var(--dimtext);margin-left:auto}
+/* ─── PANELS ─────────────────────────────────────── */
+.panel{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:16px;position:relative;overflow:hidden}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent,var(--green)) 30%,var(--accent,var(--green)) 70%,transparent);opacity:.6}
+.corner-tl{position:absolute;top:0;left:0;width:14px;height:14px;border-top:1px solid var(--accent,var(--green));border-left:1px solid var(--accent,var(--green));opacity:.5}
+.corner-br{position:absolute;bottom:0;right:0;width:14px;height:14px;border-bottom:1px solid var(--accent,var(--green));border-right:1px solid var(--accent,var(--green));opacity:.5}
+.panel-title{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:var(--accent,var(--green));letter-spacing:3px;margin-bottom:14px;display:flex;align-items:center;gap:8px;text-transform:uppercase}
+.panel-title .pt-sep{color:var(--dimtext);font-size:11px}
+.panel-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:2px;padding:2px 8px;font-size:9px;color:var(--dimtext);margin-left:auto;letter-spacing:1px}
 #s-agents{grid-area:agents;--accent:var(--gold)}
 #s-feed{grid-area:feed;--accent:var(--cyan)}
 #s-pipeline{grid-area:pipeline;--accent:var(--purple)}
@@ -63,167 +68,173 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 #s-goals{grid-area:goals;--accent:var(--gold)}
 #s-county{grid-area:county;--accent:var(--orange)}
 
-/* AGENT PYRAMID */
-.pyramid-wrap{display:flex;flex-direction:column;align-items:center}
-.pyramid-chief{width:100%;max-width:360px;margin-bottom:0}
-.pyramid-connectors{width:85%;height:32px;position:relative}
+/* ─── AGENT PYRAMID ──────────────────────────────── */
+.pyramid-wrap{display:flex;flex-direction:column;align-items:center;gap:0}
+.pyramid-chief{width:100%;max-width:380px}
+.pyramid-connectors{width:86%;height:30px;position:relative;flex-shrink:0}
 .pyramid-connectors svg{position:absolute;inset:0;width:100%;height:100%}
-.pyramid-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%}
-@media(max-width:700px){.pyramid-row{grid-template-columns:repeat(2,1fr)}}
+.pyramid-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%}
+@media(max-width:680px){.pyramid-row{grid-template-columns:repeat(2,1fr)}}
 
-.agent-card{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:14px 10px;text-align:center;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
-.agent-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.agent-card.active{border-color:var(--green);box-shadow:0 0 16px rgba(0,255,136,.2)}
-.agent-card.idle{border-color:var(--dim);opacity:.8}
-.agent-card.chief-card{border-color:var(--gold);box-shadow:0 0 28px rgba(255,215,0,.2);background:linear-gradient(135deg,var(--bg3),#110e05)}
-.agent-card.chief-card.active{box-shadow:0 0 40px rgba(255,215,0,.35)}
+.agent-card{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:13px 10px;text-align:center;cursor:pointer;transition:border-color .25s,box-shadow .25s,transform .25s;position:relative;overflow:hidden}
+.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--ac-color,var(--dim));opacity:.5;transition:opacity .3s}
+.agent-card:hover{transform:translateY(-2px)}
+.agent-card.active{border-color:rgba(0,255,136,.35);box-shadow:0 0 18px rgba(0,255,136,.12)}
+.agent-card.active::before{background:var(--green);opacity:.8}
+.agent-card.idle{border-color:var(--border2);opacity:.85}
+.agent-card.chief-card{border-color:rgba(255,215,0,.3);background:linear-gradient(160deg,var(--bg3),#0e0a02)}
+.agent-card.chief-card.active{border-color:rgba(255,215,0,.5);box-shadow:0 0 30px rgba(255,215,0,.14)}
 
 /* ROBOT ANIMATIONS */
-.robot-wrap{position:relative;display:inline-block;margin-bottom:8px}
-.robot-wrap .chief-crown{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:20px;filter:drop-shadow(0 0 8px var(--gold));animation:floatcrown 2s ease-in-out infinite}
-@keyframes floatcrown{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
-.robot-wrap.active .robot-svg{animation:working 1.4s ease-in-out infinite, glowgreen 2s ease-in-out infinite}
-.robot-wrap.active.chief .robot-svg{animation:working 2s ease-in-out infinite, glowgold 2.5s ease-in-out infinite}
-.robot-wrap.idle .robot-svg{filter:grayscale(1) brightness(.45)}
-@keyframes working{0%,100%{transform:translateY(0)}40%{transform:translateY(-4px) rotate(-1deg)}70%{transform:translateY(-2px) rotate(.8deg)}}
-@keyframes glowgreen{0%,100%{filter:drop-shadow(0 0 5px #00ff88) drop-shadow(0 0 12px rgba(0,255,136,.4))}50%{filter:drop-shadow(0 0 12px #00ff88) drop-shadow(0 0 24px rgba(0,255,136,.6))}}
-@keyframes glowgold{0%,100%{filter:drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 14px rgba(255,215,0,.4))}50%{filter:drop-shadow(0 0 16px #ffd700) drop-shadow(0 0 32px rgba(255,215,0,.6))}}
+.robot-wrap{position:relative;display:inline-block;margin-bottom:6px}
+.robot-wrap .chief-crown{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:18px;filter:drop-shadow(0 0 8px var(--gold));animation:floatcrown 2.4s ease-in-out infinite}
+@keyframes floatcrown{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+.robot-wrap.active .robot-svg{animation:working 1.6s ease-in-out infinite,glowgreen 2s ease-in-out infinite}
+.robot-wrap.active.chief .robot-svg{animation:working 2.2s ease-in-out infinite,glowgold 2.8s ease-in-out infinite}
+.robot-wrap.idle .robot-svg{filter:grayscale(1) brightness(.35);transition:filter .4s}
+@keyframes working{0%,100%{transform:translateY(0) rotate(0)}40%{transform:translateY(-5px) rotate(-1.2deg)}70%{transform:translateY(-2px) rotate(.9deg)}}
+@keyframes glowgreen{0%,100%{filter:drop-shadow(0 0 5px #00ff88) drop-shadow(0 0 14px rgba(0,255,136,.35))}50%{filter:drop-shadow(0 0 14px #00ff88) drop-shadow(0 0 28px rgba(0,255,136,.6))}}
+@keyframes glowgold{0%,100%{filter:drop-shadow(0 0 7px #ffd700) drop-shadow(0 0 16px rgba(255,215,0,.35))}50%{filter:drop-shadow(0 0 18px #ffd700) drop-shadow(0 0 36px rgba(255,215,0,.6))}}
 
-.agent-name{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:4px}
-.agent-status-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:2px;letter-spacing:1px;margin-bottom:6px}
-.agent-status-badge.active{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.3)}
-.agent-status-badge.idle{background:rgba(68,68,102,.2);color:var(--dimtext);border:1px solid var(--dim)}
-.agent-last-run{font-size:9px;color:var(--dimtext);margin-bottom:2px}
+.agent-name{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:4px;text-transform:uppercase}
+.agent-status-badge{display:inline-block;font-size:8px;padding:2px 8px;border-radius:2px;letter-spacing:2px;margin-bottom:5px}
+.agent-status-badge.active{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.agent-status-badge.idle{background:rgba(42,42,70,.3);color:var(--dimtext);border:1px solid var(--dim)}
+.agent-last-run{font-size:9px;color:var(--dimtext);margin-bottom:1px}
 .agent-run-count{font-size:9px;color:var(--cyan)}
-.agent-doing{font-size:9px;color:var(--text);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.chief-card .agent-name{font-size:13px;color:var(--gold)}
+.agent-doing{font-size:9px;color:var(--text);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;opacity:.75}
+.chief-card .agent-name{font-size:12px;color:var(--gold)}
 
-/* ACTIVITY FEED */
-#feed-list{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
-.feed-item{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;padding:7px 10px;background:var(--bg3);border-left:3px solid var(--dim);border-radius:2px;animation:slideIn .3s ease}
+/* ─── ACTIVITY FEED ──────────────────────────────── */
+#feed-list{max-height:310px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.feed-item{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;padding:7px 10px;background:var(--bg3);border-left:2px solid var(--dim);border-radius:2px;animation:slideIn .25s ease}
 .feed-item.success{border-left-color:var(--green)}
 .feed-item.error{border-left-color:var(--red)}
 .feed-item.warning{border-left-color:var(--orange)}
 .feed-item.info{border-left-color:var(--blue)}
-@keyframes slideIn{from{transform:translateX(-8px);opacity:0}to{transform:translateX(0);opacity:1}}
-.feed-src{font-size:9px;padding:2px 6px;border-radius:2px;white-space:nowrap;font-family:'Orbitron',monospace;letter-spacing:.5px;align-self:start}
+@keyframes slideIn{from{transform:translateX(-6px);opacity:0}to{transform:translateX(0);opacity:1}}
+.feed-src{font-size:8px;padding:2px 6px;border-radius:2px;white-space:nowrap;font-family:'Orbitron',monospace;letter-spacing:.5px;align-self:start}
 .feed-msg{font-size:11px;color:var(--text);line-height:1.4;word-break:break-word}
 .feed-time{font-size:9px;color:var(--dimtext);white-space:nowrap}
 
-/* KANBAN */
-#kanban-wrap{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
-.kanban-col{min-width:120px;flex:0 0 120px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;overflow:hidden;cursor:pointer;transition:all .2s}
-.kanban-col:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
-.kanban-header{padding:10px 10px 8px}
-.kanban-stage-name{font-size:9px;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:.5px;margin-bottom:5px;line-height:1.3}
-.kanban-count{font-size:30px;font-family:'Orbitron',monospace;font-weight:900;line-height:1}
-.kanban-label{font-size:9px;color:var(--dimtext);margin-top:1px}
-.kanban-bar{height:3px;margin-top:7px;border-radius:2px}
-.kanban-preview{padding:7px 8px;font-size:9px}
-.kanban-name{color:var(--text);padding:2px 0;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ─── KANBAN ─────────────────────────────────────── */
+#kanban-wrap{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px}
+.kanban-col{min-width:118px;flex:0 0 118px;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.kanban-col:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(0,0,0,.45)}
+.kanban-header{padding:9px 9px 7px}
+.kanban-stage-name{font-size:8px;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:.5px;margin-bottom:5px;line-height:1.3}
+.kanban-count{font-size:28px;font-family:'Orbitron',monospace;font-weight:900;line-height:1}
+.kanban-label{font-size:8px;color:var(--dimtext);margin-top:1px}
+.kanban-bar{height:2px;margin-top:6px;border-radius:2px}
+.kanban-preview{padding:6px 8px;font-size:9px}
+.kanban-name{color:var(--text);padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kanban-name:last-child{border-bottom:none}
 
-/* TABS */
-.tab-bar{display:flex;gap:2px;margin-bottom:14px;border-bottom:1px solid var(--border2)}
-.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;padding:7px 14px;color:var(--dimtext);font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;margin-bottom:-1px;letter-spacing:1px}
+/* ─── TABS ───────────────────────────────────────── */
+.tab-bar{display:flex;gap:0;margin-bottom:13px;border-bottom:1px solid var(--border2)}
+.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;padding:7px 15px;color:var(--dimtext);font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;transition:all .2s;margin-bottom:-1px;letter-spacing:1px;text-transform:uppercase}
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
 .tab-btn:hover:not(.active){color:var(--text)}
 .tab-content{display:none;max-height:340px;overflow-y:auto}
 .tab-content.active{display:block}
 .leads-table{width:100%;border-collapse:collapse}
-.leads-table th{font-size:9px;color:var(--dimtext);text-align:left;padding:5px 8px;border-bottom:1px solid var(--border2);font-family:'Orbitron',monospace;letter-spacing:1px;font-weight:400;position:sticky;top:0;background:var(--bg2)}
-.leads-table td{padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;vertical-align:middle}
-.leads-table tr:hover td{background:var(--bg3);cursor:pointer}
-.stage-badge{display:inline-block;padding:2px 6px;border-radius:2px;font-size:9px;white-space:nowrap}
-.tag-chip{display:inline-block;padding:1px 5px;background:rgba(0,170,255,.12);border:1px solid rgba(0,170,255,.25);border-radius:2px;font-size:9px;color:var(--blue);margin:1px}
+.leads-table th{font-size:8px;color:var(--dimtext);text-align:left;padding:5px 8px;border-bottom:1px solid var(--border2);font-family:'Orbitron',monospace;letter-spacing:1px;font-weight:400;position:sticky;top:0;background:var(--bg2);z-index:1}
+.leads-table td{padding:6px 8px;border-bottom:1px solid var(--border);font-size:10px;vertical-align:middle}
+.leads-table tr:hover td{background:var(--bg4);cursor:pointer}
+.stage-badge{display:inline-block;padding:2px 6px;border-radius:2px;font-size:8px;white-space:nowrap}
+.tag-chip{display:inline-block;padding:1px 5px;background:rgba(0,170,255,.1);border:1px solid rgba(0,170,255,.2);border-radius:2px;font-size:8px;color:var(--blue);margin:1px}
 
-/* CALLS */
-#calls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
-.call-card{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:13px;cursor:pointer;transition:all .2s}
-.call-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);border-color:var(--green)}
-.call-hdr{display:flex;justify-content:space-between;align-items:start;margin-bottom:8px}
-.call-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--textb)}
-.call-dur{font-size:10px;color:var(--cyan);background:rgba(0,255,255,.08);padding:2px 7px;border-radius:2px}
-.call-addr{font-size:10px;color:var(--dimtext);margin-bottom:7px}
-.call-flow{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:10px}
-.call-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
-.call-summary{font-size:10px;color:var(--dimtext);line-height:1.4;font-style:italic}
+/* ─── CALLS ──────────────────────────────────────── */
+#calls-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:10px}
+.call-card{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:12px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s}
+.call-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);border-color:rgba(0,255,136,.3)}
+.call-hdr{display:flex;justify-content:space-between;align-items:start;margin-bottom:7px}
+.call-name{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;color:var(--textb)}
+.call-dur{font-size:9px;color:var(--cyan);background:rgba(0,229,255,.08);padding:2px 7px;border-radius:2px;white-space:nowrap}
+.call-addr{font-size:10px;color:var(--dimtext);margin-bottom:6px}
+.call-flow{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px}
+.call-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px}
+.call-summary{font-size:9px;color:var(--dimtext);line-height:1.5;font-style:italic}
 
-/* GOAL */
-.goal-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
-@media(max-width:600px){.goal-layout{grid-template-columns:1fr}}
-.goal-label{font-family:'Orbitron',monospace;font-size:10px;color:var(--dimtext);letter-spacing:2px;margin-bottom:7px}
-.goal-amount{font-family:'Orbitron',monospace;font-size:34px;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.4);line-height:1}
-.goal-target{font-size:11px;color:var(--dimtext);margin-top:4px;margin-bottom:14px}
-.prog-wrap{background:var(--bg3);border:1px solid var(--border2);border-radius:2px;height:18px;overflow:hidden;position:relative;margin-bottom:7px}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),#ff8c00);transition:width 1.2s ease;position:relative}
-.prog-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:white;opacity:.7;box-shadow:0 0 8px var(--gold)}
-.prog-pct{font-family:'Orbitron',monospace;font-size:20px;font-weight:700;color:var(--gold)}
-.goal-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.gstat{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:11px;text-align:center}
-.gstat-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--textb)}
-.gstat-lbl{font-size:9px;color:var(--dimtext);margin-top:3px;letter-spacing:.5px}
+/* ─── GOAL ───────────────────────────────────────── */
+.goal-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:580px){.goal-layout{grid-template-columns:1fr}}
+.goal-label{font-family:'Orbitron',monospace;font-size:9px;color:var(--dimtext);letter-spacing:2px;margin-bottom:6px;text-transform:uppercase}
+.goal-amount{font-family:'Orbitron',monospace;font-size:32px;font-weight:900;color:var(--gold);text-shadow:0 0 24px rgba(255,215,0,.45);line-height:1}
+.goal-target{font-size:10px;color:var(--dimtext);margin-top:4px;margin-bottom:12px}
+.prog-track{background:var(--bg3);border:1px solid var(--border2);border-radius:2px;height:16px;overflow:hidden;position:relative;margin-bottom:6px}
+.prog-fill{height:100%;background:linear-gradient(90deg,#c8960c,#ffd700,#ffb800);transition:width 1.3s cubic-bezier(.4,0,.2,1);position:relative}
+.prog-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:2px;background:white;opacity:.65;box-shadow:0 0 8px var(--gold)}
+.prog-pct{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:var(--gold)}
+.goal-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.gstat{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:10px;text-align:center}
+.gstat-val{font-family:'Orbitron',monospace;font-size:20px;font-weight:700;color:var(--textb)}
+.gstat-lbl{font-size:8px;color:var(--dimtext);margin-top:3px;letter-spacing:.5px;text-transform:uppercase}
 
-/* COUNTY COUNTER */
-.county-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-@media(max-width:600px){.county-grid{grid-template-columns:1fr}}
-.counter-card{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:16px;text-align:center;position:relative;overflow:hidden}
-.counter-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.counter-val{font-family:'Orbitron',monospace;font-size:48px;font-weight:900;line-height:1;margin-bottom:6px}
-.counter-lbl{font-size:10px;color:var(--dimtext);letter-spacing:1px}
-.counter-sub{font-size:9px;color:var(--dimtext);margin-top:3px;opacity:.7}
-.counter-card.lis .counter-val{color:var(--orange);text-shadow:0 0 24px rgba(255,136,0,.45)}
+/* ─── COUNTY COUNTER ─────────────────────────────── */
+.county-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:580px){.county-grid{grid-template-columns:1fr}}
+.counter-card{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:14px;text-align:center;position:relative;overflow:hidden}
+.counter-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px}
+.counter-val{font-family:'Orbitron',monospace;font-size:44px;font-weight:900;line-height:1;margin-bottom:5px}
+.counter-lbl{font-size:9px;color:var(--dimtext);letter-spacing:2px;text-transform:uppercase}
+.counter-sub{font-size:8px;color:var(--dimtext);margin-top:3px;opacity:.6}
+.counter-card.lis .counter-val{color:var(--orange);text-shadow:0 0 22px rgba(255,136,0,.4)}
 .counter-card.lis::before{background:var(--orange)}
-.counter-card.tax .counter-val{color:var(--red);text-shadow:0 0 24px rgba(255,51,102,.45)}
+.counter-card.tax .counter-val{color:var(--red);text-shadow:0 0 22px rgba(255,51,102,.4)}
 .counter-card.tax::before{background:var(--red)}
-.counter-card.dm .counter-val{color:var(--green);text-shadow:0 0 24px rgba(0,255,136,.45)}
+.counter-card.dm .counter-val{color:var(--green);text-shadow:0 0 22px rgba(0,255,136,.4)}
 .counter-card.dm::before{background:var(--green)}
 
-/* FOOTER STATUS */
-#s-status{background:var(--bg2);border-top:2px solid var(--border2);padding:10px 24px;display:flex;align-items:center;gap:0;flex-wrap:wrap;position:sticky;bottom:0;z-index:400}
-.proc-item{display:flex;align-items:center;gap:8px;padding:5px 16px;border-right:1px solid var(--border2);min-width:150px}
+/* ─── FOOTER STATUS ──────────────────────────────── */
+#s-status{background:var(--bg2);border-top:1px solid var(--border2);padding:8px 24px;display:flex;align-items:center;flex-wrap:wrap;position:sticky;bottom:0;z-index:400;gap:0}
+.proc-item{display:flex;align-items:center;gap:7px;padding:4px 16px;border-right:1px solid var(--border2)}
+.proc-item:first-child{padding-left:0}
 .proc-item:last-child{border-right:none}
-.proc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.proc-dot.online{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
-.proc-dot.offline{background:var(--red)}
-.proc-name{font-family:'Orbitron',monospace;font-size:9px;font-weight:700;color:var(--textb)}
-.proc-next{font-size:9px;color:var(--dimtext);margin-top:1px}
+.proc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.proc-dot.online{background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s infinite}
+.proc-dot.offline{background:#2a2a44}
+.proc-name{font-family:'Orbitron',monospace;font-size:8px;font-weight:700;color:var(--textb);letter-spacing:.5px}
+.proc-next{font-size:8px;color:var(--dimtext);margin-top:1px}
 
-/* MODAL */
-#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:8000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+/* ─── MODAL ──────────────────────────────────────── */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,8,.84);z-index:8000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:16px}
 #modal-overlay.open{display:flex}
-#modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;max-width:680px;width:92%;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;position:relative}
-#modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent)}
-#modal-head{padding:14px 18px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-#modal-title{font-family:'Orbitron',monospace;font-size:12px;color:var(--cyan);letter-spacing:2px}
-#modal-close{background:transparent;border:1px solid var(--dim);color:var(--dimtext);width:26px;height:26px;border-radius:2px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+#modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;max-width:700px;width:100%;max-height:84vh;overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 0 60px rgba(0,229,255,.08)}
+#modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan) 30%,var(--cyan) 70%,transparent);opacity:.7}
+#modal-head{padding:12px 16px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#modal-title{font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);letter-spacing:2px}
+#modal-close{background:transparent;border:1px solid var(--dim);color:var(--dimtext);width:24px;height:24px;border-radius:2px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .2s}
 #modal-close:hover{border-color:var(--red);color:var(--red)}
-#modal-body{padding:16px 18px;overflow-y:auto;flex:1}
-.log-entry{padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;display:grid;grid-template-columns:100px 1fr;gap:8px}
+#modal-body{padding:14px 16px;overflow-y:auto;flex:1}
+.log-entry{padding:7px 0;border-bottom:1px solid var(--border);font-size:10px;display:grid;grid-template-columns:110px 1fr;gap:8px}
 .log-time{color:var(--dimtext);font-size:9px;line-height:1.4}
 .log-msg{color:var(--text);line-height:1.4;word-break:break-word}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.detail-label{font-size:9px;color:var(--dimtext);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
-.detail-val{font-size:13px;color:var(--textb)}
-.empty-state{text-align:center;padding:36px;color:var(--dimtext)}
-.empty-state .es-icon{font-size:28px;margin-bottom:10px;opacity:.4}
-.empty-state p{opacity:.6;font-size:12px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.detail-label{font-size:8px;color:var(--dimtext);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.detail-val{font-size:13px;color:var(--textb);word-break:break-word}
+.empty-state{text-align:center;padding:32px;color:var(--dimtext)}
+.empty-state .es-icon{font-size:24px;margin-bottom:8px;opacity:.35}
+.empty-state p{opacity:.55;font-size:11px;letter-spacing:.5px}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ─── MISC UTILS ─────────────────────────────────── */
+.sep-line{height:1px;background:var(--border2);margin:12px 0}
 </style>
 </head>
 <body>
 
 <header id="topbar">
   <div id="topbar-left">
-    <h1>⚡ JARVIS <span>COMMAND CENTER</span></h1>
-    <div id="topbar-sub">CHRIS LOVERA — WHOLESALE OPERATIONS // ORLANDO FL</div>
+    <h1>JARVIS <span>COMMAND CENTER</span></h1>
+    <div id="topbar-sub">Chris Lovera &mdash; Wholesale Operations &bull; Orlando, FL</div>
   </div>
   <div id="topbar-right">
     <div>
       <div id="live-clock">00:00:00</div>
       <div id="live-date">—</div>
     </div>
-    <button id="refresh-btn" onclick="refreshAll()">↻ REFRESH</button>
+    <button id="refresh-btn" onclick="refreshAll()">&#8635; REFRESH</button>
   </div>
 </header>
 
@@ -233,193 +244,208 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <div class="ticker-item"><div class="ticker-dot offline" id="dot-county"></div><span>COUNTY SCRAPER</span></div>
   <div class="ticker-item"><div class="ticker-dot offline" id="dot-caller"></div><span>JARVIS CALLER</span></div>
   <div class="ticker-item"><div class="ticker-dot offline" id="dot-jarvis"></div><span>JARVIS BOT</span></div>
-  <div id="countdown-wrap">↻ IN <span id="countdown">60</span>s</div>
+  <div id="countdown-wrap">&#8635; REFRESH IN <span id="countdown">60</span>s</div>
 </div>
 
 <div id="main">
 
-<!-- S1: AGENT PYRAMID -->
+<!-- ═══ S1: AGENT PYRAMID ═══════════════════════════════════════ -->
 <section class="panel" id="s-agents">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">AGENT OPERATIONS PYRAMID <span class="panel-badge" id="agents-badge">LOADING</span></div>
   <div class="pyramid-wrap">
 
+    <!-- CHIEF -->
     <div class="pyramid-chief">
       <div class="agent-card chief-card" id="card-jarvis" onclick="openAgentModal('jarvis','Jarvis — Chief of Staff')">
         <div class="robot-wrap chief" id="robot-jarvis">
-          <div class="chief-crown">👑</div>
-          <svg class="robot-svg" width="76" height="100" viewBox="0 0 76 100" fill="none">
-            <line x1="38" y1="0" x2="38" y2="11" stroke="#ffd700" stroke-width="2.5"/>
-            <circle cx="38" cy="0" r="3.5" fill="#ffd700"/>
-            <rect x="14" y="11" width="48" height="34" rx="5" fill="#ffd700" opacity=".88"/>
-            <ellipse cx="28" cy="26" r="5.5" fill="#0a0a0f"/>
-            <ellipse cx="28" cy="26" r="2.5" fill="#ffd700"/>
-            <ellipse cx="48" cy="26" r="5.5" fill="#0a0a0f"/>
-            <ellipse cx="48" cy="26" r="2.5" fill="#ffd700"/>
-            <rect x="30" y="40" width="16" height="8" fill="#ffd700" opacity=".65"/>
-            <rect x="10" y="48" width="56" height="34" rx="5" fill="#ffd700" opacity=".82"/>
-            <rect x="22" y="55" width="32" height="18" rx="3" fill="#0a0a0f" opacity=".45"/>
-            <circle cx="38" cy="64" r="5.5" fill="#ffd700"/>
-            <rect x="0" y="50" width="10" height="26" rx="4" fill="#ffd700" opacity=".72"/>
-            <rect x="66" y="50" width="10" height="26" rx="4" fill="#ffd700" opacity=".72"/>
-            <rect x="14" y="82" width="16" height="18" rx="4" fill="#ffd700" opacity=".8"/>
-            <rect x="46" y="82" width="16" height="18" rx="4" fill="#ffd700" opacity=".8"/>
+          <div class="chief-crown">&#128081;</div>
+          <svg class="robot-svg" width="78" height="104" viewBox="0 0 78 104" fill="none">
+            <!-- antenna -->
+            <line x1="39" y1="2" x2="39" y2="14" stroke="#ffd700" stroke-width="2.5"/>
+            <circle cx="39" cy="2" r="4" fill="#ffd700"/>
+            <!-- head -->
+            <rect x="13" y="14" width="52" height="36" rx="6" fill="#ffd700" opacity=".92"/>
+            <!-- eyes -->
+            <ellipse cx="28" cy="30" r="6" fill="#0a0a0f"/>
+            <ellipse cx="28" cy="30" r="3" fill="#ffd700"/>
+            <ellipse cx="50" cy="30" r="6" fill="#0a0a0f"/>
+            <ellipse cx="50" cy="30" r="3" fill="#ffd700"/>
+            <!-- mouth -->
+            <rect x="24" y="41" width="30" height="4" rx="2" fill="#0a0a0f" opacity=".5"/>
+            <!-- neck -->
+            <rect x="30" y="50" width="18" height="8" fill="#ffd700" opacity=".65"/>
+            <!-- body -->
+            <rect x="9" y="58" width="60" height="34" rx="6" fill="#ffd700" opacity=".86"/>
+            <!-- chest panel -->
+            <rect x="20" y="66" width="38" height="18" rx="3" fill="#0a0a0f" opacity=".4"/>
+            <circle cx="39" cy="75" r="6" fill="#ffd700"/>
+            <!-- arms -->
+            <rect x="0" y="60" width="9" height="28" rx="4" fill="#ffd700" opacity=".75"/>
+            <rect x="69" y="60" width="9" height="28" rx="4" fill="#ffd700" opacity=".75"/>
+            <!-- legs -->
+            <rect x="15" y="92" width="17" height="12" rx="4" fill="#ffd700" opacity=".8"/>
+            <rect x="46" y="92" width="17" height="12" rx="4" fill="#ffd700" opacity=".8"/>
           </svg>
         </div>
-        <div class="agent-name">⚡ JARVIS — CHIEF OF STAFF</div>
-        <div class="agent-status-badge active" id="badge-jarvis">● ONLINE</div>
-        <div class="agent-last-run" id="run-jarvis">Last activity: —</div>
+        <div class="agent-name" style="color:var(--gold)">JARVIS &mdash; CHIEF OF STAFF</div>
+        <div class="agent-status-badge active" id="badge-jarvis">&#9679; ONLINE</div>
+        <div class="agent-last-run" id="run-jarvis">Last activity: &mdash;</div>
         <div class="agent-doing" id="doing-jarvis">Initializing systems...</div>
       </div>
     </div>
 
-    <div class="pyramid-connectors" style="width:88%">
-      <svg viewBox="0 0 800 32" preserveAspectRatio="none" style="width:100%;height:100%">
-        <line x1="400" y1="0" x2="100" y2="32" stroke="#ffd700" stroke-width="1" opacity=".25"/>
-        <line x1="400" y1="0" x2="267" y2="32" stroke="#ffd700" stroke-width="1" opacity=".25"/>
-        <line x1="400" y1="0" x2="533" y2="32" stroke="#ffd700" stroke-width="1" opacity=".25"/>
-        <line x1="400" y1="0" x2="700" y2="32" stroke="#ffd700" stroke-width="1" opacity=".25"/>
-        <circle cx="400" cy="2" r="3" fill="#ffd700" opacity=".4"/>
+    <!-- CONNECTOR LINES -->
+    <div class="pyramid-connectors" style="width:86%">
+      <svg viewBox="0 0 800 30" preserveAspectRatio="none" style="width:100%;height:100%">
+        <line x1="400" y1="0" x2="100" y2="30" stroke="#ffd700" stroke-width="1" opacity=".2"/>
+        <line x1="400" y1="0" x2="267" y2="30" stroke="#ffd700" stroke-width="1" opacity=".2"/>
+        <line x1="400" y1="0" x2="533" y2="30" stroke="#ffd700" stroke-width="1" opacity=".2"/>
+        <line x1="400" y1="0" x2="700" y2="30" stroke="#ffd700" stroke-width="1" opacity=".2"/>
+        <circle cx="400" cy="2" r="3" fill="#ffd700" opacity=".35"/>
       </svg>
     </div>
 
+    <!-- SUB-AGENTS ROW -->
     <div class="pyramid-row">
-      <!-- Alpha -->
+
+      <!-- Alpha Scraper -->
       <div class="agent-card idle" id="card-alpha" onclick="openAgentModal('alpha-scraper','Alpha Leads Scraper')">
         <div class="robot-wrap idle" id="robot-alpha">
-          <svg class="robot-svg" width="52" height="70" viewBox="0 0 52 70" fill="#00aaff">
-            <line x1="26" y1="0" x2="26" y2="7" stroke="#00aaff" stroke-width="2"/>
-            <circle cx="26" cy="0" r="2.5" fill="#00aaff"/>
-            <rect x="8" y="7" width="36" height="24" rx="4" opacity=".88"/>
-            <ellipse cx="19" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="19" cy="18" r="2" fill="#00aaff"/>
-            <ellipse cx="33" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="33" cy="18" r="2" fill="#00aaff"/>
-            <rect x="21" y="31" width="10" height="5" opacity=".65"/>
-            <rect x="6" y="36" width="40" height="22" rx="4" opacity=".82"/>
-            <circle cx="26" cy="47" r="4" fill="#0a0a0f" opacity=".45"/>
-            <circle cx="26" cy="47" r="2" fill="#00aaff"/>
-            <rect x="0" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="46" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="10" y="58" width="10" height="12" rx="3" opacity=".78"/>
-            <rect x="32" y="58" width="10" height="12" rx="3" opacity=".78"/>
+          <svg class="robot-svg" width="54" height="72" viewBox="0 0 54 72" fill="#00aaff">
+            <line x1="27" y1="0" x2="27" y2="8" stroke="#00aaff" stroke-width="2"/>
+            <circle cx="27" cy="0" r="3" fill="#00aaff"/>
+            <rect x="8" y="8" width="38" height="26" rx="5" opacity=".9"/>
+            <ellipse cx="20" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="20" cy="20" r="2.2" fill="#00aaff"/>
+            <ellipse cx="34" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="34" cy="20" r="2.2" fill="#00aaff"/>
+            <rect x="22" y="34" width="10" height="5" opacity=".65"/>
+            <rect x="6" y="39" width="42" height="22" rx="5" opacity=".84"/>
+            <circle cx="27" cy="50" r="4" fill="#0a0a0f" opacity=".4"/>
+            <circle cx="27" cy="50" r="2" fill="#00aaff"/>
+            <rect x="0" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="48" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="10" y="61" width="11" height="11" rx="3" opacity=".8"/>
+            <rect x="33" y="61" width="11" height="11" rx="3" opacity=".8"/>
           </svg>
         </div>
-        <div class="agent-name" style="color:var(--blue)">📱 ALPHA SCRAPER</div>
-        <div class="agent-status-badge idle" id="badge-alpha">○ IDLE</div>
-        <div class="agent-last-run" id="run-alpha">Last: —</div>
-        <div class="agent-run-count" id="count-alpha">0 events today</div>
+        <div class="agent-name" style="color:var(--blue)">ALPHA SCRAPER</div>
+        <div class="agent-status-badge idle" id="badge-alpha">&#9675; IDLE</div>
+        <div class="agent-last-run" id="run-alpha">Last: &mdash;</div>
+        <div class="agent-run-count" id="count-alpha">0 runs today</div>
         <div class="agent-doing" id="doing-alpha">Every 30 min</div>
       </div>
 
-      <!-- Analyzer -->
+      <!-- Call Analyzer -->
       <div class="agent-card idle" id="card-analyzer" onclick="openAgentModal('call-analyzer','Call Analyzer')">
         <div class="robot-wrap idle" id="robot-analyzer">
-          <svg class="robot-svg" width="52" height="70" viewBox="0 0 52 70" fill="#aa44ff">
-            <line x1="26" y1="0" x2="26" y2="7" stroke="#aa44ff" stroke-width="2"/>
-            <circle cx="26" cy="0" r="2.5" fill="#aa44ff"/>
-            <rect x="8" y="7" width="36" height="24" rx="4" opacity=".88"/>
-            <ellipse cx="19" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="19" cy="18" r="2" fill="#aa44ff"/>
-            <ellipse cx="33" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="33" cy="18" r="2" fill="#aa44ff"/>
-            <rect x="21" y="31" width="10" height="5" opacity=".65"/>
-            <rect x="6" y="36" width="40" height="22" rx="4" opacity=".82"/>
-            <circle cx="26" cy="47" r="4" fill="#0a0a0f" opacity=".45"/>
-            <circle cx="26" cy="47" r="2" fill="#aa44ff"/>
-            <rect x="0" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="46" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="10" y="58" width="10" height="12" rx="3" opacity=".78"/>
-            <rect x="32" y="58" width="10" height="12" rx="3" opacity=".78"/>
+          <svg class="robot-svg" width="54" height="72" viewBox="0 0 54 72" fill="#aa44ff">
+            <line x1="27" y1="0" x2="27" y2="8" stroke="#aa44ff" stroke-width="2"/>
+            <circle cx="27" cy="0" r="3" fill="#aa44ff"/>
+            <rect x="8" y="8" width="38" height="26" rx="5" opacity=".9"/>
+            <ellipse cx="20" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="20" cy="20" r="2.2" fill="#aa44ff"/>
+            <ellipse cx="34" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="34" cy="20" r="2.2" fill="#aa44ff"/>
+            <rect x="22" y="34" width="10" height="5" opacity=".65"/>
+            <rect x="6" y="39" width="42" height="22" rx="5" opacity=".84"/>
+            <circle cx="27" cy="50" r="4" fill="#0a0a0f" opacity=".4"/>
+            <circle cx="27" cy="50" r="2" fill="#aa44ff"/>
+            <rect x="0" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="48" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="10" y="61" width="11" height="11" rx="3" opacity=".8"/>
+            <rect x="33" y="61" width="11" height="11" rx="3" opacity=".8"/>
           </svg>
         </div>
-        <div class="agent-name" style="color:var(--purple)">🧠 CALL ANALYZER</div>
-        <div class="agent-status-badge idle" id="badge-analyzer">○ IDLE</div>
-        <div class="agent-last-run" id="run-analyzer">Last: —</div>
-        <div class="agent-run-count" id="count-analyzer">0 events today</div>
+        <div class="agent-name" style="color:var(--purple)">CALL ANALYZER</div>
+        <div class="agent-status-badge idle" id="badge-analyzer">&#9675; IDLE</div>
+        <div class="agent-last-run" id="run-analyzer">Last: &mdash;</div>
+        <div class="agent-run-count" id="count-analyzer">0 runs today</div>
         <div class="agent-doing" id="doing-analyzer">Every hour</div>
       </div>
 
-      <!-- County -->
+      <!-- County Scraper -->
       <div class="agent-card idle" id="card-county" onclick="openAgentModal('county-scraper','County Scraper')">
         <div class="robot-wrap idle" id="robot-county">
-          <svg class="robot-svg" width="52" height="70" viewBox="0 0 52 70" fill="#ff8800">
-            <line x1="26" y1="0" x2="26" y2="7" stroke="#ff8800" stroke-width="2"/>
-            <circle cx="26" cy="0" r="2.5" fill="#ff8800"/>
-            <rect x="8" y="7" width="36" height="24" rx="4" opacity=".88"/>
-            <ellipse cx="19" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="19" cy="18" r="2" fill="#ff8800"/>
-            <ellipse cx="33" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="33" cy="18" r="2" fill="#ff8800"/>
-            <rect x="21" y="31" width="10" height="5" opacity=".65"/>
-            <rect x="6" y="36" width="40" height="22" rx="4" opacity=".82"/>
-            <circle cx="26" cy="47" r="4" fill="#0a0a0f" opacity=".45"/>
-            <circle cx="26" cy="47" r="2" fill="#ff8800"/>
-            <rect x="0" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="46" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="10" y="58" width="10" height="12" rx="3" opacity=".78"/>
-            <rect x="32" y="58" width="10" height="12" rx="3" opacity=".78"/>
+          <svg class="robot-svg" width="54" height="72" viewBox="0 0 54 72" fill="#ff8800">
+            <line x1="27" y1="0" x2="27" y2="8" stroke="#ff8800" stroke-width="2"/>
+            <circle cx="27" cy="0" r="3" fill="#ff8800"/>
+            <rect x="8" y="8" width="38" height="26" rx="5" opacity=".9"/>
+            <ellipse cx="20" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="20" cy="20" r="2.2" fill="#ff8800"/>
+            <ellipse cx="34" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="34" cy="20" r="2.2" fill="#ff8800"/>
+            <rect x="22" y="34" width="10" height="5" opacity=".65"/>
+            <rect x="6" y="39" width="42" height="22" rx="5" opacity=".84"/>
+            <circle cx="27" cy="50" r="4" fill="#0a0a0f" opacity=".4"/>
+            <circle cx="27" cy="50" r="2" fill="#ff8800"/>
+            <rect x="0" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="48" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="10" y="61" width="11" height="11" rx="3" opacity=".8"/>
+            <rect x="33" y="61" width="11" height="11" rx="3" opacity=".8"/>
           </svg>
         </div>
-        <div class="agent-name" style="color:var(--orange)">🏛️ COUNTY SCRAPER</div>
-        <div class="agent-status-badge idle" id="badge-county">○ IDLE</div>
-        <div class="agent-last-run" id="run-county">Last: —</div>
-        <div class="agent-run-count" id="count-county">0 events today</div>
+        <div class="agent-name" style="color:var(--orange)">COUNTY SCRAPER</div>
+        <div class="agent-status-badge idle" id="badge-county">&#9675; IDLE</div>
+        <div class="agent-last-run" id="run-county">Last: &mdash;</div>
+        <div class="agent-run-count" id="count-county">0 runs today</div>
         <div class="agent-doing" id="doing-county">7:00 AM daily</div>
       </div>
 
-      <!-- Caller -->
+      <!-- Jarvis Caller -->
       <div class="agent-card idle" id="card-caller" onclick="openAgentModal('jarvis-caller','Jarvis Caller')">
         <div class="robot-wrap idle" id="robot-caller">
-          <svg class="robot-svg" width="52" height="70" viewBox="0 0 52 70" fill="#00ff88">
-            <line x1="26" y1="0" x2="26" y2="7" stroke="#00ff88" stroke-width="2"/>
-            <circle cx="26" cy="0" r="2.5" fill="#00ff88"/>
-            <rect x="8" y="7" width="36" height="24" rx="4" opacity=".88"/>
-            <ellipse cx="19" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="19" cy="18" r="2" fill="#00ff88"/>
-            <ellipse cx="33" cy="18" r="4" fill="#0a0a0f"/>
-            <ellipse cx="33" cy="18" r="2" fill="#00ff88"/>
-            <rect x="21" y="31" width="10" height="5" opacity=".65"/>
-            <rect x="6" y="36" width="40" height="22" rx="4" opacity=".82"/>
-            <circle cx="26" cy="47" r="4" fill="#0a0a0f" opacity=".45"/>
-            <circle cx="26" cy="47" r="2" fill="#00ff88"/>
-            <rect x="0" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="46" y="37" width="6" height="17" rx="3" opacity=".7"/>
-            <rect x="10" y="58" width="10" height="12" rx="3" opacity=".78"/>
-            <rect x="32" y="58" width="10" height="12" rx="3" opacity=".78"/>
+          <svg class="robot-svg" width="54" height="72" viewBox="0 0 54 72" fill="#00ff88">
+            <line x1="27" y1="0" x2="27" y2="8" stroke="#00ff88" stroke-width="2"/>
+            <circle cx="27" cy="0" r="3" fill="#00ff88"/>
+            <rect x="8" y="8" width="38" height="26" rx="5" opacity=".9"/>
+            <ellipse cx="20" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="20" cy="20" r="2.2" fill="#00ff88"/>
+            <ellipse cx="34" cy="20" r="4.5" fill="#0a0a0f"/>
+            <ellipse cx="34" cy="20" r="2.2" fill="#00ff88"/>
+            <rect x="22" y="34" width="10" height="5" opacity=".65"/>
+            <rect x="6" y="39" width="42" height="22" rx="5" opacity=".84"/>
+            <circle cx="27" cy="50" r="4" fill="#0a0a0f" opacity=".4"/>
+            <circle cx="27" cy="50" r="2" fill="#00ff88"/>
+            <rect x="0" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="48" y="40" width="6" height="18" rx="3" opacity=".7"/>
+            <rect x="10" y="61" width="11" height="11" rx="3" opacity=".8"/>
+            <rect x="33" y="61" width="11" height="11" rx="3" opacity=".8"/>
           </svg>
         </div>
-        <div class="agent-name" style="color:var(--green)">🎧 JARVIS CALLER</div>
-        <div class="agent-status-badge idle" id="badge-caller">○ IDLE</div>
-        <div class="agent-last-run" id="run-caller">Last: —</div>
-        <div class="agent-run-count" id="count-caller">0 events today</div>
-        <div class="agent-doing" id="doing-caller">12:00 PM Mon–Fri</div>
+        <div class="agent-name" style="color:var(--green)">JARVIS CALLER</div>
+        <div class="agent-status-badge idle" id="badge-caller">&#9675; IDLE</div>
+        <div class="agent-last-run" id="run-caller">Last: &mdash;</div>
+        <div class="agent-run-count" id="count-caller">0 runs today</div>
+        <div class="agent-doing" id="doing-caller">12:00 PM Mon&ndash;Fri</div>
       </div>
+
     </div>
   </div>
 </section>
 
-<!-- S2: ACTIVITY FEED -->
+<!-- ═══ S2: ACTIVITY FEED ════════════════════════════════════════ -->
 <section class="panel" id="s-feed">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">LIVE ACTIVITY FEED <span class="panel-badge" id="feed-count">0 EVENTS</span></div>
   <div id="feed-list">
-    <div class="empty-state"><div class="es-icon">📡</div><p>Waiting for first run...</p></div>
+    <div class="empty-state"><div class="es-icon">&#128225;</div><p>Waiting for first run...</p></div>
   </div>
 </section>
 
-<!-- S3: PIPELINE KANBAN -->
+<!-- ═══ S3: PIPELINE KANBAN ══════════════════════════════════════ -->
 <section class="panel" id="s-pipeline">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">PIPELINE BOARD <span class="panel-badge" id="pipeline-total">0 LEADS</span></div>
   <div id="kanban-wrap">
-    <div class="empty-state"><div class="es-icon">📊</div><p>Loading pipeline...</p></div>
+    <div class="empty-state"><div class="es-icon">&#128202;</div><p>Loading pipeline...</p></div>
   </div>
 </section>
 
-<!-- S4: LEADS TABS -->
+<!-- ═══ S4: LEADS TABS ═══════════════════════════════════════════ -->
 <section class="panel" id="s-leads">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">LEADS DATABASE</div>
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('pipeline-leads',0)">Pipeline Leads</button>
@@ -427,64 +453,64 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <button class="tab-btn" onclick="switchTab('alpha-leads',2)">Alpha Leads</button>
   </div>
   <div id="tab-pipeline-leads" class="tab-content active">
-    <div class="empty-state"><div class="es-icon">🏠</div><p>Loading pipeline leads...</p></div>
+    <div class="empty-state"><div class="es-icon">&#127968;</div><p>Loading pipeline leads...</p></div>
   </div>
   <div id="tab-county-leads" class="tab-content">
-    <div class="empty-state"><div class="es-icon">🏛️</div><p>Click tab to load county leads.</p></div>
+    <div class="empty-state"><div class="es-icon">&#127963;</div><p>Click tab to load county leads.</p></div>
   </div>
   <div id="tab-alpha-leads" class="tab-content">
-    <div class="empty-state"><div class="es-icon">📱</div><p>Click tab to load alpha leads.</p></div>
+    <div class="empty-state"><div class="es-icon">&#128241;</div><p>Click tab to load alpha leads.</p></div>
   </div>
 </section>
 
-<!-- S5: CALLS TODAY -->
+<!-- ═══ S5: CALLS TODAY ══════════════════════════════════════════ -->
 <section class="panel" id="s-calls">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">CALLS TODAY <span class="panel-badge" id="calls-count">0 CALLS</span></div>
   <div id="calls-grid">
-    <div class="empty-state"><div class="es-icon">📞</div><p>No calls yet today. Jarvis dials at noon Mon–Fri.</p></div>
+    <div class="empty-state"><div class="es-icon">&#128222;</div><p>No calls yet today. Jarvis dials at noon Mon&ndash;Fri.</p></div>
   </div>
 </section>
 
-<!-- S6: GOAL TRACKER -->
+<!-- ═══ S6: GOAL TRACKER ════════════════════════════════════════ -->
 <section class="panel" id="s-goals">
-  <div class="corner-tl"></div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
   <div class="panel-title">MONTHLY GOAL TRACKER</div>
   <div class="goal-layout">
     <div>
-      <div class="goal-label">REVENUE THIS MONTH</div>
+      <div class="goal-label">Revenue This Month</div>
       <div class="goal-amount" id="goal-amount">$0</div>
       <div class="goal-target">TARGET: $30,000</div>
-      <div class="prog-wrap"><div class="prog-fill" id="goal-bar" style="width:0%"></div></div>
+      <div class="prog-track"><div class="prog-fill" id="goal-bar" style="width:0%"></div></div>
       <div class="prog-pct" id="goal-pct">0% to goal</div>
     </div>
     <div class="goal-stats">
       <div class="gstat"><div class="gstat-val" id="stat-closed">0</div><div class="gstat-lbl">Deals Closed</div></div>
       <div class="gstat"><div class="gstat-val" id="stat-contract">0</div><div class="gstat-lbl">Under Contract</div></div>
       <div class="gstat"><div class="gstat-val" id="stat-needed">—</div><div class="gstat-lbl">Deals Needed</div></div>
-      <div class="gstat"><div class="gstat-val" id="stat-days">—</div><div class="gstat-lbl">Days Left</div></div>
+      <div class="gstat"><div class="gstat-val" id="stat-daily">—</div><div class="gstat-lbl">Daily Rev Needed</div></div>
     </div>
   </div>
 </section>
 
-<!-- S7: COUNTY COUNTER -->
+<!-- ═══ S7: COUNTY COUNTER ══════════════════════════════════════ -->
 <section class="panel" id="s-county">
-  <div class="corner-tl"></div>
-  <div class="panel-title">COUNTY LEADS — TODAY</div>
+  <div class="corner-tl"></div><div class="corner-br"></div>
+  <div class="panel-title">COUNTY LEADS &mdash; TODAY</div>
   <div class="county-grid">
     <div class="counter-card lis">
       <div class="counter-val" id="cnt-lis">0</div>
-      <div class="counter-lbl">LIS PENDENS</div>
+      <div class="counter-lbl">Lis Pendens</div>
       <div class="counter-sub">OC Comptroller</div>
     </div>
     <div class="counter-card tax">
       <div class="counter-val" id="cnt-tax">0</div>
-      <div class="counter-lbl">TAX DELINQUENT</div>
+      <div class="counter-lbl">Tax Delinquent</div>
       <div class="counter-sub">County Records</div>
     </div>
     <div class="counter-card dm">
       <div class="counter-val" id="cnt-dm">0</div>
-      <div class="counter-lbl">PUSHED TO DM</div>
+      <div class="counter-lbl">Pushed to DM</div>
       <div class="counter-sub">DealMachine</div>
     </div>
   </div>
@@ -492,45 +518,48 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 </div><!-- /main -->
 
-<!-- S8: SYSTEM STATUS BAR -->
+<!-- ═══ S8: SYSTEM STATUS BAR ═══════════════════════════════════ -->
 <footer id="s-status">
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-jarvis"></div>
-    <div><div class="proc-name">JARVIS BOT</div><div class="proc-next">Always On</div></div>
+    <div><div class="proc-name">JARVIS BOT</div><div class="proc-next" id="pn-jarvis">Always On</div></div>
   </div>
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-alpha"></div>
-    <div><div class="proc-name">ALPHA SCRAPER</div><div class="proc-next">Every 30 min</div></div>
+    <div><div class="proc-name">ALPHA SCRAPER</div><div class="proc-next" id="pn-alpha">Every 30 min</div></div>
   </div>
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-analyzer"></div>
-    <div><div class="proc-name">CALL ANALYZER</div><div class="proc-next">Every hour</div></div>
+    <div><div class="proc-name">CALL ANALYZER</div><div class="proc-next" id="pn-analyzer">Every hour</div></div>
   </div>
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-county"></div>
-    <div><div class="proc-name">COUNTY SCRAPER</div><div class="proc-next">7:00 AM daily</div></div>
+    <div><div class="proc-name">COUNTY SCRAPER</div><div class="proc-next" id="pn-county">7:00 AM daily</div></div>
   </div>
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-caller"></div>
-    <div><div class="proc-name">JARVIS CALLER</div><div class="proc-next">12:00 PM Mon–Fri</div></div>
+    <div><div class="proc-name">JARVIS CALLER</div><div class="proc-next" id="pn-caller">12:00 PM Mon&ndash;Fri</div></div>
   </div>
   <div class="proc-item" style="border-right:none;margin-left:auto;min-width:auto">
-    <div style="font-size:10px;color:var(--dimtext)">SYS: <span style="color:var(--green)">ONLINE</span></div>
+    <div style="font-size:9px;color:var(--dimtext);letter-spacing:1px">SYS&nbsp;<span style="color:var(--green)">ONLINE</span></div>
   </div>
 </footer>
 
 <!-- MODAL -->
 <div id="modal-overlay" onclick="handleOverlayClick(event)">
-  <div id="modal-box">
+  <div id="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div id="modal-head">
       <div id="modal-title">DETAIL VIEW</div>
-      <button id="modal-close" onclick="closeModal()">✕</button>
+      <button id="modal-close" onclick="closeModal()" aria-label="Close modal">&#10005;</button>
     </div>
     <div id="modal-body"></div>
   </div>
 </div>
 
 <script>
+// ──────────────────────────────────────────────────────────────
+//  CONFIG
+// ──────────────────────────────────────────────────────────────
 const SB_URL = 'https://afwdfyofjcpbyydbxntr.supabase.co';
 const SB_KEY = 'sb_publishable_JsetPmsnsp9CHy6LJp7Q7Q_PYyp_60M';
 const sb = supabase.createClient(SB_URL, SB_KEY);
@@ -542,11 +571,11 @@ const STAGE_COLORS = {
   'Decision Pending': '#aa44ff',
   'Contract Sent':    '#00ff88',
   'Under Contract':   '#00cc66',
-  'Cold Follow Up':   '#666688',
-  'Attempt 1':        '#555577',
-  'Attempt 2':        '#444466',
-  'Attempt 3-5':      '#444466',
-  'Unresponsive':     '#333355',
+  'Cold Follow Up':   '#5a5a88',
+  'Attempt 1':        '#484870',
+  'Attempt 2':        '#404068',
+  'Attempt 3-5':      '#404068',
+  'Unresponsive':     '#303058',
   'Closed':           '#ffd700',
   'Dead':             '#2a2a44',
 };
@@ -555,61 +584,71 @@ let pipelineData = null;
 let countdownTimer = null;
 let countdownVal = 60;
 
-// ── CLOCK ──────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  CLOCK
+// ──────────────────────────────────────────────────────────────
 function updateClock() {
   const n = new Date();
-  const t = n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const d = n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  const t = n.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const d = n.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
   document.getElementById('live-clock').textContent = t;
-  document.getElementById('live-date').textContent = d;
+  document.getElementById('live-date').textContent  = d;
 }
-setInterval(updateClock,1000); updateClock();
+setInterval(updateClock, 1000);
+updateClock();
 
-// ── COUNTDOWN ──────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  COUNTDOWN
+// ──────────────────────────────────────────────────────────────
 function startCountdown() {
   clearInterval(countdownTimer);
   countdownVal = 60;
+  const el = document.getElementById('countdown');
   countdownTimer = setInterval(() => {
     countdownVal--;
-    const el = document.getElementById('countdown');
     if (el) el.textContent = countdownVal;
     if (countdownVal <= 0) refreshAll();
   }, 1000);
 }
 
-// ── UTILS ──────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  UTILS
+// ──────────────────────────────────────────────────────────────
 function timeAgo(ts) {
   if (!ts) return '—';
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
   if (s < 60) return s + 's ago';
-  if (s < 3600) return Math.floor(s/60) + 'm ago';
-  if (s < 86400) return Math.floor(s/3600) + 'h ago';
-  return Math.floor(s/86400) + 'd ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
 }
 function fmtTime(ts) {
-  return ts ? new Date(ts).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—';
+  return ts ? new Date(ts).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' }) : '—';
+}
+function fmtDateTime(ts) {
+  return ts ? new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 }
 function fmtDate(ts) {
-  return ts ? new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+  return ts ? new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '—';
 }
 function todayStart() {
-  const d = new Date(); d.setHours(0,0,0,0); return d.toISOString();
+  const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString();
 }
 function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function stageBadge(stage) {
-  const c = STAGE_COLORS[stage] || '#666688';
-  return `<span class="stage-badge" style="color:${c};background:${c}18;border:1px solid ${c}44">${esc(stage)}</span>`;
+  const c = STAGE_COLORS[stage] || '#5a5a88';
+  return `<span class="stage-badge" style="color:${c};background:${c}18;border:1px solid ${c}40">${esc(stage)}</span>`;
 }
 function animateCounter(id, target) {
   const el = document.getElementById(id);
   if (!el) return;
-  const from = parseInt(el.textContent)||0;
+  const from = parseInt(el.textContent) || 0;
   const dur = 700, t0 = Date.now();
   const step = () => {
-    const p = Math.min(1,(Date.now()-t0)/dur);
-    el.textContent = Math.round(from + (target-from)*p);
+    const p = Math.min(1, (Date.now() - t0) / dur);
+    el.textContent = Math.round(from + (target - from) * p);
     if (p < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -623,206 +662,256 @@ function setProcDot(id, online) {
   if (el) el.className = 'proc-dot ' + (online ? 'online' : 'offline');
 }
 
-// ── S1: AGENTS ─────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S1: AGENTS
+// ──────────────────────────────────────────────────────────────
 async function loadAgents() {
-  const ago30 = new Date(Date.now() - 30*60*1000).toISOString();
+  const ago30 = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data } = await sb.from('jarvis_log')
     .select('source,created_at,message,type')
     .gte('created_at', todayStart())
-    .order('created_at',{ascending:false}).limit(300);
+    .order('created_at', { ascending: false })
+    .limit(500);
 
   const rows = data || [];
   const bySrc = {};
-  rows.forEach(r => { const s = r.source||'?'; (bySrc[s]||(bySrc[s]=[])).push(r); });
+  rows.forEach(r => {
+    const s = r.source || '?';
+    if (!bySrc[s]) bySrc[s] = [];
+    bySrc[s].push(r);
+  });
 
   const AGENTS = [
-    {cardId:'card-jarvis',  robotId:'robot-jarvis',  badgeId:'badge-jarvis',   runId:'run-jarvis',   doingId:'doing-jarvis',  countId:null,          srcs:['jarvis','jarvis-telegram'], dotId:'dot-jarvis',  piId:'pi-jarvis'},
-    {cardId:'card-alpha',   robotId:'robot-alpha',   badgeId:'badge-alpha',    runId:'run-alpha',    doingId:'doing-alpha',   countId:'count-alpha',  srcs:['alpha-scraper'],             dotId:'dot-alpha',   piId:'pi-alpha'},
-    {cardId:'card-analyzer',robotId:'robot-analyzer',badgeId:'badge-analyzer', runId:'run-analyzer', doingId:'doing-analyzer',countId:'count-analyzer',srcs:['call-analyzer'],            dotId:'dot-analyzer',piId:'pi-analyzer'},
-    {cardId:'card-county',  robotId:'robot-county',  badgeId:'badge-county',   runId:'run-county',   doingId:'doing-county',  countId:'count-county', srcs:['county-scraper'],           dotId:'dot-county',  piId:'pi-county'},
-    {cardId:'card-caller',  robotId:'robot-caller',  badgeId:'badge-caller',   runId:'run-caller',   doingId:'doing-caller',  countId:'count-caller', srcs:['jarvis-caller'],            dotId:'dot-caller',  piId:'pi-caller'},
+    { cardId:'card-jarvis',   robotId:'robot-jarvis',   badgeId:'badge-jarvis',   runId:'run-jarvis',   doingId:'doing-jarvis',   countId: null,            srcs:['jarvis','jarvis-telegram'], dotId:'dot-jarvis',   piId:'pi-jarvis',   piNextId:'pn-jarvis',   isChief:true  },
+    { cardId:'card-alpha',    robotId:'robot-alpha',    badgeId:'badge-alpha',    runId:'run-alpha',    doingId:'doing-alpha',    countId:'count-alpha',    srcs:['alpha-scraper'],            dotId:'dot-alpha',    piId:'pi-alpha',    piNextId:'pn-alpha',    isChief:false },
+    { cardId:'card-analyzer', robotId:'robot-analyzer', badgeId:'badge-analyzer', runId:'run-analyzer', doingId:'doing-analyzer', countId:'count-analyzer', srcs:['call-analyzer'],            dotId:'dot-analyzer', piId:'pi-analyzer', piNextId:'pn-analyzer', isChief:false },
+    { cardId:'card-county',   robotId:'robot-county',   badgeId:'badge-county',   runId:'run-county',   doingId:'doing-county',   countId:'count-county',   srcs:['county-scraper'],           dotId:'dot-county',   piId:'pi-county',   piNextId:'pn-county',   isChief:false },
+    { cardId:'card-caller',   robotId:'robot-caller',   badgeId:'badge-caller',   runId:'run-caller',   doingId:'doing-caller',   countId:'count-caller',   srcs:['jarvis-caller'],            dotId:'dot-caller',   piId:'pi-caller',   piNextId:'pn-caller',   isChief:false },
   ];
 
   let active = 0;
   AGENTS.forEach(a => {
-    const agentRows = a.srcs.flatMap(s => bySrc[s]||[]);
-    agentRows.sort((x,y) => new Date(y.created_at)-new Date(x.created_at));
-    const latest = agentRows[0];
+    const agentRows = a.srcs.flatMap(s => bySrc[s] || []);
+    agentRows.sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+    const latest   = agentRows[0];
     const isActive = latest && new Date(latest.created_at) >= new Date(ago30);
     if (isActive) active++;
 
     const card  = document.getElementById(a.cardId);
     const robot = document.getElementById(a.robotId);
-    if (card)  { card.className  = 'agent-card '  + (isActive?'active':'idle') + (a.cardId==='card-jarvis'?' chief-card':''); }
-    if (robot) { robot.className = 'robot-wrap '  + (isActive?'active':'idle') + (a.cardId==='card-jarvis'?' chief':''); }
+    const chiefClass = a.isChief ? ' chief-card' : '';
+    const chiefRobotClass = a.isChief ? ' chief' : '';
+    if (card)  card.className  = 'agent-card '  + (isActive ? 'active' : 'idle') + chiefClass;
+    if (robot) robot.className = 'robot-wrap '  + (isActive ? 'active' : 'idle') + chiefRobotClass;
 
     const badge = document.getElementById(a.badgeId);
-    if (badge && a.badgeId !== 'badge-jarvis') {
-      badge.textContent = isActive ? '● ACTIVE' : '○ IDLE';
-      badge.className   = 'agent-status-badge ' + (isActive ? 'active' : 'idle');
-    }
-    if (a.badgeId === 'badge-jarvis') {
-      const jb = document.getElementById('badge-jarvis');
-      if (jb) { jb.textContent = '● ONLINE'; jb.className = 'agent-status-badge active'; }
+    if (badge) {
+      if (a.isChief) {
+        badge.textContent = '● ONLINE';
+        badge.className   = 'agent-status-badge active';
+      } else {
+        badge.textContent = isActive ? '● ACTIVE' : '○ IDLE';
+        badge.className   = 'agent-status-badge ' + (isActive ? 'active' : 'idle');
+      }
     }
 
-    const runEl  = document.getElementById(a.runId);
-    if (runEl) runEl.textContent = latest ? 'Last: ' + timeAgo(latest.created_at) : 'No activity today';
+    const runEl = document.getElementById(a.runId);
+    if (runEl) {
+      runEl.textContent = latest ? 'Last: ' + timeAgo(latest.created_at) : 'No activity today';
+    }
 
     if (a.countId) {
       const cEl = document.getElementById(a.countId);
-      if (cEl) cEl.textContent = agentRows.length + ' events today';
+      if (cEl) cEl.textContent = agentRows.length + ' runs today';
     }
 
     const doingEl = document.getElementById(a.doingId);
     if (doingEl && latest) {
-      const msg = (latest.message||'').replace(/^[^:]+:\s*/,'').substring(0,65);
+      const msg = (latest.message || '').replace(/^[^:]+:\s*/, '').substring(0, 70);
       doingEl.textContent = msg || 'Running...';
+    } else if (doingEl && !latest) {
+      // keep schedule text
     }
 
-    setDot(a.dotId, isActive);
+    setDot(a.dotId,   isActive);
     setProcDot(a.piId, isActive);
+
+    // Update next-run label with last-seen time if offline
+    const pnEl = document.getElementById(a.piNextId);
+    if (pnEl && !a.isChief && !isActive && latest) {
+      pnEl.textContent = 'Last: ' + timeAgo(latest.created_at);
+    }
   });
 
   const badge = document.getElementById('agents-badge');
   if (badge) badge.textContent = active + ' ACTIVE';
 }
 
-// ── S2: FEED ───────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S2: ACTIVITY FEED
+// ──────────────────────────────────────────────────────────────
 async function loadFeed() {
   const { data } = await sb.from('jarvis_log')
-    .select('*').order('created_at',{ascending:false}).limit(20);
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
 
   const el = document.getElementById('feed-list');
   if (!el) return;
-
-  const rows = data||[];
+  const rows = data || [];
   document.getElementById('feed-count').textContent = rows.length + ' EVENTS';
 
   if (!rows.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">📡</div><p>Waiting for first run...</p></div>';
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">&#128225;</div><p>Waiting for first run...</p></div>';
     return;
   }
 
-  const SRC_MAP = {'county-scraper':'COUNTY','alpha-scraper':'ALPHA','call-analyzer':'ANALYZER','jarvis-caller':'CALLER','jarvis':'JARVIS','jarvis-telegram':'JARVIS'};
-  const SRC_CLR = {'county-scraper':'#ff8800','alpha-scraper':'#00aaff','call-analyzer':'#aa44ff','jarvis-caller':'#00ff88','jarvis':'#ffd700','jarvis-telegram':'#ffd700'};
+  const SRC_MAP = {
+    'county-scraper':'COUNTY', 'alpha-scraper':'ALPHA', 'call-analyzer':'ANALYZER',
+    'jarvis-caller':'CALLER',  'jarvis':'JARVIS',        'jarvis-telegram':'JARVIS'
+  };
+  const SRC_CLR = {
+    'county-scraper':'#ff8800', 'alpha-scraper':'#00aaff', 'call-analyzer':'#aa44ff',
+    'jarvis-caller':'#00ff88',  'jarvis':'#ffd700',         'jarvis-telegram':'#ffd700'
+  };
 
   el.innerHTML = rows.map(r => {
-    const type = (r.type||''), src = (r.source||'system');
+    const type = r.type || '';
+    const src  = r.source || 'system';
     let cls = 'info';
-    if (type.includes('error')||r.status==='error') cls='error';
-    else if (type.includes('warn')) cls='warning';
-    else if (type.includes('lead')||type.includes('success')||r.status==='done') cls='success';
-    const c = SRC_CLR[src]||'#666688';
-    const lbl = SRC_MAP[src]||src.substring(0,7).toUpperCase();
+    if (type.includes('error') || r.status === 'error') cls = 'error';
+    else if (type.includes('warn')) cls = 'warning';
+    else if (type.includes('lead') || type.includes('success') || r.status === 'done') cls = 'success';
+    const c   = SRC_CLR[src] || '#5a5a88';
+    const lbl = SRC_MAP[src] || src.substring(0, 7).toUpperCase();
     return `<div class="feed-item ${cls}">
-      <span class="feed-src" style="background:${c}18;color:${c};border:1px solid ${c}33">${lbl}</span>
-      <span class="feed-msg">${esc(r.message||r.type||'Activity')}</span>
+      <span class="feed-src" style="background:${c}18;color:${c};border:1px solid ${c}30">${lbl}</span>
+      <span class="feed-msg">${esc(r.message || r.type || 'Activity')}</span>
       <span class="feed-time">${fmtTime(r.created_at)}</span>
     </div>`;
   }).join('');
 }
 
-// ── S3: PIPELINE ───────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S3: PIPELINE (via /api/pipeline)
+// ──────────────────────────────────────────────────────────────
 async function loadPipeline() {
   let data;
   try {
     const r = await fetch('/api/pipeline');
-    if (!r.ok) throw new Error('status '+r.status);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     data = await r.json();
   } catch(e) {
     document.getElementById('kanban-wrap').innerHTML =
-      '<div class="empty-state"><div class="es-icon">⚠️</div><p>Pipeline API unavailable on localhost.<br>Works after Vercel deploy.</p></div>';
+      '<div class="empty-state"><div class="es-icon">&#9888;</div><p>Pipeline API unavailable in preview.<br>Works after Vercel deploy.</p></div>';
     return;
   }
   if (data.error) {
     document.getElementById('kanban-wrap').innerHTML =
-      `<div class="empty-state"><div class="es-icon">⚠️</div><p>${esc(data.error)}</p></div>`;
+      `<div class="empty-state"><div class="es-icon">&#9888;</div><p>${esc(data.error)}</p></div>`;
     return;
   }
 
   pipelineData = data;
-  document.getElementById('pipeline-total').textContent = (data.total||0) + ' LEADS';
+  document.getElementById('pipeline-total').textContent = (data.total || 0) + ' LEADS';
 
-  const wrap  = document.getElementById('kanban-wrap');
-  const order = data.stageOrder || Object.keys(data.stages||{});
+  const wrap   = document.getElementById('kanban-wrap');
+  const order  = data.stageOrder || Object.keys(data.stages || {});
   const stages = data.stages || {};
 
   const cols = order.map(stage => {
-    const leads = stages[stage]||[];
+    const leads = stages[stage] || [];
     if (!leads.length) return '';
-    const c = STAGE_COLORS[stage]||'#666688';
-    const names = leads.slice(0,5).map(l=>`<div class="kanban-name">${esc(l.name)}</div>`).join('');
-    const more = leads.length>5 ? `<div style="font-size:9px;color:var(--dimtext);margin-top:3px">+${leads.length-5} more</div>` : '';
-    return `<div class="kanban-col" onclick="openStageModal('${esc(stage)}')" title="${esc(stage)}" style="border-top:3px solid ${c}">
+    const c     = STAGE_COLORS[stage] || '#5a5a88';
+    const names = leads.slice(0, 4).map(l =>
+      `<div class="kanban-name">${esc(l.name)}</div>`).join('');
+    const more  = leads.length > 4
+      ? `<div style="font-size:8px;color:var(--dimtext);margin-top:3px">+${leads.length - 4} more</div>` : '';
+    return `<div class="kanban-col" onclick="openStageModal('${esc(stage)}')" title="${esc(stage)}" style="border-top:2px solid ${c}">
       <div class="kanban-header">
         <div class="kanban-stage-name" style="color:${c}">${esc(stage)}</div>
         <div class="kanban-count" style="color:${c}">${leads.length}</div>
         <div class="kanban-label">leads</div>
-        <div class="kanban-bar" style="background:${c};opacity:.35"></div>
+        <div class="kanban-bar" style="background:${c};opacity:.3"></div>
       </div>
       <div class="kanban-preview">${names}${more}</div>
     </div>`;
   }).filter(Boolean).join('');
 
-  wrap.innerHTML = cols || '<div class="empty-state"><div class="es-icon">📊</div><p>No leads in pipeline yet.</p></div>';
+  wrap.innerHTML = cols ||
+    '<div class="empty-state"><div class="es-icon">&#128202;</div><p>No leads in pipeline yet.</p></div>';
+
   renderPipelineLeadsTab(stages, order);
   loadGoalTracker();
 }
 
-// ── S4: LEADS TABS ─────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S4: LEADS TABS
+// ──────────────────────────────────────────────────────────────
 function renderPipelineLeadsTab(stages, order) {
-  const el = document.getElementById('tab-pipeline-leads');
+  const el  = document.getElementById('tab-pipeline-leads');
   const all = [];
-  (order||[]).forEach(s => (stages[s]||[]).forEach(l => all.push({...l})));
+  (order || []).forEach(s => (stages[s] || []).forEach(l => all.push({ ...l })));
   if (!all.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">🏠</div><p>No leads in pipeline.</p></div>';
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">&#127968;</div><p>No leads in pipeline.</p></div>';
     return;
   }
   el.innerHTML = `<table class="leads-table">
     <thead><tr><th>NAME</th><th>ADDRESS</th><th>STAGE</th><th>PHONE</th><th>DAYS</th><th>UPDATED</th></tr></thead>
-    <tbody>${all.map(l=>`<tr onclick='openLeadModal(${JSON.stringify(JSON.stringify(l))})'>
+    <tbody>${all.map(l => `<tr onclick='openLeadModal(${JSON.stringify(JSON.stringify(l))})'>
       <td><strong>${esc(l.name)}</strong></td>
-      <td style="color:var(--dimtext)">${esc(l.address||'—')}</td>
+      <td style="color:var(--dimtext)">${esc(l.address || '—')}</td>
       <td>${stageBadge(l.stage)}</td>
-      <td style="color:var(--cyan)">${esc(l.phone||'—')}</td>
-      <td style="color:var(--dimtext)">${l.daysInStage!=null?l.daysInStage+'d':'—'}</td>
-      <td style="color:var(--dimtext)">${timeAgo(l.lastChange||l.updatedAt)}</td>
+      <td style="color:var(--cyan)">${esc(l.phone || '—')}</td>
+      <td style="color:var(--dimtext)">${l.daysInStage != null ? l.daysInStage + 'd' : '—'}</td>
+      <td style="color:var(--dimtext)">${timeAgo(l.lastChange || l.updatedAt)}</td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
 async function loadCountyLeadsTab() {
   const el = document.getElementById('tab-county-leads');
-  // Try county_leads table, fall back to jarvis_log
+  el.innerHTML = '<div class="empty-state"><div class="es-icon">&#8987;</div><p>Loading...</p></div>';
   let rows = [], usingLog = false;
-  const {data:cd,error:ce} = await sb.from('county_leads').select('*').order('created_at',{ascending:false}).limit(200);
-  if (!ce && cd?.length) {
+
+  // Try county_leads table first
+  const { data: cd, error: ce } = await sb.from('county_leads')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(300);
+
+  if (!ce && cd && cd.length) {
     rows = cd;
   } else {
-    const {data:ld} = await sb.from('jarvis_log').select('*').eq('type','county_lead').order('created_at',{ascending:false}).limit(200);
-    rows = ld||[]; usingLog = true;
+    // Fallback to jarvis_log type county_lead
+    const { data: ld } = await sb.from('jarvis_log')
+      .select('*')
+      .eq('type', 'county_lead')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    rows = ld || [];
+    usingLog = true;
   }
 
   if (!rows.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">🏛️</div><p>No county leads yet. Scraper runs at 7am.</p></div>';
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">&#127963;</div><p>No county leads yet. Scraper runs at 7am.</p></div>';
     return;
   }
 
   const today = todayStart();
   el.innerHTML = `<table class="leads-table">
-    <thead><tr><th>OWNER</th><th>${usingLog?'RECORD':'ADDRESS'}</th><th>SOURCE</th><th>DATE</th><th>STATUS</th></tr></thead>
-    <tbody>${rows.map(r=>{
+    <thead><tr><th>OWNER</th><th>${usingLog ? 'RECORD' : 'ADDRESS'}</th><th>SOURCE</th><th>DATE</th><th>STATUS</th></tr></thead>
+    <tbody>${rows.map(r => {
       const isNew = r.created_at >= today;
-      const name  = usingLog ? (r.contact_name||'—') : (r.owner_name||r.contact_name||'—');
-      const addr  = usingLog ? (r.message||'').substring(0,60) : (r.address||'—');
-      const src   = usingLog ? (r.stage||'Lis Pendens') : (r.source||'—');
+      const name  = usingLog ? (r.contact_name || '—') : (r.owner_name || r.contact_name || '—');
+      const addr  = usingLog ? (r.message || '').substring(0, 55) : (r.address || '—');
+      const src   = usingLog ? (r.stage || 'Lis Pendens') : (r.source || '—');
       return `<tr onclick='openCountyModal(${JSON.stringify(JSON.stringify(r))})'>
-        <td style="${isNew?'color:var(--green)':''}">${esc(name)}</td>
-        <td style="color:var(--dimtext);font-size:10px">${esc(addr)}</td>
-        <td><span class="tag-chip" style="color:#ff8800;border-color:#ff880033;background:#ff880010">${esc(src)}</span></td>
-        <td style="color:var(--dimtext)">${fmtDate(r.filing_date||r.created_at)}</td>
-        <td style="color:${isNew?'var(--green)':'var(--dimtext)'}">${isNew?'NEW':'Logged'}</td>
+        <td style="${isNew ? 'color:var(--green)' : ''}">${esc(name)}</td>
+        <td style="color:var(--dimtext);font-size:9px">${esc(addr)}</td>
+        <td><span class="tag-chip" style="color:#ff8800;border-color:#ff880030;background:#ff880010">${esc(src)}</span></td>
+        <td style="color:var(--dimtext)">${fmtDate(r.filing_date || r.created_at)}</td>
+        <td style="color:${isNew ? 'var(--green)' : 'var(--dimtext)'}">${isNew ? 'NEW' : 'Logged'}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -830,104 +919,147 @@ async function loadCountyLeadsTab() {
 
 async function loadAlphaLeadsTab() {
   const el = document.getElementById('tab-alpha-leads');
-  const {data} = await sb.from('jarvis_log').select('*').eq('source','alpha-scraper').order('created_at',{ascending:false}).limit(100);
-  if (!data?.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">📱</div><p>No alpha leads yet. Scraper runs every 30 min.</p></div>';
+  el.innerHTML = '<div class="empty-state"><div class="es-icon">&#8987;</div><p>Loading...</p></div>';
+  const { data } = await sb.from('jarvis_log')
+    .select('*')
+    .eq('source', 'alpha-scraper')
+    .order('created_at', { ascending: false })
+    .limit(150);
+  if (!data || !data.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">&#128241;</div><p>No alpha leads yet. Scraper runs every 30 min.</p></div>';
     return;
   }
   el.innerHTML = `<table class="leads-table">
     <thead><tr><th>CONTACT</th><th>EVENT</th><th>TYPE</th><th>TIME</th></tr></thead>
-    <tbody>${data.map(r=>`<tr onclick='openLogModal(${JSON.stringify(JSON.stringify(r))})'>
-      <td><strong>${esc(r.contact_name||'—')}</strong></td>
-      <td style="color:var(--dimtext);font-size:10px">${esc((r.message||'').substring(0,70))}</td>
-      <td><span class="tag-chip">${esc(r.type||'event')}</span></td>
+    <tbody>${data.map(r => `<tr onclick='openLogModal(${JSON.stringify(JSON.stringify(r))})'>
+      <td><strong>${esc(r.contact_name || '—')}</strong></td>
+      <td style="color:var(--dimtext);font-size:9px">${esc((r.message || '').substring(0, 70))}</td>
+      <td><span class="tag-chip">${esc(r.type || 'event')}</span></td>
       <td style="color:var(--dimtext)">${timeAgo(r.created_at)}</td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
 function switchTab(id, idx) {
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+id)?.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id)?.classList.add('active');
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
-  if (id==='county-leads') loadCountyLeadsTab();
-  if (id==='alpha-leads')  loadAlphaLeadsTab();
+  if (id === 'county-leads') loadCountyLeadsTab();
+  if (id === 'alpha-leads')  loadAlphaLeadsTab();
 }
 
-// ── S5: CALLS TODAY ────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S5: CALLS TODAY
+// ──────────────────────────────────────────────────────────────
 async function loadCalls() {
-  const {data,error} = await sb.from('jarvis_calls')
-    .select('*').gte('called_at',todayStart()).order('called_at',{ascending:false});
-  const el = document.getElementById('calls-grid');
+  const { data, error } = await sb.from('jarvis_calls')
+    .select('*')
+    .gte('called_at', todayStart())
+    .order('called_at', { ascending: false });
+
+  const el    = document.getElementById('calls-grid');
   const badge = document.getElementById('calls-count');
 
-  if (error||!data?.length) {
-    el.innerHTML = '<div class="empty-state"><div class="es-icon">📞</div><p>No calls yet today. Jarvis dials at noon Mon–Fri.</p></div>';
+  if (error || !data || !data.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">&#128222;</div><p>No calls yet today. Jarvis dials at noon Mon&ndash;Fri.</p></div>';
     if (badge) badge.textContent = '0 CALLS';
     return;
   }
-  badge.textContent = data.length + (data.length===1?' CALL':' CALLS');
-  el.innerHTML = data.map(c=>{
-    const dur = c.call_duration ? Math.floor(c.call_duration/60)+'m '+c.call_duration%60+'s' : '—';
-    const tags = String(c.tags_applied||'').split(',').filter(Boolean);
+
+  if (badge) badge.textContent = data.length + (data.length === 1 ? ' CALL' : ' CALLS');
+
+  el.innerHTML = data.map(c => {
+    const secs = c.call_duration || 0;
+    const dur  = secs ? (Math.floor(secs / 60) + 'm ' + (secs % 60) + 's') : '—';
+    const tags = String(c.tags_applied || '').split(',').filter(Boolean);
+    const stageArrow = (c.stage_before || c.stage_after)
+      ? `<div class="call-flow">
+          <span style="color:var(--dimtext)">${esc(c.stage_before || '—')}</span>
+          <span style="color:var(--green);margin:0 4px">&#8594;</span>
+          <span style="color:var(--green)">${esc(c.stage_after || '—')}</span>
+        </div>` : '';
     return `<div class="call-card" onclick='openCallModal(${JSON.stringify(JSON.stringify(c))})'>
       <div class="call-hdr">
-        <div class="call-name">${esc(c.contact_name||'Unknown')}</div>
-        <div class="call-dur">⏱ ${dur}</div>
+        <div class="call-name">${esc(c.contact_name || 'Unknown')}</div>
+        <div class="call-dur">${dur}</div>
       </div>
-      <div class="call-addr">📍 ${esc(c.address||'No address')}</div>
-      <div class="call-flow">
-        <span style="color:var(--dimtext)">${esc(c.stage_before||'—')}</span>
-        <span style="color:var(--green)">→</span>
-        <span style="color:var(--green)">${esc(c.stage_after||'—')}</span>
-      </div>
-      <div class="call-tags">${tags.map(t=>`<span class="tag-chip">${esc(t.trim())}</span>`).join('')}</div>
-      <div class="call-summary">${esc((c.summary||'').substring(0,100))}${(c.summary||'').length>100?'...':''}</div>
+      <div class="call-addr">${esc(c.address || 'No address')}</div>
+      ${stageArrow}
+      <div class="call-tags">${tags.map(t => `<span class="tag-chip">${esc(t.trim())}</span>`).join('')}</div>
+      <div class="call-summary">${esc((c.summary || '').substring(0, 110))}${(c.summary || '').length > 110 ? '...' : ''}</div>
     </div>`;
   }).join('');
 }
 
-// ── S6: GOAL ───────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S6: GOAL TRACKER
+// ──────────────────────────────────────────────────────────────
 function loadGoalTracker() {
   if (!pipelineData) return;
-  const stages = pipelineData.stages||{};
-  const closed   = stages['Closed']||[];
-  const contract = stages['Under Contract']||[];
-  const total    = [...closed,...contract].reduce((s,l)=>s+(l.value||0),0);
-  const pct      = Math.min(100, Math.round(total/30000*100));
+  const stages   = pipelineData.stages || {};
+  const closed   = stages['Closed'] || [];
+  const contract = stages['Under Contract'] || [];
+  const total    = [...closed, ...contract].reduce((s, l) => s + (l.value || 0), 0);
+  const pct      = Math.min(100, Math.round(total / 30000 * 100));
   const now      = new Date();
-  const daysLeft = new Date(now.getFullYear(),now.getMonth()+1,0).getDate() - now.getDate();
-  const needed   = Math.max(0, Math.ceil((30000-total)/15000));
+  const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+  const remaining = Math.max(0, 30000 - total);
+  const needed   = daysLeft > 0 ? Math.ceil(remaining / daysLeft) : 0;
+  const dealsNeeded = remaining > 0 ? Math.max(1, Math.ceil(remaining / 15000)) : 0;
 
-  document.getElementById('goal-amount').textContent = '$'+total.toLocaleString();
-  document.getElementById('goal-bar').style.width = pct+'%';
-  document.getElementById('goal-pct').textContent = pct+'% to goal';
-  document.getElementById('stat-closed').textContent = closed.length;
+  document.getElementById('goal-amount').textContent = '$' + total.toLocaleString();
+  document.getElementById('goal-bar').style.width    = pct + '%';
+  document.getElementById('goal-pct').textContent    = pct + '% to goal';
+  document.getElementById('stat-closed').textContent   = closed.length;
   document.getElementById('stat-contract').textContent = contract.length;
-  document.getElementById('stat-needed').textContent = needed;
-  document.getElementById('stat-days').textContent = daysLeft+'d';
+  document.getElementById('stat-needed').textContent   = dealsNeeded;
+  document.getElementById('stat-daily').textContent    = daysLeft > 0 ? '$' + needed.toLocaleString() : 'DONE';
 }
 
-// ── S7: COUNTY COUNTER ─────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  S7: COUNTY COUNTER
+// ──────────────────────────────────────────────────────────────
 async function loadCountyCounter() {
   const today = todayStart();
-  const {data} = await sb.from('jarvis_log')
-    .select('type,stage,message,created_at').eq('type','county_lead').gte('created_at',today);
-  const rows = data||[];
-  const lis = rows.filter(r=>(r.stage||r.message||'').toLowerCase().includes('lis')).length;
-  const tax = rows.filter(r=>(r.stage||r.message||'').toLowerCase().includes('tax')).length;
 
-  // DealMachine count from summary entry
+  // Primary: county_leads table grouped by source
+  const { data: clData, error: clErr } = await sb.from('county_leads')
+    .select('source, created_at')
+    .gte('created_at', today);
+
+  if (!clErr && clData && clData.length) {
+    const lis = clData.filter(r => (r.source || '').toLowerCase().includes('lis')).length;
+    const tax = clData.filter(r => (r.source || '').toLowerCase().includes('tax')).length;
+    const dm  = clData.length; // total pushed today
+    animateCounter('cnt-lis', lis);
+    animateCounter('cnt-tax', tax);
+    animateCounter('cnt-dm',  dm);
+    return;
+  }
+
+  // Fallback: jarvis_log type county_lead
+  const { data: logData } = await sb.from('jarvis_log')
+    .select('type,stage,message,created_at')
+    .eq('type', 'county_lead')
+    .gte('created_at', today);
+  const rows = logData || [];
+  const lis  = rows.filter(r => (r.stage || r.message || '').toLowerCase().includes('lis')).length;
+  const tax  = rows.filter(r => (r.stage || r.message || '').toLowerCase().includes('tax')).length;
+
+  // Try to parse DealMachine push count from summary
   let dm = 0;
-  const {data:summary} = await sb.from('jarvis_log')
-    .select('message').eq('type','county_scrape').gte('created_at',today).limit(5);
-  if (summary?.length) {
-    const m = summary[0].message||'';
-    const match = m.match(/fresh\s+(?:or|oregon)[^:]*:\s*(\d+)/i) ||
-                  m.match(/dealmachine[:\s]+(\d+)/i) ||
-                  m.match(/pushed[:\s]+(\d+)/i);
-    if (match) dm = parseInt(match[1]);
+  const { data: summary } = await sb.from('jarvis_log')
+    .select('message')
+    .eq('type', 'county_scrape')
+    .gte('created_at', today)
+    .limit(5);
+  if (summary && summary.length) {
+    const m   = summary[0].message || '';
+    const hit = m.match(/dealmachine[:\s]+(\d+)/i) ||
+                m.match(/pushed[:\s]+(\d+)/i) ||
+                m.match(/fresh[^:]*:\s*(\d+)/i);
+    if (hit) dm = parseInt(hit[1]);
   }
 
   animateCounter('cnt-lis', lis);
@@ -935,11 +1067,14 @@ async function loadCountyCounter() {
   animateCounter('cnt-dm',  dm);
 }
 
-// ── MODALS ─────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  MODALS
+// ──────────────────────────────────────────────────────────────
 function openModal(title, html) {
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-title').textContent  = title;
+  document.getElementById('modal-body').innerHTML     = html;
   document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-box').scrollTop      = 0;
 }
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
@@ -947,36 +1082,47 @@ function closeModal() {
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 }
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 async function openAgentModal(src, name) {
-  openModal(name.toUpperCase() + ' — LOGS', '<div class="empty-state"><div class="es-icon">⏳</div><p>Loading...</p></div>');
-  const {data} = await sb.from('jarvis_log')
-    .select('*').eq('source',src).order('created_at',{ascending:false}).limit(20);
-  const rows = data||[];
-  document.getElementById('modal-body').innerHTML = rows.length
-    ? rows.map(r=>`<div class="log-entry">
-        <span class="log-time">${fmtDate(r.created_at)} ${fmtTime(r.created_at)}</span>
-        <span class="log-msg">${esc(r.message||r.type||'Activity')}</span>
-      </div>`).join('')
-    : '<div class="empty-state"><div class="es-icon">📭</div><p>No logs yet for this agent.</p></div>';
+  openModal(name.toUpperCase() + ' — LAST 20 LOGS', '<div class="empty-state"><div class="es-icon">&#8987;</div><p>Loading logs...</p></div>');
+  const { data } = await sb.from('jarvis_log')
+    .select('*')
+    .eq('source', src)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  const rows = data || [];
+  if (!rows.length) {
+    document.getElementById('modal-body').innerHTML =
+      '<div class="empty-state"><div class="es-icon">&#128235;</div><p>No logs yet for this agent.</p></div>';
+    return;
+  }
+  document.getElementById('modal-body').innerHTML = rows.map(r => {
+    let cls = '';
+    if ((r.type || '').includes('error') || r.status === 'error') cls = 'style="color:var(--red)"';
+    else if ((r.type || '').includes('lead') || r.status === 'done') cls = 'style="color:var(--green)"';
+    return `<div class="log-entry">
+      <span class="log-time">${fmtDate(r.created_at)}<br>${fmtTime(r.created_at)}</span>
+      <span class="log-msg" ${cls}>${esc(r.message || r.type || 'Activity')}</span>
+    </div>`;
+  }).join('');
 }
 
 function openStageModal(stage) {
   if (!pipelineData) return;
-  const leads = (pipelineData.stages||{})[stage]||[];
-  const c = STAGE_COLORS[stage]||'#00aaff';
-  document.getElementById('modal-body').innerHTML = ''; // clear first
+  const leads = (pipelineData.stages || {})[stage] || [];
+  const c     = STAGE_COLORS[stage] || '#00aaff';
   openModal(stage.toUpperCase() + ' — ' + leads.length + ' LEADS',
     leads.length
-      ? leads.map(l=>`<div style="padding:12px;background:var(--bg3);border:1px solid var(--border2);border-left:3px solid ${c};border-radius:4px;margin-bottom:8px;cursor:pointer" onclick='openLeadModal(${JSON.stringify(JSON.stringify(l))})'>
-          <div style="font-family:Orbitron,monospace;font-size:11px;color:var(--textb);margin-bottom:5px">${esc(l.name)}</div>
-          <div style="font-size:11px;color:var(--dimtext);margin-bottom:3px">📍 ${esc(l.address||'No address')}</div>
-          <div style="font-size:11px;color:var(--cyan)">📞 ${esc(l.phone||'No phone')}</div>
-          ${l.daysInStage!=null?`<div style="font-size:9px;color:var(--dimtext);margin-top:4px">${l.daysInStage}d in stage</div>`:''}
-          <div style="margin-top:5px">${(l.tags||[]).map(t=>`<span class="tag-chip">${esc(t)}</span>`).join('')}</div>
+      ? leads.map(l => `<div style="padding:11px;background:var(--bg3);border:1px solid var(--border2);border-left:2px solid ${c};border-radius:3px;margin-bottom:7px;cursor:pointer" onclick='openLeadModal(${JSON.stringify(JSON.stringify(l))})'>
+          <div style="font-family:Orbitron,monospace;font-size:10px;color:var(--textb);margin-bottom:4px">${esc(l.name)}</div>
+          <div style="font-size:10px;color:var(--dimtext);margin-bottom:2px">${esc(l.address || 'No address')}</div>
+          <div style="font-size:10px;color:var(--cyan)">${esc(l.phone || 'No phone')}</div>
+          ${l.daysInStage != null ? `<div style="font-size:8px;color:var(--dimtext);margin-top:4px">${l.daysInStage}d in stage</div>` : ''}
+          ${l.lastNote ? `<div style="font-size:9px;color:var(--dimtext);margin-top:4px;font-style:italic;border-top:1px solid var(--border2);padding-top:4px">${esc(l.lastNote.substring(0, 120))}${l.lastNote.length > 120 ? '...' : ''}</div>` : ''}
+          <div style="margin-top:4px">${(l.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join('')}</div>
         </div>`).join('')
-      : '<div class="empty-state"><div class="es-icon">🏠</div><p>No leads here.</p></div>'
+      : '<div class="empty-state"><div class="es-icon">&#127968;</div><p>No leads here.</p></div>'
   );
 }
 
@@ -985,48 +1131,53 @@ function openLeadModal(json) {
   openModal(esc(l.name).toUpperCase(), `
     <div class="detail-grid">
       <div><div class="detail-label">Name</div><div class="detail-val">${esc(l.name)}</div></div>
-      <div><div class="detail-label">Phone</div><div class="detail-val" style="color:var(--cyan)">${esc(l.phone||'—')}</div></div>
-      <div><div class="detail-label">Address</div><div class="detail-val">${esc(l.address||'—')}</div></div>
+      <div><div class="detail-label">Phone</div><div class="detail-val" style="color:var(--cyan)">${esc(l.phone || '—')}</div></div>
+      <div><div class="detail-label">Address</div><div class="detail-val">${esc(l.address || '—')}</div></div>
       <div><div class="detail-label">Stage</div><div class="detail-val">${stageBadge(l.stage)}</div></div>
-      <div><div class="detail-label">Days in Stage</div><div class="detail-val">${l.daysInStage!=null?l.daysInStage+'d':'—'}</div></div>
-      <div><div class="detail-label">Last Updated</div><div class="detail-val">${timeAgo(l.lastChange||l.updatedAt)}</div></div>
+      <div><div class="detail-label">Days in Stage</div><div class="detail-val">${l.daysInStage != null ? l.daysInStage + 'd' : '—'}</div></div>
+      <div><div class="detail-label">Last Updated</div><div class="detail-val">${timeAgo(l.lastChange || l.updatedAt)}</div></div>
     </div>
+    ${l.lastNote ? `<div class="detail-label" style="margin-bottom:6px">LAST NOTE</div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);padding:11px;border-radius:3px;font-size:11px;line-height:1.6;margin-bottom:12px;color:var(--text)">${esc(l.lastNote)}</div>` : ''}
     <div class="detail-label" style="margin-bottom:5px">TAGS</div>
-    <div>${(l.tags||[]).map(t=>`<span class="tag-chip">${esc(t)}</span>`).join('')||'<span style="color:var(--dimtext)">None</span>'}</div>
+    <div>${(l.tags || []).map(t => `<span class="tag-chip">${esc(t)}</span>`).join('') || '<span style="color:var(--dimtext)">None</span>'}</div>
   `);
 }
 
 function openCallModal(json) {
-  const c = JSON.parse(json);
-  const dur = c.call_duration ? Math.floor(c.call_duration/60)+'m '+c.call_duration%60+'s' : '—';
-  const tags = String(c.tags_applied||'').split(',').filter(Boolean);
-  openModal((c.contact_name||'CALL').toUpperCase() + ' — CALL DETAIL', `
+  const c   = JSON.parse(json);
+  const secs = c.call_duration || 0;
+  const dur  = secs ? (Math.floor(secs / 60) + 'm ' + (secs % 60) + 's') : '—';
+  const tags = String(c.tags_applied || '').split(',').filter(Boolean);
+  openModal((c.contact_name || 'CALL').toUpperCase() + ' — CALL DETAIL', `
     <div class="detail-grid">
-      <div><div class="detail-label">Seller</div><div class="detail-val">${esc(c.contact_name||'—')}</div></div>
-      <div><div class="detail-label">Phone</div><div class="detail-val" style="color:var(--cyan)">${esc(c.phone||'—')}</div></div>
-      <div><div class="detail-label">Address</div><div class="detail-val">${esc(c.address||'—')}</div></div>
+      <div><div class="detail-label">Seller</div><div class="detail-val">${esc(c.contact_name || '—')}</div></div>
+      <div><div class="detail-label">Phone</div><div class="detail-val" style="color:var(--cyan)">${esc(c.phone || '—')}</div></div>
+      <div><div class="detail-label">Address</div><div class="detail-val">${esc(c.address || '—')}</div></div>
       <div><div class="detail-label">Duration</div><div class="detail-val" style="color:var(--cyan)">${dur}</div></div>
-      <div><div class="detail-label">Stage Before</div><div class="detail-val">${esc(c.stage_before||'—')}</div></div>
-      <div><div class="detail-label">Stage After</div><div class="detail-val" style="color:var(--green)">${esc(c.stage_after||'—')}</div></div>
+      <div><div class="detail-label">Stage Before</div><div class="detail-val">${esc(c.stage_before || '—')}</div></div>
+      <div><div class="detail-label">Stage After</div><div class="detail-val" style="color:var(--green)">${esc(c.stage_after || '—')}</div></div>
     </div>
     <div class="detail-label" style="margin-bottom:5px">TAGS</div>
-    <div style="margin-bottom:14px">${tags.map(t=>`<span class="tag-chip">${esc(t.trim())}</span>`).join('')||'<span style="color:var(--dimtext)">None</span>'}</div>
-    ${c.summary?`<div class="detail-label" style="margin-bottom:5px">SUMMARY</div><div style="background:var(--bg3);border:1px solid var(--border2);padding:12px;border-radius:4px;font-size:11px;line-height:1.6;margin-bottom:12px">${esc(c.summary)}</div>`:''}
-    ${c.notes?`<div class="detail-label" style="margin-bottom:5px">NOTES</div><div style="background:var(--bg3);border:1px solid var(--border2);padding:12px;border-radius:4px;font-size:11px;line-height:1.6">${esc(c.notes)}</div>`:''}
-    <div style="font-size:9px;color:var(--dimtext);margin-top:12px">Called: ${new Date(c.called_at).toLocaleString()}</div>
+    <div style="margin-bottom:13px">${tags.map(t => `<span class="tag-chip">${esc(t.trim())}</span>`).join('') || '<span style="color:var(--dimtext)">None</span>'}</div>
+    ${c.summary ? `<div class="detail-label" style="margin-bottom:5px">SUMMARY</div><div style="background:var(--bg3);border:1px solid var(--border2);padding:11px;border-radius:3px;font-size:11px;line-height:1.6;margin-bottom:11px">${esc(c.summary)}</div>` : ''}
+    ${c.notes   ? `<div class="detail-label" style="margin-bottom:5px">NOTES</div><div style="background:var(--bg3);border:1px solid var(--border2);padding:11px;border-radius:3px;font-size:11px;line-height:1.6">${esc(c.notes)}</div>` : ''}
+    <div style="font-size:8px;color:var(--dimtext);margin-top:11px">Called: ${fmtDateTime(c.called_at)}</div>
   `);
 }
 
 function openCountyModal(json) {
   const r = JSON.parse(json);
-  openModal('COUNTY LEAD', `
+  openModal('COUNTY LEAD DETAIL', `
     <div class="detail-grid">
-      <div><div class="detail-label">Owner</div><div class="detail-val">${esc(r.contact_name||r.owner_name||'—')}</div></div>
-      <div><div class="detail-label">Source</div><div class="detail-val">${esc(r.stage||r.source||'—')}</div></div>
+      <div><div class="detail-label">Owner</div><div class="detail-val">${esc(r.contact_name || r.owner_name || '—')}</div></div>
+      <div><div class="detail-label">Source</div><div class="detail-val">${esc(r.stage || r.source || '—')}</div></div>
+      <div><div class="detail-label">Address</div><div class="detail-val">${esc(r.address || '—')}</div></div>
+      <div><div class="detail-label">Status</div><div class="detail-val">${esc(r.status || '—')}</div></div>
     </div>
-    <div class="detail-label" style="margin-bottom:5px">RECORD</div>
-    <div style="background:var(--bg3);border:1px solid var(--border2);padding:12px;border-radius:4px;font-size:11px;line-height:1.6;word-break:break-all">${esc(r.message||r.address||'—')}</div>
-    <div style="font-size:9px;color:var(--dimtext);margin-top:12px">${fmtDate(r.created_at)}</div>
+    <div class="detail-label" style="margin-bottom:5px">FILING / RECORD</div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);padding:11px;border-radius:3px;font-size:11px;line-height:1.6;word-break:break-all">${esc(r.message || r.filing_date || '—')}</div>
+    <div style="font-size:8px;color:var(--dimtext);margin-top:11px">${fmtDateTime(r.created_at)}</div>
   `);
 }
 
@@ -1034,21 +1185,23 @@ function openLogModal(json) {
   const r = JSON.parse(json);
   openModal('LOG DETAIL', `
     <div class="detail-grid">
-      <div><div class="detail-label">Source</div><div class="detail-val">${esc(r.source||'—')}</div></div>
-      <div><div class="detail-label">Type</div><div class="detail-val">${esc(r.type||'—')}</div></div>
-      <div><div class="detail-label">Contact</div><div class="detail-val">${esc(r.contact_name||'—')}</div></div>
-      <div><div class="detail-label">Status</div><div class="detail-val">${esc(r.status||'—')}</div></div>
+      <div><div class="detail-label">Source</div><div class="detail-val">${esc(r.source || '—')}</div></div>
+      <div><div class="detail-label">Type</div><div class="detail-val">${esc(r.type || '—')}</div></div>
+      <div><div class="detail-label">Contact</div><div class="detail-val">${esc(r.contact_name || '—')}</div></div>
+      <div><div class="detail-label">Status</div><div class="detail-val">${esc(r.status || '—')}</div></div>
     </div>
     <div class="detail-label" style="margin-bottom:5px">MESSAGE</div>
-    <div style="background:var(--bg3);border:1px solid var(--border2);padding:12px;border-radius:4px;font-size:11px;line-height:1.6;word-break:break-word">${esc(r.message||'—')}</div>
-    <div style="font-size:9px;color:var(--dimtext);margin-top:12px">${new Date(r.created_at).toLocaleString()}</div>
+    <div style="background:var(--bg3);border:1px solid var(--border2);padding:11px;border-radius:3px;font-size:11px;line-height:1.6;word-break:break-word">${esc(r.message || '—')}</div>
+    <div style="font-size:8px;color:var(--dimtext);margin-top:11px">${fmtDateTime(r.created_at)}</div>
   `);
 }
 
-// ── REFRESH ALL ────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+//  REFRESH ALL
+// ──────────────────────────────────────────────────────────────
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
-  if (btn) { btn.textContent='↻ LOADING...'; btn.disabled=true; }
+  if (btn) { btn.textContent = '↻ LOADING...'; btn.disabled = true; }
 
   await Promise.allSettled([
     loadAgents(),
@@ -1058,11 +1211,12 @@ async function refreshAll() {
     loadCountyCounter(),
   ]);
 
+  // Refresh whichever tab is currently visible
   const activeTab = document.querySelector('.tab-content.active');
-  if (activeTab?.id==='tab-county-leads') loadCountyLeadsTab();
-  if (activeTab?.id==='tab-alpha-leads')  loadAlphaLeadsTab();
+  if (activeTab?.id === 'tab-county-leads') loadCountyLeadsTab();
+  if (activeTab?.id === 'tab-alpha-leads')  loadAlphaLeadsTab();
 
-  if (btn) { btn.textContent='↻ REFRESH'; btn.disabled=false; }
+  if (btn) { btn.textContent = '↻ REFRESH'; btn.disabled = false; }
   startCountdown();
 }
 
