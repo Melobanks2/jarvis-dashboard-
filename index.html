@@ -3,113 +3,1297 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wholesale CRM Dashboard</title>
+  <title>JARVIS OPERATIONS CENTER</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #0f0;
+      --green-bright: #00ff41;
+      --green-dim: #00aa2a;
+      --green-dark: #003d0d;
+      --bg: #000;
+      --surface: #050f05;
+      --surface2: #0a1a0a;
+      --border: #0f0;
+      --text: #00cc33;
+      --text-dim: #007a1a;
+      --red: #ff2200;
+      --amber: #ffaa00;
+      --blue: #00aaff;
+      --white: #ccffcc;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
+      background: var(--bg);
+      color: var(--green);
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
+
+    /* Scanline overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.05) 2px,
+        rgba(0,0,0,0.05) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Vignette */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* ============ HEADER ============ */
     header {
-      background-color: #2c3e50;
-      color: white;
-      padding: 1em;
+      background: var(--surface);
+      border-bottom: 2px solid var(--green);
+      box-shadow: 0 0 20px #0f0, 0 0 40px rgba(0,255,65,0.15);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-title {
+      font-size: 26px;
+      font-weight: bold;
+      color: var(--green-bright);
+      text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 40px rgba(0,255,65,0.5);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    .header-right {
+      text-align: right;
+    }
+
+    .header-clock {
+      font-size: 22px;
+      color: var(--green-bright);
+      text-shadow: 0 0 8px #0f0;
+      letter-spacing: 2px;
+    }
+
+    .header-date {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      margin-top: 2px;
+    }
+
+    .blink-cursor {
+      display: inline-block;
+      width: 14px;
+      height: 20px;
+      background: var(--green-bright);
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink-cursor 1s step-end infinite;
+      box-shadow: 0 0 8px #0f0;
+    }
+
+    @keyframes blink-cursor {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .refresh-badge {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    /* ============ LAYOUT ============ */
+    .dashboard {
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ============ SECTION PANELS ============ */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--green);
+      box-shadow: 0 0 10px #0f0, inset 0 0 10px rgba(0,255,65,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: var(--green-dark);
+      border-bottom: 1px solid var(--green);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--green-bright);
+      text-shadow: 0 0 6px #0f0;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .panel-status {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    /* ============ AGENT CARDS ============ */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+    }
+
+    .agent-card {
+      background: var(--surface2);
+      border: 1px solid var(--green-dim);
+      box-shadow: 0 0 6px rgba(0,255,65,0.15), inset 0 0 6px rgba(0,255,65,0.03);
+      border-radius: 2px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: box-shadow 0.3s;
+      min-height: 130px;
+      justify-content: center;
+    }
+
+    .agent-card.active-card {
+      border-color: var(--green);
+      box-shadow: 0 0 12px #0f0, inset 0 0 8px rgba(0,255,65,0.08);
+    }
+
+    .agent-emoji {
+      font-size: 24px;
+      filter: drop-shadow(0 0 6px rgba(0,255,65,0.6));
+    }
+
+    .agent-name {
+      font-size: 11px;
+      color: var(--white);
       text-align: center;
+      letter-spacing: 1px;
+      font-weight: bold;
     }
-    nav {
-      margin-top: 1em;
+
+    .agent-dot-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    nav button {
-      margin: 0 5px;
-      padding: 10px 15px;
-      background-color: #3498db;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
     }
-    main {
-      padding: 1em;
+
+    .dot-active {
+      animation: pulse 1.8s ease-in-out infinite;
+      color: var(--green-bright);
+      font-size: 16px;
+      text-shadow: 0 0 8px #0f0;
     }
-    table {
+
+    .dot-idle {
+      color: #333;
+      font-size: 16px;
+    }
+
+    .agent-status-label {
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .agent-status-label.active { color: var(--green-bright); text-shadow: 0 0 4px #0f0; }
+    .agent-status-label.idle { color: #444; }
+
+    .agent-time {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    /* ============ TABLES ============ */
+    .data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1em;
+      font-size: 12px;
     }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
+
+    .data-table th {
+      background: var(--green-dark);
+      color: var(--green-bright);
+      padding: 8px 12px;
       text-align: left;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--green);
+      white-space: nowrap;
     }
-    #mapContainer {
-      height: 500px;
+
+    .data-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(0,255,65,0.08);
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover td {
+      background: rgba(0,255,65,0.04);
+    }
+
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      font-size: 12px;
+    }
+
+    .error-state {
+      color: var(--red);
+      text-shadow: 0 0 4px var(--red);
+      letter-spacing: 1px;
+      padding: 12px 0;
+      font-size: 12px;
+    }
+
+    /* ============ STAT CARDS ============ */
+    .stat-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--green-dim);
+      box-shadow: 0 0 8px rgba(0,255,65,0.15), inset 0 0 8px rgba(0,255,65,0.03);
+      border-radius: 2px;
+      padding: 18px 24px;
+      min-width: 160px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--green-bright);
+      text-shadow: 0 0 10px #0f0, 0 0 20px rgba(0,255,65,0.4);
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+
+    .stat-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    /* ============ PIPELINE STAGE CARDS ============ */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 12px;
+    }
+
+    .stage-card {
+      background: var(--surface2);
+      border: 1px solid var(--green-dim);
+      box-shadow: 0 0 6px rgba(0,255,65,0.12), inset 0 0 6px rgba(0,255,65,0.03);
+      border-radius: 2px;
+      padding: 14px 10px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stage-emoji {
+      font-size: 22px;
+    }
+
+    .stage-name {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      line-height: 1.3;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .stage-count {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--green-bright);
+      text-shadow: 0 0 10px #0f0;
+      line-height: 1;
+    }
+
+    .stage-card.hot-card {
+      border-color: var(--red);
+      box-shadow: 0 0 10px rgba(255,34,0,0.4), inset 0 0 8px rgba(255,34,0,0.05);
+    }
+    .stage-card.hot-card .stage-count { color: #ff4422; text-shadow: 0 0 10px var(--red); }
+
+    .stage-card.warm-card {
+      border-color: var(--amber);
+      box-shadow: 0 0 10px rgba(255,170,0,0.3), inset 0 0 8px rgba(255,170,0,0.05);
+    }
+    .stage-card.warm-card .stage-count { color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+
+    /* ============ GOAL TRACKER ============ */
+    .goal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .goal-card {
+      background: var(--surface2);
+      border: 1px solid var(--green-dim);
+      box-shadow: 0 0 8px rgba(0,255,65,0.12), inset 0 0 8px rgba(0,255,65,0.03);
+      border-radius: 2px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .goal-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .goal-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--green-bright);
+      text-shadow: 0 0 10px #0f0;
+    }
+
+    .goal-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: #111;
+      border: 1px solid var(--green-dim);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .goal-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-dim), var(--green-bright));
+      box-shadow: 0 0 6px #0f0;
+      border-radius: 1px;
+      transition: width 0.8s ease;
+    }
+
+    .goal-target {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    /* ============ BADGE TAGS ============ */
+    .tag-badge {
+      display: inline-block;
+      background: rgba(0,255,65,0.1);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      padding: 1px 6px;
+      font-size: 10px;
+      border-radius: 1px;
+      margin: 1px 2px;
+      white-space: nowrap;
+    }
+
+    /* ============ SOURCE BADGE ============ */
+    .source-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 1px;
+      border: 1px solid;
+      white-space: nowrap;
+    }
+
+    .source-jarvis { color: var(--blue); border-color: var(--blue); background: rgba(0,170,255,0.08); }
+    .source-caller { color: #ff88ff; border-color: #cc44cc; background: rgba(200,100,200,0.08); }
+    .source-alpha { color: var(--green-bright); border-color: var(--green-dim); background: rgba(0,255,65,0.05); }
+    .source-analyzer { color: var(--amber); border-color: #aa7700; background: rgba(255,170,0,0.08); }
+    .source-county { color: #aaffaa; border-color: #55aa55; background: rgba(100,200,100,0.08); }
+    .source-default { color: var(--text-dim); border-color: #333; background: rgba(100,100,100,0.05); }
+
+    /* ============ EVENT TYPE ============ */
+    .event-type {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    .event-lead { color: var(--green-bright); }
+    .event-error { color: var(--red); }
+    .event-info { color: var(--blue); }
+    .event-call { color: #ff88ff; }
+
+    /* ============ LOADING ============ */
+    .loading {
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      font-size: 12px;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .loading::after {
+      content: '';
+      animation: dots 1.5s steps(4) infinite;
+    }
+
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* ============ CORNER DECORATION ============ */
+    .corner-tl, .corner-tr, .corner-bl, .corner-br {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--green-bright);
+      border-style: solid;
+      opacity: 0.7;
+    }
+    .corner-tl { top: 4px; left: 4px; border-width: 2px 0 0 2px; }
+    .corner-tr { top: 4px; right: 4px; border-width: 2px 2px 0 0; }
+    .corner-bl { bottom: 4px; left: 4px; border-width: 0 0 2px 2px; }
+    .corner-br { bottom: 4px; right: 4px; border-width: 0 2px 2px 0; }
+
+    .panel-relative { position: relative; }
+
+    /* ============ DIVIDER ============ */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(0,255,65,0.15);
+      margin: 12px 0;
+    }
+
+    /* ============ FOOTER ============ */
+    footer {
+      border-top: 1px solid rgba(0,255,65,0.2);
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-dim);
+      font-size: 10px;
+      letter-spacing: 2px;
+      margin-top: 8px;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 1100px) {
+      .agent-grid { grid-template-columns: repeat(3, 1fr); }
+      .pipeline-grid { grid-template-columns: repeat(4, 1fr); }
+      .goal-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 700px) {
+      .agent-grid { grid-template-columns: repeat(2, 1fr); }
+      .pipeline-grid { grid-template-columns: repeat(2, 1fr); }
+      .goal-grid { grid-template-columns: 1fr; }
+      header { flex-direction: column; gap: 10px; text-align: center; }
+      .header-right { text-align: center; }
+      .dashboard { padding: 14px 12px; }
+    }
+
+    /* ============ SCROLLBAR ============ */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--green); }
+
+    /* ============ TABLE SCROLL WRAPPER ============ */
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    /* ============ TOP STATUS BAR ============ */
+    .status-bar {
+      background: var(--green-dark);
+      border-bottom: 1px solid rgba(0,255,65,0.3);
+      padding: 4px 28px;
+      display: flex;
+      gap: 24px;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      align-items: center;
+    }
+
+    .status-bar-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-ok { color: var(--green-bright); }
+    .status-warn { color: var(--amber); }
+    .status-err { color: var(--red); }
+
+    .boot-line {
+      color: var(--text-dim);
+      font-size: 10px;
+      letter-spacing: 1px;
     }
   </style>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-bar-item">
+      <span class="dot-active">●</span>
+      <span class="status-ok">SYSTEM ONLINE</span>
+    </span>
+    <span class="status-bar-item">SYS: JARVIS v2.1</span>
+    <span class="status-bar-item">ENV: PRODUCTION</span>
+    <span class="status-bar-item">LOC: ORANGE COUNTY, FL</span>
+    <span class="status-bar-item" id="statusRefresh">AUTO-REFRESH: 60s</span>
+  </div>
+
+  <!-- HEADER -->
   <header>
-    <h1>Wholesale Real Estate CRM</h1>
-    <nav>
-      <button onclick="showSection('dashboard')">Dashboard</button>
-      <button onclick="showSection('map')">Map View</button>
-      <button onclick="showSection('login')">Login</button>
-    </nav>
+    <div class="header-left">
+      <div class="header-title">⚡ JARVIS OPERATIONS CENTER<span class="blink-cursor"></span></div>
+      <div class="header-sub">REAL ESTATE WHOLESALE COMMAND — VA♦️LEADS PIPELINE</div>
+    </div>
+    <div class="header-right">
+      <div class="header-clock" id="clock">--:--:--</div>
+      <div class="header-date" id="headerDate">LOADING...</div>
+      <div class="refresh-badge" id="refreshBadge">LAST REFRESH: --</div>
+    </div>
   </header>
-  <main>
-    <section id="dashboard">
-      <h2>Leads</h2>
-      <table id="leadsTable">
-        <thead>
+
+  <!-- DASHBOARD BODY -->
+  <div class="dashboard">
+
+    <!-- ===== SECTION 1: AGENT STATUS BOARD ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">🤖 AGENT STATUS BOARD</span>
+        <span class="panel-status" id="agentPanelStatus">QUERYING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="agent-grid" id="agentGrid">
+          <div class="loading">LOADING AGENTS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 2: LIVE ACTIVITY FEED ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">📡 LIVE ACTIVITY FEED</span>
+        <span class="panel-status" id="feedPanelStatus">QUERYING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="table-scroll">
+          <table class="data-table" id="activityTable">
+            <thead>
+              <tr>
+                <th>TIME</th>
+                <th>AGENT</th>
+                <th>EVENT</th>
+                <th>RESULT</th>
+              </tr>
+            </thead>
+            <tbody id="activityBody">
+              <tr><td colspan="4" class="empty-state">LOADING ACTIVITY FEED...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 3: TODAY'S CALL LOG ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">📞 TODAY'S CALL LOG</span>
+        <span class="panel-status" id="callPanelStatus">QUERYING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="table-scroll">
+          <table class="data-table" id="callTable">
+            <thead>
+              <tr>
+                <th>SELLER</th>
+                <th>ADDRESS</th>
+                <th>DURATION</th>
+                <th>STAGE BEFORE → AFTER</th>
+                <th>TAGS</th>
+                <th>SUMMARY</th>
+              </tr>
+            </thead>
+            <tbody id="callBody">
+              <tr><td colspan="6" class="empty-state">LOADING CALL LOG...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 4: PIPELINE SNAPSHOT ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">📊 PIPELINE SNAPSHOT — VA♦️LEADS</span>
+        <span class="panel-status" id="pipelinePanelStatus">QUERYING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="pipeline-grid" id="pipelineGrid">
+          <div class="loading">LOADING PIPELINE</div>
+        </div>
+        <div style="margin-top:14px; font-size:10px; color:var(--text-dim); letter-spacing:1px; text-align:right;">
+          TOTAL ACTIVE: <span id="pipelineTotal" style="color:var(--green-bright); font-size:14px;">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 5: COUNTY LEADS TODAY ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">🏛 COUNTY LEADS TODAY</span>
+        <span class="panel-status" id="countyPanelStatus">QUERYING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="stat-row" id="countyStats">
+          <div class="loading">LOADING COUNTY LEADS</div>
+        </div>
+        <hr class="divider" style="margin-top:18px;" />
+        <div class="table-scroll" style="margin-top:4px;">
+          <table class="data-table" id="countyTable">
+            <thead>
+              <tr>
+                <th>TIME</th>
+                <th>SOURCE</th>
+                <th>NAME / DESCRIPTION</th>
+                <th>BOOK / PAGE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="countyBody">
+              <tr><td colspan="5" class="empty-state">LOADING...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECTION 6: GOAL TRACKER ===== -->
+    <div class="panel panel-relative">
+      <div class="corner-tl"></div><div class="corner-tr"></div>
+      <div class="corner-bl"></div><div class="corner-br"></div>
+      <div class="panel-header">
+        <span class="panel-title">🎯 MISSION TARGETS</span>
+        <span class="panel-status" id="goalPanelStatus">COMPUTING...</span>
+      </div>
+      <div class="panel-body">
+        <div class="goal-grid">
+          <!-- Deals Closed (static) -->
+          <div class="goal-card">
+            <div class="goal-label">DEALS CLOSED THIS MONTH</div>
+            <div class="goal-value" id="goalDeals">0</div>
+            <div class="goal-bar-bg">
+              <div class="goal-bar-fill" id="goalDealsBar" style="width:0%"></div>
+            </div>
+            <div class="goal-target">TARGET: 2 deals</div>
+          </div>
+          <!-- Leads Sourced (from DB) -->
+          <div class="goal-card">
+            <div class="goal-label">LEADS SOURCED THIS WEEK</div>
+            <div class="goal-value" id="goalLeads">--</div>
+            <div class="goal-bar-bg">
+              <div class="goal-bar-fill" id="goalLeadsBar" style="width:0%"></div>
+            </div>
+            <div class="goal-target">TARGET: 50 leads/week</div>
+          </div>
+          <!-- Calls Made Today (from DB) -->
+          <div class="goal-card">
+            <div class="goal-label">CALLS MADE TODAY</div>
+            <div class="goal-value" id="goalCalls">--</div>
+            <div class="goal-bar-bg">
+              <div class="goal-bar-fill" id="goalCallsBar" style="width:0%"></div>
+            </div>
+            <div class="goal-target">TARGET: 20 calls/day</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.dashboard -->
+
+  <!-- FOOTER -->
+  <footer>
+    <span>JARVIS OPERATIONS CENTER // WHOLESALE INTELLIGENCE SYSTEM</span>
+    <span id="footerStatus">ALL SYSTEMS NOMINAL</span>
+    <span id="footerTime">--</span>
+  </footer>
+
+<script>
+  // ============ CONSTANTS ============
+  const SUPABASE_URL = "https://afwdfyofjcpbyydbxntr.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_JsetPmsnsp9CHy6LJp7Q7Q_PYyp_60M";
+  const GHL_PIPELINE_ID = "o4kqU2y8DYjA73aKUxNu";
+  const GHL_LOCATION_ID = "AymErWPrH9U1ddRouslC";
+
+  const PIPELINE_STAGES = [
+    { key: "Hot Follow Up",    emoji: "🔥", cls: "hot-card" },
+    { key: "Warm Follow Up",   emoji: "🧤", cls: "warm-card" },
+    { key: "Cold Follow Up",   emoji: "🥶", cls: "" },
+    { key: "Attempt 1",        emoji: "📞", cls: "" },
+    { key: "New Lead",         emoji: "♨️", cls: "" },
+    { key: "Decision Pending", emoji: "✅", cls: "" },
+    { key: "Contract Sent",    emoji: "📄", cls: "" },
+  ];
+
+  const AGENTS = [
+    { name: "JARVIS",         emoji: "🤖", source: "jarvis-telegram" },
+    { name: "CALLER",         emoji: "📞", source: "jarvis-caller" },
+    { name: "ALPHA SCRAPER",  emoji: "🏠", source: "alpha-scraper" },
+    { name: "ANALYZER",       emoji: "📋", source: "call-analyzer" },
+    { name: "COUNTY SCRAPER", emoji: "🏛", source: "county-scraper" },
+  ];
+
+  const COUNTY_SOURCE_MAP = {
+    "OC Comptroller - Lis Pendens": "🏛 OC Comptroller",
+    "myeclerk_lis_pendens": "⚡ Fresh OR (7-day)",
+    "oc_comptroller": "🏛 OC Comptroller",
+    "county_scraper": "🏛 County Scraper",
+  };
+
+  // Init Supabase
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ============ CLOCK ============
+  function updateClock() {
+    const now = new Date();
+    const days = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const t = now.toTimeString().split(' ')[0]; // HH:MM:SS
+    document.getElementById('clock').textContent = t;
+    document.getElementById('headerDate').textContent =
+      `${days[now.getDay()]} ${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    document.getElementById('footerTime').textContent = `UTC-${Math.abs(now.getTimezoneOffset()/60)}:00 // ${now.toLocaleDateString()}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ============ HELPERS ============
+  function timeAgo(dateStr) {
+    if (!dateStr) return 'NEVER';
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  }
+
+  function todayISO() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function weekStartISO() {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(now.setDate(diff));
+    return mon.toISOString().split('T')[0];
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds && seconds !== 0) return '--';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function truncate(str, n) {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n) + '…' : str;
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function sourceClass(src) {
+    if (!src) return 'source-default';
+    if (src.includes('jarvis')) return 'source-jarvis';
+    if (src.includes('caller')) return 'source-caller';
+    if (src.includes('alpha')) return 'source-alpha';
+    if (src.includes('analyzer') || src.includes('call-analyzer')) return 'source-analyzer';
+    if (src.includes('county')) return 'source-county';
+    return 'source-default';
+  }
+
+  function eventClass(type) {
+    if (!type) return 'event-type';
+    const t = type.toLowerCase();
+    if (t.includes('error') || t.includes('fail')) return 'event-type event-error';
+    if (t.includes('lead') || t.includes('opp') || t.includes('contact')) return 'event-type event-lead';
+    if (t.includes('call')) return 'event-type event-call';
+    return 'event-type event-info';
+  }
+
+  function markRefreshed() {
+    const now = new Date().toTimeString().split(' ')[0];
+    document.getElementById('refreshBadge').textContent = `LAST REFRESH: ${now}`;
+  }
+
+  // ============ SECTION 1: AGENT STATUS ============
+  async function loadAgents() {
+    try {
+      const { data, error } = await sb
+        .from('jarvis_log')
+        .select('source, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Build map: source → latest created_at
+      const latestBySource = {};
+      if (data) {
+        for (const row of data) {
+          if (!latestBySource[row.source]) {
+            latestBySource[row.source] = row.created_at;
+          }
+        }
+      }
+
+      const now = Date.now();
+      const THIRTY_MIN = 30 * 60 * 1000;
+
+      const html = AGENTS.map(agent => {
+        const last = latestBySource[agent.source];
+        const lastMs = last ? new Date(last).getTime() : 0;
+        const isActive = last && (now - lastMs) < THIRTY_MIN;
+        const ago = last ? timeAgo(last) : 'NEVER';
+
+        return `
+          <div class="agent-card ${isActive ? 'active-card' : ''}">
+            <div class="agent-emoji">${agent.emoji}</div>
+            <div class="agent-name">${agent.name}</div>
+            <div class="agent-dot-row">
+              <span class="${isActive ? 'dot-active' : 'dot-idle'}">●</span>
+              <span class="agent-status-label ${isActive ? 'active' : 'idle'}">${isActive ? 'ACTIVE' : 'IDLE'}</span>
+            </div>
+            <div class="agent-time">${escHtml(ago)}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('agentGrid').innerHTML = html;
+      const activeCount = AGENTS.filter(a => {
+        const last = latestBySource[a.source];
+        return last && (now - new Date(last).getTime()) < THIRTY_MIN;
+      }).length;
+      document.getElementById('agentPanelStatus').textContent = `${activeCount}/${AGENTS.length} ACTIVE`;
+    } catch (e) {
+      document.getElementById('agentGrid').innerHTML = `<div class="error-state" style="grid-column:1/-1;">⚠️ ${escHtml(e.message)}</div>`;
+      document.getElementById('agentPanelStatus').textContent = 'ERROR';
+    }
+  }
+
+  // ============ SECTION 2: ACTIVITY FEED ============
+  async function loadActivityFeed() {
+    try {
+      const { data, error } = await sb
+        .from('jarvis_log')
+        .select('created_at, source, type, message')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        document.getElementById('activityBody').innerHTML = `<tr><td colspan="4" class="empty-state">NO ACTIVITY LOGGED</td></tr>`;
+        document.getElementById('feedPanelStatus').textContent = '0 ENTRIES';
+        return;
+      }
+
+      const rows = data.map(row => {
+        const t = row.created_at ? new Date(row.created_at).toLocaleTimeString('en-US', {hour12: false}) : '--';
+        const srcCls = sourceClass(row.source);
+        const evCls = eventClass(row.type);
+        const msg = escHtml(truncate(row.message, 80));
+        const src = escHtml(row.source || 'unknown');
+        const type = escHtml(row.type || '--');
+        return `
           <tr>
-            <th>Address</th>
-            <th>ARV</th>
-            <th>Action</th>
+            <td style="color:var(--text-dim); white-space:nowrap; font-size:11px;">${t}</td>
+            <td><span class="source-badge ${srcCls}">${src}</span></td>
+            <td><span class="${evCls}">${type}</span></td>
+            <td style="max-width:380px;">${msg}</td>
           </tr>
-        </thead>
-        <tbody>
+        `;
+      }).join('');
+
+      document.getElementById('activityBody').innerHTML = rows;
+      document.getElementById('feedPanelStatus').textContent = `LAST ${data.length} ENTRIES`;
+    } catch (e) {
+      document.getElementById('activityBody').innerHTML = `<tr><td colspan="4"><div class="error-state">⚠️ ${escHtml(e.message)}</div></td></tr>`;
+      document.getElementById('feedPanelStatus').textContent = 'ERROR';
+    }
+  }
+
+  // ============ SECTION 3: CALL LOG ============
+  async function loadCallLog() {
+    const today = todayISO();
+    try {
+      const { data, error } = await sb
+        .from('jarvis_calls')
+        .select('*')
+        .gte('called_at', today)
+        .order('called_at', { ascending: false });
+
+      if (error) {
+        // Table might not exist
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.code === '42P01') {
+          document.getElementById('callBody').innerHTML = `<tr><td colspan="6" class="empty-state">No calls logged today</td></tr>`;
+          document.getElementById('callPanelStatus').textContent = '0 CALLS';
+          return;
+        }
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        document.getElementById('callBody').innerHTML = `<tr><td colspan="6" class="empty-state">No calls logged today</td></tr>`;
+        document.getElementById('callPanelStatus').textContent = '0 CALLS';
+        return;
+      }
+
+      const rows = data.map(row => {
+        const tags = Array.isArray(row.tags_applied) ? row.tags_applied.map(t => `<span class="tag-badge">${escHtml(t)}</span>`).join('') : (row.tags_applied || '');
+        const stage = row.stage_before || row.stage_after
+          ? `<span style="color:var(--text-dim)">${escHtml(row.stage_before || '?')}</span> → <span style="color:var(--green-bright)">${escHtml(row.stage_after || '?')}</span>`
+          : '--';
+        const dur = typeof row.call_duration === 'number' ? formatDuration(row.call_duration) : (row.call_duration || '--');
+        return `
           <tr>
-            <td>123 Main St, Detroit, MI</td>
-            <td>$150,000</td>
-            <td><button onclick="alert('Lead opened')">View</button></td>
+            <td>${escHtml(row.contact_name || '--')}</td>
+            <td style="font-size:11px; color:var(--text-dim);">${escHtml(row.address || '--')}</td>
+            <td style="white-space:nowrap; color:var(--amber);">${escHtml(String(dur))}</td>
+            <td style="white-space:nowrap;">${stage}</td>
+            <td>${tags || '--'}</td>
+            <td style="max-width:280px; font-size:11px; color:var(--text-dim);">${escHtml(truncate(row.summary, 80))}</td>
           </tr>
-        </tbody>
-      </table>
-    </section>
-    <section id="map" style="display:none">
-      <div id="mapContainer"></div>
-    </section>
-    <section id="login" style="display:none">
-      <form onsubmit="login(event)">
-        <input id="email" type="email" placeholder="Email" required />
-        <input id="password" type="password" placeholder="Password" required />
-        <button type="submit">Login</button>
-      </form>
-    </section>
-  </main>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    function showSection(id) {
-      document.querySelectorAll('main > section').forEach(section => {
-        section.style.display = section.id === id ? 'block' : 'none';
-      });
+        `;
+      }).join('');
+
+      document.getElementById('callBody').innerHTML = rows;
+      document.getElementById('callPanelStatus').textContent = `${data.length} CALLS TODAY`;
+    } catch (e) {
+      document.getElementById('callBody').innerHTML = `<tr><td colspan="6"><div class="error-state">⚠️ ${escHtml(e.message)}</div></td></tr>`;
+      document.getElementById('callPanelStatus').textContent = 'ERROR';
+    }
+  }
+
+  // ============ SECTION 4: PIPELINE SNAPSHOT ============
+  async function loadPipeline() {
+    try {
+      const res = await fetch('/api/pipeline');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      if (json.error) throw new Error(json.error);
+
+      const stageCounts = json.stageCounts || {};
+      const total = json.total || 0;
+
+      const html = PIPELINE_STAGES.map(s => {
+        const count = stageCounts[s.key] || 0;
+        return `
+          <div class="stage-card ${s.cls}">
+            <div class="stage-emoji">${s.emoji}</div>
+            <div class="stage-name">${escHtml(s.key)}</div>
+            <div class="stage-count">${count}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pipelineGrid').innerHTML = html;
+      document.getElementById('pipelineTotal').textContent = total;
+      document.getElementById('pipelinePanelStatus').textContent = `${total} TOTAL OPPORTUNITIES`;
+    } catch (e) {
+      document.getElementById('pipelineGrid').innerHTML = `<div class="error-state" style="grid-column:1/-1;">⚠️ Pipeline data unavailable — check /api/pipeline<br><small>${escHtml(e.message)}</small></div>`;
+      document.getElementById('pipelineTotal').textContent = '--';
+      document.getElementById('pipelinePanelStatus').textContent = 'UNAVAILABLE';
+    }
+  }
+
+  // ============ SECTION 5: COUNTY LEADS ============
+  async function loadCountyLeads() {
+    const today = todayISO();
+    try {
+      const { data, error } = await sb
+        .from('county_leads')
+        .select('*')
+        .gte('created_at', today)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.code === '42P01') {
+          document.getElementById('countyStats').innerHTML = `<div class="empty-state" style="flex:1;">No county leads today</div>`;
+          document.getElementById('countyBody').innerHTML = `<tr><td colspan="5" class="empty-state">No county leads today — table may not exist yet</td></tr>`;
+          document.getElementById('countyPanelStatus').textContent = 'NO DATA';
+          return;
+        }
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        document.getElementById('countyStats').innerHTML = `<div class="empty-state" style="flex:1;">No county leads today</div>`;
+        document.getElementById('countyBody').innerHTML = `<tr><td colspan="5" class="empty-state">No county leads today</td></tr>`;
+        document.getElementById('countyPanelStatus').textContent = '0 LEADS';
+        return;
+      }
+
+      // Group by source
+      const groups = {};
+      for (const row of data) {
+        const src = row.source || 'unknown';
+        groups[src] = (groups[src] || 0) + 1;
+      }
+
+      const statsHtml = Object.entries(groups).map(([src, count]) => {
+        const label = COUNTY_SOURCE_MAP[src] || escHtml(src);
+        return `
+          <div class="stat-card">
+            <div class="stat-label">SOURCE</div>
+            <div class="stat-value">${count}</div>
+            <div class="stat-sub">${label}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Total card
+      const totalCard = `
+        <div class="stat-card" style="border-color:var(--green); box-shadow: 0 0 12px #0f0, inset 0 0 8px rgba(0,255,65,0.08);">
+          <div class="stat-label">TOTAL TODAY</div>
+          <div class="stat-value">${data.length}</div>
+          <div class="stat-sub">county leads</div>
+        </div>
+      `;
+
+      document.getElementById('countyStats').innerHTML = totalCard + statsHtml;
+
+      // Table rows — show last 15
+      const tableRows = data.slice(0, 15).map(row => {
+        const t = row.created_at ? new Date(row.created_at).toLocaleTimeString('en-US', {hour12: false}) : '--';
+        const srcLabel = COUNTY_SOURCE_MAP[row.source] || escHtml(row.source || 'unknown');
+        const name = escHtml(row.grantor_name || row.name || row.owner_name || '--');
+        const bp = row.book && row.page ? `${row.book}/${row.page}` : (row.book_page || '--');
+        const status = escHtml(row.status || row.pushed_to_dm ? '✅ DM' : 'NEW');
+        return `
+          <tr>
+            <td style="color:var(--text-dim); white-space:nowrap; font-size:11px;">${t}</td>
+            <td><span class="tag-badge" style="color:var(--green)">${srcLabel}</span></td>
+            <td>${name}</td>
+            <td style="color:var(--text-dim); font-size:11px;">${escHtml(String(bp))}</td>
+            <td><span style="color:var(--green-bright); font-size:11px;">${status}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('countyBody').innerHTML = tableRows;
+      document.getElementById('countyPanelStatus').textContent = `${data.length} LEADS TODAY`;
+    } catch (e) {
+      document.getElementById('countyStats').innerHTML = `<div class="error-state">⚠️ ${escHtml(e.message)}</div>`;
+      document.getElementById('countyBody').innerHTML = `<tr><td colspan="5"><div class="error-state">⚠️ ${escHtml(e.message)}</div></td></tr>`;
+      document.getElementById('countyPanelStatus').textContent = 'ERROR';
+    }
+  }
+
+  // ============ SECTION 6: GOAL TRACKER ============
+  async function loadGoals() {
+    const today = todayISO();
+    const weekStart = weekStartISO();
+
+    // Deals (static hardcode)
+    const deals = 0;
+    const dealsTarget = 2;
+    document.getElementById('goalDeals').textContent = `${deals} / ${dealsTarget}`;
+    document.getElementById('goalDealsBar').style.width = `${Math.min(100, (deals / dealsTarget) * 100)}%`;
+
+    // Leads sourced this week
+    try {
+      const { count: leadCount, error: leadErr } = await sb
+        .from('jarvis_log')
+        .select('id', { count: 'exact', head: true })
+        .in('type', ['county_lead', 'lead_created', 'contact_created', 'opp_created'])
+        .gte('created_at', weekStart);
+
+      if (leadErr) throw leadErr;
+      const lc = leadCount || 0;
+      document.getElementById('goalLeads').textContent = lc;
+      document.getElementById('goalLeadsBar').style.width = `${Math.min(100, (lc / 50) * 100)}%`;
+    } catch (e) {
+      document.getElementById('goalLeads').textContent = '⚠️';
     }
 
-    function login(event) {
-      event.preventDefault();
-      const email = document.getElementById('email').value;
-      alert('Logged in as ' + email);
+    // Calls today
+    try {
+      const { count: callCount, error: callErr } = await sb
+        .from('jarvis_calls')
+        .select('id', { count: 'exact', head: true })
+        .gte('called_at', today);
+
+      if (callErr) {
+        if (callErr.code === 'PGRST116' || callErr.message?.includes('does not exist') || callErr.code === '42P01') {
+          document.getElementById('goalCalls').textContent = '0';
+          document.getElementById('goalCallsBar').style.width = '0%';
+          return;
+        }
+        throw callErr;
+      }
+      const cc = callCount || 0;
+      document.getElementById('goalCalls').textContent = cc;
+      document.getElementById('goalCallsBar').style.width = `${Math.min(100, (cc / 20) * 100)}%`;
+    } catch (e) {
+      document.getElementById('goalCalls').textContent = '⚠️';
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-      const map = L.map('mapContainer').setView([42.3314, -83.0458], 10);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-      L.marker([42.3314, -83.0458]).addTo(map)
-        .bindPopup('123 Main St, Detroit, MI')
-        .openPopup();
-    });
-  </script>
+    document.getElementById('goalPanelStatus').textContent = 'UPDATED';
+  }
+
+  // ============ MASTER REFRESH ============
+  async function refreshAll() {
+    await Promise.allSettled([
+      loadAgents(),
+      loadActivityFeed(),
+      loadCallLog(),
+      loadPipeline(),
+      loadCountyLeads(),
+      loadGoals(),
+    ]);
+    markRefreshed();
+  }
+
+  // Activity feed refreshes every 30s, everything else every 60s
+  let countdown = 60;
+  function tick() {
+    countdown--;
+    document.getElementById('statusRefresh').textContent = `AUTO-REFRESH: ${countdown}s`;
+    if (countdown <= 0) {
+      countdown = 60;
+      refreshAll();
+    }
+  }
+  setInterval(tick, 1000);
+
+  // Activity feed every 30s independently
+  setInterval(() => {
+    loadActivityFeed();
+  }, 30000);
+
+  // Initial load
+  refreshAll();
+</script>
 </body>
 </html>

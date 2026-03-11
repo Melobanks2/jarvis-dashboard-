@@ -1,1 +1,5 @@
-{"version": 2, "builds": [{"src": "*.html", "use": "@vercel/static"}]}
+{
+  "functions": {
+    "api/pipeline.js": { "runtime": "nodejs20.x" }
+  }
+}
