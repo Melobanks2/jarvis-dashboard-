@@ -44,8 +44,8 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* MAIN */
-#main{padding:20px;max-width:1700px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""goals county"}
-@media(max-width:900px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""goals""county"}}
+#main{padding:20px;max-width:1700px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""recordings recordings""goals county"}
+@media(max-width:900px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""recordings""goals""county"}}
 
 /* PANELS */
 .panel{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:18px;position:relative;overflow:hidden}
@@ -60,6 +60,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 #s-pipeline{grid-area:pipeline;--accent:var(--purple)}
 #s-leads{grid-area:leads;--accent:var(--blue)}
 #s-calls{grid-area:calls;--accent:var(--green)}
+#s-recordings{grid-area:recordings;--accent:var(--cyan)}
 #s-goals{grid-area:goals;--accent:var(--gold)}
 #s-county{grid-area:county;--accent:var(--orange)}
 
@@ -148,6 +149,26 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .call-flow{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:10px}
 .call-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
 .call-summary{font-size:10px;color:var(--dimtext);line-height:1.4;font-style:italic}
+
+/* RECORDINGS */
+#s-recordings{grid-area:recordings;--accent:var(--cyan)}
+.rec-card{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:14px;margin-bottom:10px}
+.rec-card:last-child{margin-bottom:0}
+.rec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.rec-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--textb);flex:1;min-width:120px}
+.rec-meta{font-size:10px;color:var(--dimtext);display:flex;gap:12px;flex-wrap:wrap}
+.rec-play{background:transparent;border:1px solid var(--cyan);color:var(--cyan);padding:4px 12px;font-family:'Share Tech Mono',monospace;font-size:10px;border-radius:2px;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.rec-play:hover{background:var(--cyan);color:var(--bg)}
+.rec-no-url{font-size:10px;color:var(--dimtext);padding:4px 10px;border:1px solid var(--border2);border-radius:2px}
+.rec-stages{display:flex;align-items:center;gap:6px;font-size:10px;margin-bottom:6px}
+.rec-summary{font-size:10px;color:var(--dimtext);line-height:1.4;margin-bottom:8px;font-style:italic}
+.rec-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px}
+.rec-transcript-toggle{background:transparent;border:1px solid var(--border2);color:var(--dimtext);padding:3px 10px;font-family:'Share Tech Mono',monospace;font-size:10px;border-radius:2px;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.rec-transcript-toggle:hover{border-color:var(--cyan);color:var(--cyan)}
+.rec-transcript{display:none;margin-top:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:12px;font-size:10px;line-height:1.7;color:var(--text);max-height:280px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.rec-transcript.open{display:block}
+.rec-jarvis{color:var(--cyan)}
+.rec-seller{color:var(--green)}
 
 /* GOAL */
 .goal-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
@@ -446,7 +467,16 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
 </section>
 
-<!-- S6: GOAL TRACKER -->
+<!-- S6: CALL RECORDINGS -->
+<section class="panel" id="s-recordings">
+  <div class="corner-tl"></div>
+  <div class="panel-title">CALL RECORDINGS <span class="panel-badge" id="rec-count">LAST 10</span></div>
+  <div id="recordings-list">
+    <div class="empty-state"><div class="es-icon">🎙️</div><p>No call recordings yet. Jarvis dials at noon Mon–Fri.</p></div>
+  </div>
+</section>
+
+<!-- S7: GOAL TRACKER -->
 <section class="panel" id="s-goals">
   <div class="corner-tl"></div>
   <div class="panel-title">MONTHLY GOAL TRACKER</div>
@@ -855,6 +885,86 @@ function switchTab(id, idx) {
   if (id==='alpha-leads')  loadAlphaLeadsTab();
 }
 
+// ── S5b: CALL RECORDINGS ───────────────────────────
+async function loadRecordings() {
+  const {data, error} = await sb.from('jarvis_calls')
+    .select('*').order('called_at',{ascending:false}).limit(10);
+
+  const el = document.getElementById('recordings-list');
+  const badge = document.getElementById('rec-count');
+  if (!el) return;
+
+  if (error || !data?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-icon">🎙️</div><p>No call recordings yet. Jarvis dials at noon Mon–Fri.</p></div>';
+    if (badge) badge.textContent = '0 RECORDINGS';
+    return;
+  }
+
+  if (badge) badge.textContent = `${data.length} RECORDING${data.length!==1?'S':''}`;
+
+  el.innerHTML = data.map((c, i) => {
+    const dur = c.call_duration ? Math.floor(c.call_duration/60)+'m '+c.call_duration%60+'s' : '—';
+    const tags = String(c.tags_applied||'').split(',').filter(Boolean);
+    const callDate = c.called_at ? new Date(c.called_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+
+    // Extract recording URL — check dedicated column first, then parse from notes
+    let recUrl = c.recording_url || null;
+    if (!recUrl && c.notes) {
+      const m = c.notes.match(/Recording:\s*(https?:\/\/\S+)/);
+      if (m) recUrl = m[1];
+    }
+
+    // Extract full transcript — check dedicated column first, then parse from notes
+    let transcript = c.transcript_full || '';
+    if (!transcript && c.notes) {
+      const m = c.notes.match(/FULL TRANSCRIPT:\n([\s\S]*?)(?:\n🧠|\n\nRecording:|$)/);
+      if (m) transcript = m[1].trim();
+    }
+    if (!transcript && c.notes) transcript = c.notes;
+
+    // Format transcript with colored speaker labels
+    const fmtTranscript = transcript
+      ? transcript.split('\n').map(line => {
+          if (/^Jarvis:/i.test(line)) return `<span class="rec-jarvis">${esc(line)}</span>`;
+          if (/^Seller:/i.test(line)) return `<span class="rec-seller">${esc(line)}</span>`;
+          return `<span style="color:var(--dimtext)">${esc(line)}</span>`;
+        }).join('\n')
+      : '<span style="color:var(--dimtext)">No transcript available.</span>';
+
+    const uid = `rec-${i}`;
+    return `<div class="rec-card">
+      <div class="rec-hdr">
+        <div class="rec-name">${esc(c.contact_name||'Unknown Seller')}</div>
+        ${recUrl
+          ? `<a class="rec-play" href="${esc(recUrl)}" target="_blank" rel="noopener">▶ PLAY RECORDING</a>`
+          : `<span class="rec-no-url">No recording</span>`}
+      </div>
+      <div class="rec-meta">
+        <span>📅 ${callDate}</span>
+        <span>⏱ ${dur}</span>
+        <span>📍 ${esc(c.address||'No address')}</span>
+      </div>
+      <div class="rec-stages" style="margin-top:6px">
+        <span style="color:var(--dimtext)">${esc(c.stage_before||'—')}</span>
+        <span style="color:var(--green)">→</span>
+        <span style="color:var(--green);font-weight:bold">${esc(c.stage_after||'—')}</span>
+      </div>
+      ${c.summary ? `<div class="rec-summary">${esc(c.summary)}</div>` : ''}
+      <div class="rec-tags">${tags.map(t=>`<span class="tag-chip">${esc(t.trim())}</span>`).join('')}</div>
+      <button class="rec-transcript-toggle" onclick="toggleTranscript('${uid}')">▼ TRANSCRIPT</button>
+      <div id="${uid}" class="rec-transcript">${fmtTranscript}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTranscript(id) {
+  const el = document.getElementById(id);
+  const btn = el?.previousElementSibling;
+  if (!el) return;
+  el.classList.toggle('open');
+  if (btn) btn.textContent = el.classList.contains('open') ? '▲ TRANSCRIPT' : '▼ TRANSCRIPT';
+}
+
 // ── S5: CALLS TODAY ────────────────────────────────
 async function loadCalls() {
   const {data,error} = await sb.from('jarvis_calls')
@@ -1055,6 +1165,7 @@ async function refreshAll() {
     loadFeed(),
     loadPipeline(),
     loadCalls(),
+    loadRecordings(),
     loadCountyCounter(),
   ]);
 
