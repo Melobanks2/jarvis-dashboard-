@@ -3,11 +3,10 @@ const { createClient } = require('@supabase/supabase-js');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8779808673:AAFEbPGq7S8dJDqQFdiRHlqPODkzONp3K_w';
 const TELEGRAM_CHAT_ID = '8105811341';
 
 async function sendTelegram(text) {
-  if (!TELEGRAM_BOT_TOKEN) return;
   try {
     await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
