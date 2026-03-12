@@ -1,6 +1,7 @@
 {
   "functions": {
     "api/pipeline.js": { "maxDuration": 30 },
-    "api/recording-complete.js": { "maxDuration": 10 }
+    "api/recording-complete.js": { "maxDuration": 10 },
+    "api/el-recording.js": { "maxDuration": 30 }
   }
 }
