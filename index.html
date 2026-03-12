@@ -49,8 +49,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
 /* ─── MAIN GRID ──────────────────────────────────── */
-#main{padding:18px;max-width:1800px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""recordings recordings""goals county"}
-@media(max-width:880px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""recordings""goals""county"}}
+#main{padding:18px;max-width:1800px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;grid-template-areas:"agents agents""feed pipeline""leads leads""calls calls""recordings recordings""goals county""ideas ideas"}
+@media(max-width:880px){#main{grid-template-columns:1fr;grid-template-areas:"agents""feed""pipeline""leads""calls""recordings""goals""county""ideas"}}
 
 /* ─── PANELS ─────────────────────────────────────── */
 .panel{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:16px;position:relative;overflow:hidden}
@@ -68,6 +68,30 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 #s-recordings{grid-area:recordings;--accent:var(--cyan)}
 #s-goals{grid-area:goals;--accent:var(--gold)}
 #s-county{grid-area:county;--accent:var(--orange)}
+#s-ideas{grid-area:ideas;--accent:var(--purple)}
+
+/* ─── IDEAS BOARD ────────────────────────────────── */
+#ideas-kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:880px){#ideas-kanban{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){#ideas-kanban{grid-template-columns:1fr}}
+.ideas-col{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;overflow:hidden}
+.ideas-col-hdr{padding:10px 12px 8px;font-family:'Orbitron',monospace;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:6px}
+.ideas-col-hdr .ideas-count{margin-left:auto;font-size:10px;color:var(--dimtext)}
+.ideas-col-body{padding:8px;display:flex;flex-direction:column;gap:6px;min-height:60px}
+.idea-card{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:10px}
+.idea-card-title{font-size:11px;color:var(--textb);font-weight:700;margin-bottom:6px;line-height:1.3}
+.idea-card-desc{font-size:9px;color:var(--dimtext);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:7px}
+.idea-badges{display:flex;gap:4px;flex-wrap:wrap}
+.idea-badge{font-size:8px;padding:2px 6px;border-radius:2px;letter-spacing:.5px;font-family:'Orbitron',monospace}
+.badge-automation{background:rgba(0,170,255,.12);color:var(--blue);border:1px solid rgba(0,170,255,.25)}
+.badge-crm{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2)}
+.badge-cost_saving{background:rgba(255,215,0,.1);color:var(--gold);border:1px solid rgba(255,215,0,.2)}
+.badge-revenue{background:rgba(170,68,255,.12);color:var(--purple);border:1px solid rgba(170,68,255,.25)}
+.badge-personal{background:rgba(90,90,128,.2);color:var(--dimtext);border:1px solid var(--border2)}
+.badge-high{background:rgba(255,51,102,.12);color:var(--red);border:1px solid rgba(255,51,102,.25)}
+.badge-medium{background:rgba(255,136,0,.1);color:var(--orange);border:1px solid rgba(255,136,0,.2)}
+.badge-low{background:rgba(90,90,128,.2);color:var(--dimtext);border:1px solid var(--border2)}
+.ideas-empty{font-size:9px;color:var(--dimtext);padding:8px;text-align:center;font-style:italic}
 
 /* ─── CALL RECORDINGS ────────────────────────────── */
 .rec-card{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:13px;margin-bottom:9px}
@@ -541,6 +565,30 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="counter-val" id="cnt-dm">0</div>
       <div class="counter-lbl">Pushed to DM</div>
       <div class="counter-sub">DealMachine</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S9: IDEAS BOARD ══════════════════════════════════════════ -->
+<section class="panel" id="s-ideas">
+  <div class="corner-tl"></div><div class="corner-br"></div>
+  <div class="panel-title">💡 IDEAS BOARD <span class="panel-badge" id="ideas-total">0 IDEAS</span></div>
+  <div id="ideas-kanban">
+    <div class="ideas-col">
+      <div class="ideas-col-hdr" style="color:var(--purple)">💡 New Ideas <span class="ideas-count" id="ideas-count-new">0</span></div>
+      <div class="ideas-col-body" id="ideas-col-new"></div>
+    </div>
+    <div class="ideas-col">
+      <div class="ideas-col-hdr" style="color:var(--cyan)">📋 Prompt Ready <span class="ideas-count" id="ideas-count-prompt">0</span></div>
+      <div class="ideas-col-body" id="ideas-col-prompt"></div>
+    </div>
+    <div class="ideas-col">
+      <div class="ideas-col-hdr" style="color:var(--orange)">🔨 In Progress <span class="ideas-count" id="ideas-count-progress">0</span></div>
+      <div class="ideas-col-body" id="ideas-col-progress"></div>
+    </div>
+    <div class="ideas-col">
+      <div class="ideas-col-hdr" style="color:var(--green)">✅ Done <span class="ideas-count" id="ideas-count-done">0</span></div>
+      <div class="ideas-col-body" id="ideas-col-done"></div>
     </div>
   </div>
 </section>
@@ -1319,6 +1367,7 @@ async function refreshAll() {
     loadCalls(),
     loadRecordings(),
     loadCountyCounter(),
+    loadIdeasBoard(),
   ]);
 
   // Refresh whichever tab is currently visible
@@ -1331,6 +1380,65 @@ async function refreshAll() {
 }
 
 refreshAll();
+
+// ── Ideas Board ───────────────────────────────────────────────────────────────
+async function loadIdeasBoard() {
+  try {
+    const { data, error } = await _sb
+      .from('jarvis_ideas')
+      .select('*')
+      .neq('status', 'archived')
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) { console.warn('Ideas board error:', error.message); return; }
+    const ideas = data || [];
+
+    const cols = {
+      new_idea:     document.getElementById('ideas-col-new'),
+      prompt_ready: document.getElementById('ideas-col-prompt'),
+      in_progress:  document.getElementById('ideas-col-progress'),
+      done:         document.getElementById('ideas-col-done'),
+    };
+    const counts = { new_idea: 0, prompt_ready: 0, in_progress: 0, done: 0 };
+
+    Object.values(cols).forEach(c => { if (c) c.innerHTML = ''; });
+
+    for (const idea of ideas) {
+      const col = cols[idea.status];
+      if (!col) continue;
+      counts[idea.status] = (counts[idea.status] || 0) + 1;
+
+      const catClass = `badge-${(idea.category || 'personal').replace(/[^a-z_]/g, '')}`;
+      const priClass = `badge-${idea.priority || 'medium'}`;
+
+      const card = document.createElement('div');
+      card.className = 'idea-card';
+      card.innerHTML = `
+        <div class="idea-card-title">${idea.title}</div>
+        ${idea.description ? `<div class="idea-card-desc">${idea.description}</div>` : ''}
+        <div class="idea-badges">
+          ${idea.category ? `<span class="idea-badge ${catClass}">${idea.category.replace('_', ' ')}</span>` : ''}
+          <span class="idea-badge ${priClass}">${idea.priority || 'medium'}</span>
+        </div>`;
+      col.appendChild(card);
+    }
+
+    // Update counts
+    document.getElementById('ideas-count-new').textContent     = counts.new_idea;
+    document.getElementById('ideas-count-prompt').textContent  = counts.prompt_ready;
+    document.getElementById('ideas-count-progress').textContent= counts.in_progress;
+    document.getElementById('ideas-count-done').textContent    = counts.done;
+    document.getElementById('ideas-total').textContent         = `${ideas.length} IDEAS`;
+
+    // Add empty state messages
+    for (const [status, col] of Object.entries(cols)) {
+      if (col && !col.children.length) {
+        col.innerHTML = '<div class="ideas-empty">empty</div>';
+      }
+    }
+  } catch(e) { console.warn('loadIdeasBoard:', e.message); }
+}
 </script>
 </body>
 </html>
