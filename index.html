@@ -1384,13 +1384,13 @@ refreshAll();
 // ── Ideas Board ───────────────────────────────────────────────────────────────
 async function loadIdeasBoard() {
   try {
-    const { data, error } = await _sb
+    const { data, error } = await sb
       .from('jarvis_ideas')
       .select('*')
       .neq('status', 'archived')
-      .order('priority', { ascending: true })
       .order('created_at', { ascending: false });
 
+    console.log('[IDEAS] query result:', { count: data?.length, error: error?.message });
     if (error) { console.warn('Ideas board error:', error.message); return; }
     const ideas = data || [];
 
