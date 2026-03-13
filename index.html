@@ -264,6 +264,63 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* ─── MISC UTILS ─────────────────────────────────── */
 .sep-line{height:1px;background:var(--border2);margin:12px 0}
+
+/* ─── MAIN NAV TABS ──────────────────────────────── */
+#nav-tabs{background:var(--bg2);border-bottom:2px solid var(--border2);padding:0 24px;display:flex;gap:0;position:sticky;top:57px;z-index:490}
+.nav-tab{background:transparent;border:none;border-bottom:3px solid transparent;padding:10px 20px;color:var(--dimtext);font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;transition:all .2s;margin-bottom:-2px;letter-spacing:2px;text-transform:uppercase}
+.nav-tab:hover:not(.active){color:var(--text)}
+.nav-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-tab.asap-tab.active{color:var(--orange);border-bottom-color:var(--orange)}
+
+/* ─── ASAP ARV VIEW ──────────────────────────────── */
+#asap-view{padding:18px;max-width:1800px;margin:0 auto;display:none}
+#asap-view.visible{display:block}
+
+/* Stats bar */
+.asap-stat-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:720px){.asap-stat-bar{grid-template-columns:repeat(2,1fr)}}
+.asap-stat{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:14px;text-align:center;position:relative;overflow:hidden}
+.asap-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--orange);opacity:.5}
+.asap-stat-val{font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:var(--orange);text-shadow:0 0 18px rgba(255,136,0,.4);line-height:1}
+.asap-stat-lbl{font-size:9px;color:var(--dimtext);letter-spacing:2px;text-transform:uppercase;margin-top:5px}
+
+/* Orlando focus card */
+.asap-orlando-card{background:var(--bg2);border:1px solid rgba(255,136,0,.3);border-radius:3px;padding:20px;margin-bottom:18px;position:relative;overflow:hidden}
+.asap-orlando-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--orange) 30%,var(--orange) 70%,transparent);opacity:.8}
+.asap-orlando-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.asap-orlando-title{font-family:'Orbitron',monospace;font-size:14px;font-weight:900;color:var(--orange);letter-spacing:3px;text-shadow:0 0 16px rgba(255,136,0,.45)}
+.asap-orlando-pct{font-family:'Orbitron',monospace;font-size:48px;font-weight:900;color:var(--orange);text-shadow:0 0 30px rgba(255,136,0,.5);line-height:1}
+.asap-orlando-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+@media(max-width:640px){.asap-orlando-grid{grid-template-columns:repeat(2,1fr)}}
+.asap-mini-stat{background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:12px;text-align:center}
+.asap-mini-val{font-family:'Orbitron',monospace;font-size:22px;font-weight:700;color:var(--textb)}
+.asap-mini-lbl{font-size:8px;color:var(--dimtext);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+
+/* City cards grid */
+.asap-city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.asap-city-card{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:16px;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.asap-city-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px}
+.asap-city-card.status-complete{border-color:rgba(0,255,136,.25)}.asap-city-card.status-complete::before{background:var(--green)}
+.asap-city-card.status-in_progress{border-color:rgba(255,215,0,.3);box-shadow:0 0 14px rgba(255,215,0,.07)}.asap-city-card.status-in_progress::before{background:var(--gold);animation:blink 1.5s infinite}
+.asap-city-card.status-photos_pending{border-color:rgba(0,170,255,.25)}.asap-city-card.status-photos_pending::before{background:var(--blue)}
+.asap-city-card.status-queued{opacity:.7}
+.asap-city-name{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;color:var(--textb);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.asap-status-badge{font-size:8px;padding:2px 8px;border-radius:2px;letter-spacing:1px;white-space:nowrap}
+.asap-status-badge.complete{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2)}
+.asap-status-badge.in_progress{background:rgba(255,215,0,.1);color:var(--gold);border:1px solid rgba(255,215,0,.2)}
+.asap-status-badge.photos_pending{background:rgba(0,170,255,.1);color:var(--blue);border:1px solid rgba(0,170,255,.2)}
+.asap-status-badge.queued{background:rgba(90,90,128,.2);color:var(--dimtext);border:1px solid var(--border2)}
+.asap-status-badge.error{background:rgba(255,51,102,.1);color:var(--red);border:1px solid rgba(255,51,102,.2)}
+
+/* Progress bars */
+.asap-prog-section{margin-bottom:9px}
+.asap-prog-label{display:flex;justify-content:space-between;font-size:9px;color:var(--dimtext);margin-bottom:4px;letter-spacing:.5px}
+.asap-prog-track{background:var(--bg3);border:1px solid var(--border2);border-radius:2px;height:8px;overflow:hidden}
+.asap-prog-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.asap-prog-fill.props{background:linear-gradient(90deg,#ff5500,#ff8800)}
+.asap-prog-fill.photos{background:linear-gradient(90deg,#0055ff,#00aaff)}
+.asap-prog-fill.data{background:linear-gradient(90deg,#55007f,#aa44ff)}
+.asap-city-ts{font-size:8px;color:var(--dimtext);margin-top:8px;opacity:.6}
 </style>
 </head>
 <body>
@@ -289,6 +346,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="ticker-item"><div class="ticker-dot offline" id="dot-caller"></div><span>JARVIS CALLER</span></div>
   <div class="ticker-item"><div class="ticker-dot offline" id="dot-jarvis"></div><span>JARVIS BOT</span></div>
   <div id="countdown-wrap">&#8635; REFRESH IN <span id="countdown">60</span>s</div>
+</div>
+
+<div id="nav-tabs">
+  <button class="nav-tab active" id="nav-main" onclick="switchMainTab('main')">🤖 MAIN DASHBOARD</button>
+  <button class="nav-tab asap-tab" id="nav-asap" onclick="switchMainTab('asap')">🏠 ASAP ARV</button>
 </div>
 
 <div id="main">
@@ -594,6 +656,69 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </section>
 
 </div><!-- /main -->
+
+<!-- ═══ ASAP ARV VIEW ════════════════════════════════════════════ -->
+<div id="asap-view">
+
+  <!-- DB Stats Bar -->
+  <div class="asap-stat-bar">
+    <div class="asap-stat">
+      <div class="asap-stat-val" id="asap-total-props">—</div>
+      <div class="asap-stat-lbl">Total Properties</div>
+    </div>
+    <div class="asap-stat">
+      <div class="asap-stat-val" id="asap-total-photos">—</div>
+      <div class="asap-stat-lbl">With Photos</div>
+    </div>
+    <div class="asap-stat">
+      <div class="asap-stat-val" id="asap-cities-complete">—</div>
+      <div class="asap-stat-lbl">Cities Complete</div>
+    </div>
+    <div class="asap-stat">
+      <div class="asap-stat-val" id="asap-cities-active">—</div>
+      <div class="asap-stat-lbl">Cities Active</div>
+    </div>
+  </div>
+
+  <!-- Orlando Focus Card (pinned) -->
+  <div class="asap-orlando-card">
+    <div class="asap-orlando-hdr">
+      <div>
+        <div class="asap-orlando-title">📍 ORLANDO, FL — FOCUS CITY</div>
+        <div style="font-size:9px;color:var(--dimtext);letter-spacing:2px;margin-top:3px">PRIORITY TARGET — LAST 12 MONTHS</div>
+      </div>
+      <div style="text-align:right">
+        <div class="asap-orlando-pct" id="orlando-pct">—%</div>
+        <div style="font-size:9px;color:var(--dimtext);margin-top:2px">scraped</div>
+      </div>
+    </div>
+    <div class="asap-prog-section">
+      <div class="asap-prog-label"><span>🏠 Properties Scraped</span><span id="orlando-scraped-label">—</span></div>
+      <div class="asap-prog-track"><div class="asap-prog-fill props" id="orlando-scrape-bar" style="width:0%"></div></div>
+    </div>
+    <div class="asap-prog-section">
+      <div class="asap-prog-label"><span>📸 Photos Collected</span><span id="orlando-photos-label">—</span></div>
+      <div class="asap-prog-track"><div class="asap-prog-fill photos" id="orlando-photos-bar" style="width:0%"></div></div>
+    </div>
+    <div class="asap-prog-section">
+      <div class="asap-prog-label"><span>🛏 Full Data (beds/baths/sqft)</span><span id="orlando-data-label">—</span></div>
+      <div class="asap-prog-track"><div class="asap-prog-fill data" id="orlando-data-bar" style="width:0%"></div></div>
+    </div>
+    <div class="asap-orlando-grid">
+      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-total">—</div><div class="asap-mini-lbl">Found on Zillow</div></div>
+      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-scraped">—</div><div class="asap-mini-lbl">Scraped to DB</div></div>
+      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-photos">—</div><div class="asap-mini-lbl">Have Photos</div></div>
+      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-full">—</div><div class="asap-mini-lbl">Full Data</div></div>
+    </div>
+  </div>
+
+  <!-- City Progress Cards -->
+  <div style="font-family:'Orbitron',monospace;font-size:9px;color:var(--dimtext);letter-spacing:3px;margin-bottom:12px;text-transform:uppercase">ALL CITIES</div>
+  <div class="asap-city-grid" id="asap-city-grid">
+    <div class="empty-state"><div class="es-icon">🏙️</div><p>Loading city data...</p></div>
+  </div>
+
+</div><!-- /asap-view -->
 
 <!-- ═══ S8: SYSTEM STATUS BAR ═══════════════════════════════════ -->
 <footer id="s-status">
@@ -1448,6 +1573,125 @@ async function loadIdeasBoard() {
       }
     }
   } catch(e) { console.warn('loadIdeasBoard:', e.message); }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MAIN NAV TAB SWITCHER
+// ──────────────────────────────────────────────────────────────
+let asapRefreshInterval = null;
+function switchMainTab(tab) {
+  const mainView = document.getElementById('main');
+  const asapView = document.getElementById('asap-view');
+  const navMain  = document.getElementById('nav-main');
+  const navAsap  = document.getElementById('nav-asap');
+
+  if (tab === 'asap') {
+    mainView.style.display = 'none';
+    asapView.classList.add('visible');
+    navMain.classList.remove('active');
+    navAsap.classList.add('active');
+    loadAsapArv();
+    // Auto-refresh every 30s while on ASAP tab
+    if (!asapRefreshInterval) {
+      asapRefreshInterval = setInterval(loadAsapArv, 30000);
+    }
+  } else {
+    asapView.classList.remove('visible');
+    mainView.style.display = '';
+    navAsap.classList.remove('active');
+    navMain.classList.add('active');
+    if (asapRefreshInterval) { clearInterval(asapRefreshInterval); asapRefreshInterval = null; }
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ASAP ARV DASHBOARD
+// ──────────────────────────────────────────────────────────────
+async function loadAsapArv() {
+  try {
+    // Parallel queries
+    const [
+      { data: cities },
+      { count: totalProps },
+      { count: totalPhotos },
+      { data: orlandoProps },
+    ] = await Promise.all([
+      sb.from('asap_cities').select('*').order('id'),
+      sb.from('asap_sold_properties').select('*', { count: 'exact', head: true }),
+      sb.from('asap_sold_properties').select('*', { count: 'exact', head: true }).eq('photos_collected', true),
+      sb.from('asap_sold_properties').select('id, photos_collected, beds, baths, sqft').eq('city', 'Orlando'),
+    ]);
+
+    // ── Stats bar ────────────────────────────────────────────
+    const citiesComplete = (cities || []).filter(c => c.status === 'complete').length;
+    const citiesActive   = (cities || []).filter(c => ['in_progress','photos_pending'].includes(c.status)).length;
+    document.getElementById('asap-total-props').textContent   = (totalProps || 0).toLocaleString();
+    document.getElementById('asap-total-photos').textContent  = (totalPhotos || 0).toLocaleString();
+    document.getElementById('asap-cities-complete').textContent = `${citiesComplete}/${(cities||[]).length}`;
+    document.getElementById('asap-cities-active').textContent   = citiesActive;
+
+    // ── Orlando focus card ────────────────────────────────────
+    const orlandoRow = (cities || []).find(c => c.city === 'Orlando' && c.state === 'FL');
+    const orlandoAll  = orlandoProps || [];
+    const orlandoScraped  = orlandoAll.length;
+    const orlandoPhotos   = orlandoAll.filter(p => p.photos_collected).length;
+    const orlandoFull     = orlandoAll.filter(p => p.beds && p.baths && p.sqft).length;
+    const orlandoExpected = orlandoRow?.total_properties || orlandoScraped || 1;
+
+    const scrapePct = orlandoExpected > 0 ? Math.round((orlandoScraped / orlandoExpected) * 100) : 0;
+    const photosPct = orlandoScraped > 0  ? Math.round((orlandoPhotos  / orlandoScraped)  * 100) : 0;
+    const dataPct   = orlandoScraped > 0  ? Math.round((orlandoFull    / orlandoScraped)  * 100) : 0;
+
+    document.getElementById('orlando-pct').textContent            = `${scrapePct}%`;
+    document.getElementById('orlando-total').textContent          = orlandoExpected.toLocaleString();
+    document.getElementById('orlando-scraped').textContent        = orlandoScraped.toLocaleString();
+    document.getElementById('orlando-photos').textContent         = orlandoPhotos.toLocaleString();
+    document.getElementById('orlando-full').textContent           = orlandoFull.toLocaleString();
+    document.getElementById('orlando-scraped-label').textContent  = `${orlandoScraped.toLocaleString()} / ${orlandoExpected.toLocaleString()}`;
+    document.getElementById('orlando-photos-label').textContent   = `${photosPct}% (${orlandoPhotos.toLocaleString()})`;
+    document.getElementById('orlando-data-label').textContent     = `${dataPct}% (${orlandoFull.toLocaleString()})`;
+    document.getElementById('orlando-scrape-bar').style.width  = `${Math.min(scrapePct, 100)}%`;
+    document.getElementById('orlando-photos-bar').style.width  = `${Math.min(photosPct, 100)}%`;
+    document.getElementById('orlando-data-bar').style.width    = `${Math.min(dataPct, 100)}%`;
+
+    // ── City cards ────────────────────────────────────────────
+    const grid = document.getElementById('asap-city-grid');
+    if (!cities || cities.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><div class="es-icon">🏙️</div><p>No cities found. Run SQL seed in Supabase first.</p></div>';
+      return;
+    }
+
+    const statusLabel = { queued: 'QUEUED', in_progress: 'ACTIVE', photos_pending: 'PHOTOS', complete: 'COMPLETE', error: 'ERROR' };
+
+    grid.innerHTML = cities.map(c => {
+      const scraped   = c.scraped_count  || 0;
+      const photos    = c.photos_count   || 0;
+      const total     = c.total_properties || scraped || 1;
+      const scPct     = total > 0 ? Math.min(Math.round((scraped / total) * 100), 100) : 0;
+      const phPct     = scraped > 0 ? Math.min(Math.round((photos / scraped) * 100), 100) : 0;
+      const statusCls = c.status || 'queued';
+      const badgeCls  = statusCls.replace(/_/g, '-');
+      const ts        = c.last_updated ? new Date(c.last_updated).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+
+      return `
+        <div class="asap-city-card status-${statusCls}">
+          <div class="asap-city-name">
+            ${c.city}, ${c.state}
+            <span class="asap-status-badge ${badgeCls}">${statusLabel[statusCls] || statusCls.toUpperCase()}</span>
+          </div>
+          <div class="asap-prog-section">
+            <div class="asap-prog-label"><span>🏠 Properties</span><span>${scraped.toLocaleString()}${total > scraped ? ' / ' + total.toLocaleString() : ''}</span></div>
+            <div class="asap-prog-track"><div class="asap-prog-fill props" style="width:${scPct}%"></div></div>
+          </div>
+          <div class="asap-prog-section">
+            <div class="asap-prog-label"><span>📸 Photos</span><span>${photos.toLocaleString()} (${phPct}%)</span></div>
+            <div class="asap-prog-track"><div class="asap-prog-fill photos" style="width:${phPct}%"></div></div>
+          </div>
+          <div class="asap-city-ts">Updated: ${ts}</div>
+        </div>`;
+    }).join('');
+
+  } catch(e) { console.warn('loadAsapArv:', e.message); }
 }
 </script>
 </body>
