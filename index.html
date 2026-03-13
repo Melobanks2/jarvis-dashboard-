@@ -321,6 +321,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .asap-prog-fill.photos{background:linear-gradient(90deg,#0055ff,#00aaff)}
 .asap-prog-fill.data{background:linear-gradient(90deg,#55007f,#aa44ff)}
 .asap-city-ts{font-size:8px;color:var(--dimtext);margin-top:8px;opacity:.6}
+
+/* ── ASAP Map ── */
+.asap-map-wrap{background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:16px 20px;margin-bottom:18px;position:relative;overflow:hidden}
+.asap-map-wrap::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan) 30%,var(--cyan) 70%,transparent);opacity:.5}
+.asap-map-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.asap-map-title-txt{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan)}
+.asap-map-legend{display:flex;gap:14px;flex-wrap:wrap}
+.map-leg-item{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--dimtext);letter-spacing:.5px;text-transform:uppercase}
+.map-leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+#asap-priority-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;color:var(--gold);animation:blink 1.5s infinite}
+@keyframes mapPulseOuter{0%,100%{r:28;fill-opacity:.12}50%{r:34;fill-opacity:.25}}
 </style>
 </head>
 <body>
@@ -748,7 +759,22 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 
-  <!-- State Groups -->
+  <!-- US Coverage Map -->
+  <div class="asap-map-wrap">
+    <div class="asap-map-hdr">
+      <div class="asap-map-title-txt">▸ U.S. COVERAGE MAP</div>
+      <span id="asap-priority-label"></span>
+      <div class="asap-map-legend">
+        <div class="map-leg-item"><div class="map-leg-dot" style="background:#00ff88"></div>Complete</div>
+        <div class="map-leg-item"><div class="map-leg-dot" style="background:#ffd700"></div>Active</div>
+        <div class="map-leg-item"><div class="map-leg-dot" style="background:#00aaff"></div>Photos</div>
+        <div class="map-leg-item"><div class="map-leg-dot" style="background:#2a2a4a;border:1px solid #3a3a6a"></div>Queued</div>
+      </div>
+    </div>
+    <svg id="asap-state-map" viewBox="0 0 820 460" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block"></svg>
+  </div>
+
+  <!-- State / City Progress -->
   <div id="asap-state-groups">
     <div class="empty-state"><div class="es-icon">🏙️</div><p>Loading city data...</p></div>
   </div>
@@ -1814,7 +1840,132 @@ async function loadAsapArv() {
         </div>`;
     }).join('');
 
+    // ── US Map ──────────────────────────────────────────────────
+    buildAsapMap(dedupedCities);
+
   } catch(e) { console.warn('loadAsapArv:', e.message); }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  US MAP BUILDER
+// ──────────────────────────────────────────────────────────────
+function buildAsapMap(dedupedCities) {
+  const svg = document.getElementById('asap-state-map');
+  if (!svg) return;
+
+  // State centroids: Albers-like x,y on 820×460 canvas
+  // x = (lon + 125) * 14.14  |  y = (49 - lat) * 18.4
+  const ST = {
+    WA:{x:64,y:28},  OR:{x:64,y:94},  CA:{x:78,y:215}, ID:{x:145,y:84},
+    NV:{x:117,y:188},AZ:{x:188,y:270},MT:{x:206,y:37},  WY:{x:247,y:110},
+    UT:{x:197,y:178},CO:{x:276,y:184},NM:{x:269,y:267},
+    ND:{x:346,y:28}, SD:{x:349,y:84}, NE:{x:354,y:138},KS:{x:375,y:193},
+    OK:{x:388,y:249},TX:{x:367,y:331},
+    MN:{x:430,y:48}, IA:{x:446,y:128},MO:{x:460,y:197},AR:{x:461,y:263},
+    LA:{x:467,y:327},WI:{x:503,y:80}, IL:{x:507,y:166},TN:{x:543,y:241},
+    MS:{x:498,y:300},MI:{x:572,y:86}, IN:{x:549,y:170},KY:{x:567,y:211},
+    AL:{x:540,y:298},OH:{x:596,y:158},GA:{x:588,y:309},FL:{x:620,y:390},
+    WV:{x:627,y:193},VA:{x:655,y:211},NC:{x:648,y:248},SC:{x:623,y:280},
+    PA:{x:674,y:149},NY:{x:698,y:112},NJ:{x:712,y:163},DE:{x:710,y:185},
+    MD:{x:690,y:184},VT:{x:738,y:92}, NH:{x:754,y:98}, MA:{x:755,y:121},
+    CT:{x:738,y:136},RI:{x:758,y:136},ME:{x:787,y:66},
+  };
+
+  // Aggregate status per state from city rows
+  const stateStatus = {};
+  const stateProps  = {};
+  dedupedCities.forEach(c => {
+    const st = c.state;
+    if (!stateStatus[st]) { stateStatus[st] = []; stateProps[st] = 0; }
+    stateStatus[st].push(c.status);
+    stateProps[st] += (c.scraped_count || 0);
+  });
+
+  const getStatus = st => {
+    const s = stateStatus[st];
+    if (!s) return null;
+    if (s.includes('in_progress'))   return 'in_progress';
+    if (s.includes('photos_pending'))return 'photos_pending';
+    if (s.every(x => x === 'complete')) return 'complete';
+    return 'queued';
+  };
+
+  const COLORS = {
+    complete:      '#00ff88',
+    in_progress:   '#ffd700',
+    photos_pending:'#00aaff',
+    queued:        '#2a2a4a',
+  };
+  const STROKES = {
+    complete:      '#00ff88',
+    in_progress:   '#ffd700',
+    photos_pending:'#00aaff',
+    queued:        '#3a3a6a',
+  };
+  const STATE_NAMES = { FL:'Florida', GA:'Georgia', TX:'Texas', AZ:'Arizona', NC:'North Carolina' };
+
+  const targets = new Set(Object.keys(stateStatus));
+  let html = `
+    <defs>
+      <filter id="mglow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>`;
+
+  // Non-target states first (background layer)
+  Object.entries(ST).forEach(([abbr, p]) => {
+    if (targets.has(abbr)) return;
+    html += `<circle cx="${p.x}" cy="${p.y}" r="7" fill="#131326" stroke="#252545" stroke-width="1" opacity=".5"/>
+             <text x="${p.x}" y="${p.y}" fill="#303055" font-size="5.5" text-anchor="middle" dominant-baseline="central" font-family="monospace" style="pointer-events:none">${abbr}</text>`;
+  });
+
+  // Target states on top (larger, colored)
+  let activeSt = null;
+  Object.entries(ST).forEach(([abbr, p]) => {
+    if (!targets.has(abbr)) return;
+    const status = getStatus(abbr);
+    if (status === 'in_progress' && !activeSt) activeSt = abbr;
+    const color  = COLORS[status]  || '#2a2a4a';
+    const stroke = STROKES[status] || '#3a3a6a';
+    const props  = stateProps[abbr] || 0;
+    const isPulse = status === 'in_progress';
+    const glow   = isPulse ? 'filter="url(#mglow)"' : '';
+    const cities = dedupedCities.filter(c => c.state === abbr);
+    const cityList = cities.map(c => `${c.city}: ${c.scraped_count||0} props (${c.status})`).join('&#10;');
+
+    if (isPulse) {
+      html += `<circle cx="${p.x}" cy="${p.y}" r="30" fill="${color}" fill-opacity=".1" stroke="${color}" stroke-width=".5" stroke-opacity=".4">
+                 <animate attributeName="r" values="28;36;28" dur="2s" repeatCount="indefinite"/>
+                 <animate attributeName="fill-opacity" values=".1;.22;.1" dur="2s" repeatCount="indefinite"/>
+               </circle>`;
+    }
+    html += `
+      <g data-state="${abbr}" style="cursor:pointer">
+        <title>${STATE_NAMES[abbr]||abbr} — ${status?.replace(/_/g,' ')||'queued'} — ${props.toLocaleString()} props&#10;${cityList}</title>
+        <circle cx="${p.x}" cy="${p.y}" r="23" fill="${color}" fill-opacity=".13" stroke="${stroke}" stroke-width="1.5" ${glow}/>
+        <circle cx="${p.x}" cy="${p.y}" r="14" fill="${color}" fill-opacity="${status==='queued'?.4:.85}"/>
+        <text x="${p.x}" y="${p.y}" fill="${status==='queued'?'#5a5a8a':'#000'}" font-size="7.5" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="'Orbitron',monospace" style="pointer-events:none">${abbr}</text>
+        <text x="${p.x}" y="${p.y+30}" fill="${color}" font-size="6.5" text-anchor="middle" font-family="monospace" opacity=".9" style="pointer-events:none">${props>0?props.toLocaleString():''}</text>
+      </g>`;
+  });
+
+  svg.innerHTML = html;
+
+  // Priority label
+  const prioEl = document.getElementById('asap-priority-label');
+  if (prioEl) {
+    if (activeSt) {
+      prioEl.textContent = `◉ ACTIVE: ${STATE_NAMES[activeSt]||activeSt}`;
+      prioEl.style.display = '';
+    } else {
+      const doneSts = Object.keys(stateStatus).filter(s => getStatus(s) === 'complete');
+      prioEl.textContent = doneSts.length === Object.keys(stateStatus).length
+        ? `✅ ALL STATES COMPLETE` : '';
+      prioEl.style.color = 'var(--green)';
+      prioEl.style.animation = 'none';
+    }
+  }
 }
 </script>
 </body>
