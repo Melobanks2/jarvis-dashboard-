@@ -705,7 +705,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
     <div class="asap-stat">
       <div class="asap-stat-val" id="asap-cities-active">—</div>
-      <div class="asap-stat-lbl">Cities Active</div>
+      <div class="asap-stat-lbl">Workers Active</div>
+    </div>
+    <div class="asap-stat">
+      <div class="asap-stat-val" id="asap-states-covered">—</div>
+      <div class="asap-stat-lbl">States Covered</div>
     </div>
   </div>
 
@@ -734,16 +738,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="asap-prog-track"><div class="asap-prog-fill data" id="orlando-data-bar" style="width:0%"></div></div>
     </div>
     <div class="asap-orlando-grid">
-      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-total">—</div><div class="asap-mini-lbl">Found on Zillow</div></div>
+      <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-total">—</div><div class="asap-mini-lbl">Found on XLeads</div></div>
       <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-scraped">—</div><div class="asap-mini-lbl">Scraped to DB</div></div>
       <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-photos">—</div><div class="asap-mini-lbl">Have Photos</div></div>
       <div class="asap-mini-stat"><div class="asap-mini-val" id="orlando-full">—</div><div class="asap-mini-lbl">Full Data</div></div>
     </div>
   </div>
 
-  <!-- City Progress Cards -->
-  <div style="font-family:'Orbitron',monospace;font-size:9px;color:var(--dimtext);letter-spacing:3px;margin-bottom:12px;text-transform:uppercase">ALL CITIES</div>
-  <div class="asap-city-grid" id="asap-city-grid">
+  <!-- State Groups -->
+  <div id="asap-state-groups">
     <div class="empty-state"><div class="es-icon">🏙️</div><p>Loading city data...</p></div>
   </div>
 
@@ -770,6 +773,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div class="proc-item">
     <div class="proc-dot offline" id="pi-caller"></div>
     <div><div class="proc-name">JARVIS CALLER</div><div class="proc-next" id="pn-caller">12:00 PM Mon&ndash;Fri</div></div>
+  </div>
+  <div class="proc-item">
+    <div class="proc-dot offline" id="pi-asap"></div>
+    <div><div class="proc-name">ASAP SCRAPER</div><div class="proc-next" id="pn-asap">Always On</div></div>
   </div>
   <div class="proc-item" style="border-right:none;margin-left:auto;min-width:auto">
     <div style="font-size:9px;color:var(--dimtext);letter-spacing:1px">SYS&nbsp;<span style="color:var(--green)">ONLINE</span></div>
@@ -1686,40 +1693,90 @@ async function loadAsapArv() {
     document.getElementById('orlando-photos-bar').style.width  = `${Math.min(photosPct, 100)}%`;
     document.getElementById('orlando-data-bar').style.width    = `${Math.min(dataPct, 100)}%`;
 
-    // ── City cards ────────────────────────────────────────────
-    const grid = document.getElementById('asap-city-grid');
+    // ── States covered stat ────────────────────────────────────
+    const stateMap = {};
+    (cities || []).forEach(c => {
+      if (!stateMap[c.state]) stateMap[c.state] = { total: 0, complete: 0 };
+      stateMap[c.state].total++;
+      if (c.status === 'complete') stateMap[c.state].complete++;
+    });
+    const statesCovered = Object.values(stateMap).filter(s => s.complete === s.total && s.total > 0).length;
+    document.getElementById('asap-states-covered').textContent = `${statesCovered}/${Object.keys(stateMap).length}`;
+
+    // ── State-grouped city cards ──────────────────────────────
+    const container = document.getElementById('asap-state-groups');
     if (!cities || cities.length === 0) {
-      grid.innerHTML = '<div class="empty-state"><div class="es-icon">🏙️</div><p>No cities found. Run SQL seed in Supabase first.</p></div>';
+      container.innerHTML = '<div class="empty-state"><div class="es-icon">🏙️</div><p>No cities found. Run SQL seed in Supabase first.</p></div>';
       return;
     }
 
     const statusLabel = { queued: 'QUEUED', in_progress: 'ACTIVE', photos_pending: 'PHOTOS', complete: 'COMPLETE', error: 'ERROR' };
+    // Worker assignment: odd IDs = W1, even IDs = W2
+    const workerLabel = id => id % 2 === 1 ? 'W1' : 'W2';
 
-    grid.innerHTML = cities.map(c => {
-      const scraped   = c.scraped_count  || 0;
-      const photos    = c.photos_count   || 0;
-      const total     = c.total_properties || scraped || 1;
-      const scPct     = total > 0 ? Math.min(Math.round((scraped / total) * 100), 100) : 0;
-      const phPct     = scraped > 0 ? Math.min(Math.round((photos / scraped) * 100), 100) : 0;
-      const statusCls = c.status || 'queued';
-      const badgeCls  = statusCls.replace(/_/g, '-');
-      const ts        = c.last_updated ? new Date(c.last_updated).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+    // Group cities by state, preserve order
+    const stateOrder = [];
+    const byState = {};
+    (cities || []).forEach(c => {
+      if (!byState[c.state]) { byState[c.state] = []; stateOrder.push(c.state); }
+      byState[c.state].push(c);
+    });
+
+    const STATE_NAMES = { FL: 'Florida', GA: 'Georgia', TX: 'Texas', AZ: 'Arizona', NC: 'North Carolina' };
+
+    container.innerHTML = stateOrder.map(state => {
+      const stateCities = byState[state];
+      const stComplete  = stateCities.filter(c => c.status === 'complete').length;
+      const stTotal     = stateCities.length;
+      const stProps     = stateCities.reduce((s, c) => s + (c.scraped_count || 0), 0);
+      const stPct       = Math.round((stComplete / stTotal) * 100);
+      const allDone     = stComplete === stTotal;
+
+      const cityCards = stateCities.map(c => {
+        const scraped   = c.scraped_count  || 0;
+        const photos    = c.photos_count   || 0;
+        const total     = c.total_properties || scraped || 1;
+        const scPct     = total > 0 ? Math.min(Math.round((scraped / total) * 100), 100) : 0;
+        const phPct     = scraped > 0 ? Math.min(Math.round((photos / scraped) * 100), 100) : 0;
+        const statusCls = c.status || 'queued';
+        const badgeCls  = statusCls.replace(/_/g, '-');
+        const ts        = c.last_updated ? new Date(c.last_updated).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+        const wLabel    = workerLabel(c.id);
+
+        return `
+          <div class="asap-city-card status-${statusCls}">
+            <div class="asap-city-name">
+              ${c.city}
+              <span style="display:inline-flex;gap:4px;align-items:center">
+                <span class="asap-status-badge ${badgeCls}">${statusLabel[statusCls] || statusCls.toUpperCase()}</span>
+                <span style="font-size:8px;color:#555;font-family:monospace">${wLabel}</span>
+              </span>
+            </div>
+            <div class="asap-prog-section">
+              <div class="asap-prog-label"><span>🏠 Properties</span><span>${scraped.toLocaleString()}${total > scraped ? ' / ' + total.toLocaleString() : ''}</span></div>
+              <div class="asap-prog-track"><div class="asap-prog-fill props" style="width:${scPct}%"></div></div>
+            </div>
+            <div class="asap-prog-section">
+              <div class="asap-prog-label"><span>📸 Photos</span><span>${photos.toLocaleString()} (${phPct}%)</span></div>
+              <div class="asap-prog-track"><div class="asap-prog-fill photos" style="width:${phPct}%"></div></div>
+            </div>
+            <div class="asap-city-ts">Updated: ${ts}</div>
+          </div>`;
+      }).join('');
 
       return `
-        <div class="asap-city-card status-${statusCls}">
-          <div class="asap-city-name">
-            ${c.city}, ${c.state}
-            <span class="asap-status-badge ${badgeCls}">${statusLabel[statusCls] || statusCls.toUpperCase()}</span>
+        <div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;font-family:'Orbitron',monospace">
+            <div style="font-size:10px;color:${allDone ? 'var(--green)' : 'var(--cyan)'};letter-spacing:2px">
+              ${allDone ? '✅' : '🔄'} ${STATE_NAMES[state] || state} (${state})
+            </div>
+            <div style="font-size:9px;color:var(--dimtext)">${stComplete}/${stTotal} cities complete &nbsp;·&nbsp; ${stProps.toLocaleString()} properties</div>
+            <div style="flex:1;height:2px;background:#1a1a2e;border-radius:1px;overflow:hidden">
+              <div style="height:100%;width:${stPct}%;background:${allDone ? 'var(--green)' : 'var(--cyan)'};transition:width .6s"></div>
+            </div>
+            <div style="font-size:10px;color:${allDone ? 'var(--green)' : 'var(--cyan)'};">${stPct}%</div>
           </div>
-          <div class="asap-prog-section">
-            <div class="asap-prog-label"><span>🏠 Properties</span><span>${scraped.toLocaleString()}${total > scraped ? ' / ' + total.toLocaleString() : ''}</span></div>
-            <div class="asap-prog-track"><div class="asap-prog-fill props" style="width:${scPct}%"></div></div>
-          </div>
-          <div class="asap-prog-section">
-            <div class="asap-prog-label"><span>📸 Photos</span><span>${photos.toLocaleString()} (${phPct}%)</span></div>
-            <div class="asap-prog-track"><div class="asap-prog-fill photos" style="width:${phPct}%"></div></div>
-          </div>
-          <div class="asap-city-ts">Updated: ${ts}</div>
+          <div class="asap-city-grid">${cityCards}</div>
         </div>`;
     }).join('');
 
