@@ -723,6 +723,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div style="text-align:right">
         <div class="asap-orlando-pct" id="orlando-pct">—%</div>
         <div style="font-size:9px;color:var(--dimtext);margin-top:2px">scraped</div>
+        <div id="asap-rate-badge" style="display:none;margin-top:6px;background:rgba(255,136,0,.12);border:1px solid rgba(255,136,0,.3);border-radius:2px;padding:3px 10px;font-size:10px;color:var(--orange);letter-spacing:1px">
+          <span id="asap-rate-val">—</span> props/min
+        </div>
       </div>
     </div>
     <div class="asap-prog-section">
@@ -1618,6 +1621,7 @@ async function loadIdeasBoard() {
 //  MAIN NAV TAB SWITCHER
 // ──────────────────────────────────────────────────────────────
 let asapRefreshInterval = null;
+let asapLastRefreshRate = 30000;
 function switchMainTab(tab) {
   const mainView = document.getElementById('main');
   const asapView = document.getElementById('asap-view');
@@ -1630,9 +1634,10 @@ function switchMainTab(tab) {
     navMain.classList.remove('active');
     navAsap.classList.add('active');
     loadAsapArv();
-    // Auto-refresh every 30s while on ASAP tab
     if (!asapRefreshInterval) {
-      asapRefreshInterval = setInterval(loadAsapArv, 30000);
+      asapRefreshInterval = setInterval(() => {
+        loadAsapArv();
+      }, 10000);
     }
   } else {
     asapView.classList.remove('visible');
@@ -1661,16 +1666,25 @@ async function loadAsapArv() {
       sb.from('asap_sold_properties').select('id, photos_collected, beds, baths, sqft').eq('city', 'Orlando'),
     ]);
 
+    // ── Deduplicate cities: keep row with highest scraped_count per city+state ──
+    const cityKey = c => `${c.city}|${c.state}`;
+    const cityBest = {};
+    (cities || []).forEach(c => {
+      const k = cityKey(c);
+      if (!cityBest[k] || (c.scraped_count || 0) >= (cityBest[k].scraped_count || 0)) cityBest[k] = c;
+    });
+    const dedupedCities = Object.values(cityBest);
+
     // ── Stats bar ────────────────────────────────────────────
-    const citiesComplete = (cities || []).filter(c => c.status === 'complete').length;
-    const citiesActive   = (cities || []).filter(c => ['in_progress','photos_pending'].includes(c.status)).length;
+    const citiesComplete = dedupedCities.filter(c => c.status === 'complete').length;
+    const citiesActive   = dedupedCities.filter(c => ['in_progress','photos_pending'].includes(c.status)).length;
     document.getElementById('asap-total-props').textContent   = (totalProps || 0).toLocaleString();
     document.getElementById('asap-total-photos').textContent  = (totalPhotos || 0).toLocaleString();
-    document.getElementById('asap-cities-complete').textContent = `${citiesComplete}/${(cities||[]).length}`;
+    document.getElementById('asap-cities-complete').textContent = `${citiesComplete}/${dedupedCities.length}`;
     document.getElementById('asap-cities-active').textContent   = citiesActive;
 
     // ── Orlando focus card ────────────────────────────────────
-    const orlandoRow = (cities || []).find(c => c.city === 'Orlando' && c.state === 'FL');
+    const orlandoRow = dedupedCities.find(c => c.city === 'Orlando' && c.state === 'FL');
     const orlandoAll  = orlandoProps || [];
     const orlandoScraped  = orlandoAll.length;
     const orlandoPhotos   = orlandoAll.filter(p => p.photos_collected).length;
@@ -1693,6 +1707,26 @@ async function loadAsapArv() {
     document.getElementById('orlando-photos-bar').style.width  = `${Math.min(photosPct, 100)}%`;
     document.getElementById('orlando-data-bar').style.width    = `${Math.min(dataPct, 100)}%`;
 
+    // ── Live rate indicator (props/min) ───────────────────────
+    const activeCity = dedupedCities.find(c => c.status === 'in_progress');
+    const rateBadge = document.getElementById('asap-rate-badge');
+    const rateVal   = document.getElementById('asap-rate-val');
+    if (activeCity && activeCity.last_updated && activeCity.scraped_count > 0) {
+      const minsSinceUpdate = (Date.now() - new Date(activeCity.last_updated).getTime()) / 60000;
+      const isLive = minsSinceUpdate < 3; // only show if updated in last 3 min
+      if (isLive) {
+        // Estimate rate: scraped_count / elapsed minutes since city started (assume ~1min for XLeads fetch)
+        const elapsedMins = Math.max(1, minsSinceUpdate + 1);
+        const rate = Math.round(activeCity.scraped_count / elapsedMins);
+        rateVal.textContent = rate;
+        rateBadge.style.display = 'block';
+      } else {
+        rateBadge.style.display = 'none';
+      }
+    } else {
+      rateBadge.style.display = 'none';
+    }
+
     // ── States covered stat ────────────────────────────────────
     const stateMap = {};
     (cities || []).forEach(c => {
@@ -1705,7 +1739,7 @@ async function loadAsapArv() {
 
     // ── State-grouped city cards ──────────────────────────────
     const container = document.getElementById('asap-state-groups');
-    if (!cities || cities.length === 0) {
+    if (!dedupedCities || dedupedCities.length === 0) {
       container.innerHTML = '<div class="empty-state"><div class="es-icon">🏙️</div><p>No cities found. Run SQL seed in Supabase first.</p></div>';
       return;
     }
@@ -1717,7 +1751,7 @@ async function loadAsapArv() {
     // Group cities by state, preserve order
     const stateOrder = [];
     const byState = {};
-    (cities || []).forEach(c => {
+    dedupedCities.forEach(c => {
       if (!byState[c.state]) { byState[c.state] = []; stateOrder.push(c.state); }
       byState[c.state].push(c);
     });
