@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0f; --bg2: #0c0c18; --bg3: #101020; --bg4: #13132a;
+  --green: #00ff88; --gold: #ffd700; --red: #ff3366; --orange: #ff8800;
+  --blue: #00aaff; --purple: #aa44ff; --cyan: #00e5ff;
+  --dim: #2a2a46; --dimtext: #5a5a80; --text: #b8c0d8; --textb: #dde6f8;
+  --border: #16162e; --border2: #1e1e3a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 13px;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px);
+  pointer-events: none;
+  z-index: 9000;
+}
+
+/* Vignette */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.5) 100%);
+  pointer-events: none;
+  z-index: 9001;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dimtext); }
+
+/* Glass utility */
+.glass {
+  background: rgba(12, 12, 24, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Panel accent lines */
+.accent-top-green  { box-shadow: inset 0 1px 0 rgba(0,255,136,.5); }
+.accent-top-gold   { box-shadow: inset 0 1px 0 rgba(255,215,0,.5); }
+.accent-top-cyan   { box-shadow: inset 0 1px 0 rgba(0,229,255,.5); }
+.accent-top-blue   { box-shadow: inset 0 1px 0 rgba(0,170,255,.5); }
+.accent-top-purple { box-shadow: inset 0 1px 0 rgba(170,68,255,.5); }
+.accent-top-orange { box-shadow: inset 0 1px 0 rgba(255,136,0,.5); }
+.accent-top-red    { box-shadow: inset 0 1px 0 rgba(255,51,102,.5); }
+
+/* Glow text */
+.glow-green  { text-shadow: 0 0 24px rgba(0,255,136,.7), 0 0 48px rgba(0,255,136,.3); }
+.glow-gold   { text-shadow: 0 0 20px rgba(255,215,0,.6); }
+.glow-cyan   { text-shadow: 0 0 12px rgba(0,229,255,.6); }
+.glow-purple { text-shadow: 0 0 12px rgba(170,68,255,.6); }
+.glow-red    { text-shadow: 0 0 12px rgba(255,51,102,.6); }
+.glow-orange { text-shadow: 0 0 12px rgba(255,136,0,.6); }
+.glow-blue   { text-shadow: 0 0 12px rgba(0,170,255,.6); }
+
+/* Corner decorators (applied via JS/React) */
+.corner-tl::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 14px; height: 14px;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+  opacity: 0.5;
+}
+.corner-br::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 14px; height: 14px;
+  border-bottom: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  opacity: 0.5;
+}
+
+/* Idea badge variants */
+.badge-automation { background: rgba(0,170,255,.12); color: #00aaff; border: 1px solid rgba(0,170,255,.25); }
+.badge-crm        { background: rgba(0,255,136,.1);  color: #00ff88; border: 1px solid rgba(0,255,136,.2);  }
+.badge-cost_saving{ background: rgba(255,215,0,.1);  color: #ffd700; border: 1px solid rgba(255,215,0,.2);  }
+.badge-revenue    { background: rgba(170,68,255,.12);color: #aa44ff; border: 1px solid rgba(170,68,255,.25); }
+.badge-personal   { background: rgba(90,90,128,.2);  color: #5a5a80; border: 1px solid #1e1e3a;             }
+.badge-high       { background: rgba(255,51,102,.12);color: #ff3366; border: 1px solid rgba(255,51,102,.25); }
+.badge-medium     { background: rgba(255,136,0,.1);  color: #ff8800; border: 1px solid rgba(255,136,0,.2);  }
+.badge-low        { background: rgba(90,90,128,.2);  color: #5a5a80; border: 1px solid #1e1e3a;             }
