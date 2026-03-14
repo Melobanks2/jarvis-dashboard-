@@ -147,9 +147,9 @@ function RecordingCard({ rec }: { rec: CallRecord }) {
           </div>
         </div>
 
-        {hasAudio && (
+        {rec.recording_url && (
           <a
-            href={rec.elevenlabs_recording_url ? `/api/el-recording?id=${rec.elevenlabs_recording_url}` : rec.recording_url}
+            href={rec.recording_url}
             target="_blank"
             className="flex items-center gap-1.5 px-2 py-1 border border-ncyan/30 rounded-sm text-ncyan text-[9px] hover:bg-ncyan/10 transition-colors"
           >
