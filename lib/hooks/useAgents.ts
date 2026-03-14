@@ -17,12 +17,12 @@ export interface AgentInfo {
 }
 
 const AGENT_DEFS: Omit<AgentInfo, 'lastActivity' | 'runCount' | 'status'>[] = [
-  { name: 'Alpha Scraper',   key: 'ALPHA_SCRAPER',   color: '#00aaff', description: 'Scrapes AlphaLeads VA, creates GHL contacts + opps',         schedule: 'Every 30 min' },
-  { name: 'Call Analyzer',   key: 'CALL_ANALYZER',   color: '#aa44ff', description: 'Analyzes transcripts, updates GHL tags, stages & notes',     schedule: 'Every hour'   },
-  { name: 'County Scraper',  key: 'COUNTY_SCRAPER',  color: '#ff8800', description: 'OC Comptroller Lis Pendens + MyEClerk login',                schedule: 'Daily 7am'    },
-  { name: 'Jarvis Caller',   key: 'JARVIS_CALLER',   color: '#00ff88', description: 'AI outbound caller with ElevenLabs + Claude conversation',   schedule: 'Mon-Fri noon' },
-  { name: 'Jarvis Bot',      key: 'JARVIS_BOT',      color: '#00e5ff', description: 'Telegram bot polling for real-time commands',                schedule: 'Always on'    },
-  { name: 'ASAP Scraper',    key: 'ASAP_SCRAPER',    color: '#ffd700', description: 'Property data scraper for ASAP ARV database',               schedule: 'On demand'    },
+  { name: 'Alpha Scraper',   key: 'ALPHA_SCRAPER',   color: '#60a5fa', description: 'Scrapes AlphaLeads VA, creates GHL contacts + opps',         schedule: 'Every 30 min' },
+  { name: 'Call Analyzer',   key: 'CALL_ANALYZER',   color: '#a78bfa', description: 'Analyzes transcripts, updates GHL tags, stages & notes',     schedule: 'Every hour'   },
+  { name: 'County Scraper',  key: 'COUNTY_SCRAPER',  color: '#fb923c', description: 'OC Comptroller Lis Pendens + MyEClerk login',                schedule: 'Daily 7am'    },
+  { name: 'Jarvis Caller',   key: 'JARVIS_CALLER',   color: '#4ade80', description: 'AI outbound caller with ElevenLabs + Claude conversation',   schedule: 'Mon-Fri noon' },
+  { name: 'Jarvis Bot',      key: 'JARVIS_BOT',      color: '#67e8f9', description: 'Telegram bot polling for real-time commands',                schedule: 'Always on'    },
+  { name: 'ASAP Scraper',    key: 'ASAP_SCRAPER',    color: '#fbbf24', description: 'Property data scraper for ASAP ARV database',               schedule: 'On demand'    },
 ];
 
 export function useAgents(refreshKey: number) {
