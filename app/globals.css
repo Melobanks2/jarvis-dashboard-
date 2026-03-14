@@ -90,3 +90,20 @@ body {
 .badge-high       { background: rgba(248,113,113,.10); color: #f87171; border: 1px solid rgba(248,113,113,.20); }
 .badge-medium     { background: rgba(251,146,60,.08);  color: #fb923c; border: 1px solid rgba(251,146,60,.18);  }
 .badge-low        { background: rgba(82,82,110,.15);   color: #52526e; border: 1px solid rgba(255,255,255,.07); }
+
+/* ── Jarvis Intelligence Chat — rendered markdown ─────────────────── */
+.jarvis-content p                  { margin-bottom: 10px; }
+.jarvis-content p:last-child       { margin-bottom: 0; }
+.jarvis-content h1                 { font-size: 16px; font-weight: 700; color: #e4e4f0; margin: 14px 0 8px; }
+.jarvis-content h2                 { font-size: 14px; font-weight: 600; color: #e4e4f0; margin: 12px 0 6px; }
+.jarvis-content h3                 { font-size: 13px; font-weight: 600; color: #c4c4d6; margin: 10px 0 5px; }
+.jarvis-content strong             { color: #e4e4f0; font-weight: 600; }
+.jarvis-content em                 { color: #a78bfa; font-style: italic; }
+.jarvis-content ul                 { list-style: none; padding-left: 0; margin: 8px 0; }
+.jarvis-content ul li              { padding: 2px 0 2px 16px; position: relative; }
+.jarvis-content ul li::before      { content: '›'; position: absolute; left: 0; color: #a78bfa; }
+.jarvis-content code               { background: rgba(255,255,255,0.08); color: #67e8f9; padding: 1px 5px; border-radius: 4px; font-family: 'Menlo','Consolas',monospace; font-size: 12px; }
+.jarvis-content .jv-code-block     { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin: 10px 0; overflow: hidden; }
+.jarvis-content .jv-code-lang      { font-size: 9px; font-weight: 600; color: #52526e; padding: 6px 12px 0; text-transform: uppercase; letter-spacing: 1px; }
+.jarvis-content .jv-code-block pre { padding: 10px 12px; overflow-x: auto; }
+.jarvis-content .jv-code-block code{ background: transparent; color: #c4c4d6; font-size: 11px; line-height: 1.7; padding: 0; border-radius: 0; }

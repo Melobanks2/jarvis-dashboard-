@@ -21,6 +21,7 @@ import { IdeasLab }         from '@/components/sections/IdeasLab';
 import { AsapScraper }      from '@/components/sections/AsapScraper';
 import { AgentChat }        from '@/components/sections/AgentChat';
 import { DavidTraining }    from '@/components/sections/DavidTraining';
+import { IntelligenceChat } from '@/components/sections/IntelligenceChat';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -39,6 +40,7 @@ const SECTION_TITLES: Record<string, string> = {
   'david-training':    'David Training Center',
   'analytics':         'Analytics',
   'settings':          'Settings',
+  'intelligence-chat': 'Intelligence Chat',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -52,6 +54,7 @@ function SectionContent({ section }: { section: string }) {
     case 'asap-scraper':      return <AsapScraper />;
     case 'agent-chat':        return <AgentChat />;
     case 'david-training':    return <DavidTraining />;
+    case 'intelligence-chat': return <IntelligenceChat />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon
@@ -134,11 +137,17 @@ export default function Home() {
               </div>
 
               {/* Scrollable content */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-6 max-w-[1400px] mx-auto">
+              {activeSection === 'intelligence-chat' ? (
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                   <SectionContent section={activeSection} />
                 </div>
-              </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-6 max-w-[1400px] mx-auto">
+                    <SectionContent section={activeSection} />
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

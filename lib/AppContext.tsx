@@ -14,7 +14,8 @@ export type Section =
   | 'agent-chat'
   | 'david-training'
   | 'analytics'
-  | 'settings';
+  | 'settings'
+  | 'intelligence-chat';
 
 interface AppState {
   activeSection: Section;
