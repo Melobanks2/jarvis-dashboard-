@@ -15,6 +15,11 @@ export interface AsapCity {
   assigned_agent: number | null;
 }
 
+// DB may store 'complete' (legacy) — normalize to 'completed'
+function normalizeCity(c: AsapCity): AsapCity {
+  return { ...c, status: c.status === ('complete' as string) ? 'completed' : c.status };
+}
+
 export interface AsapTotals {
   total_properties: number;
   total_photos: number;
@@ -40,7 +45,7 @@ export function useAsapData(refreshKey: number) {
         .select('*')
         .order('id', { ascending: true });
 
-      const cities = (cityData || []) as AsapCity[];
+      const cities = ((cityData || []) as AsapCity[]).map(normalizeCity);
       setCities(cities);
 
       // Load aggregate stats from asap_sold_properties
