@@ -16,21 +16,24 @@ const ARC_POSITIONS: [number, number, number][] = [
   [ 4.0, 0, 1.6],
 ];
 
-// ── Iron Man Mark VII suit — colored armor with animated glow states ───────────
+// Fixed gold accent — secondary color on all suits (like Mark VII's gold)
+const GOLD = new THREE.Color('#8a6c1e');
+const GOLD_LIGHT = new THREE.Color('#b89230');
+
+// ── Iron Man Mark VII suit ────────────────────────────────────────────────────
 function Robot({
   color, status, isSelected, isJarvis,
 }: {
   color: string; status: string; isSelected: boolean; isJarvis: boolean;
 }) {
-  // Agent color + derived shades
   const c      = useMemo(() => new THREE.Color(color), [color]);
-  const cDark  = useMemo(() => new THREE.Color(color).multiplyScalar(0.48), [color]);
-  const errC   = useMemo(() => new THREE.Color('#1a0505'), []);
+  const cDark  = useMemo(() => new THREE.Color(color).multiplyScalar(0.45), [color]);
+  const errC   = useMemo(() => new THREE.Color('#200505'), []);
 
   const active  = status === 'active';
   const idle    = status === 'idle';
   const offline = status === 'offline';
-  const base    = active ? 0.28 : idle ? 0.14 : 0.04;
+  const base    = active ? 0.30 : idle ? 0.14 : 0.04;
   const ei      = isSelected ? base * 2.2 : base;
 
   // ── Animated material refs ────────────────────────────────────────────────
@@ -47,14 +50,14 @@ function Robot({
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
 
-    // Arc reactor pulse
+    // Arc reactor
     if (arcRingRef.current) {
       if (active) {
         const p = (Math.sin(t * (2 * Math.PI / 0.8)) + 1) / 2;
-        arcRingRef.current.emissiveIntensity = isSelected ? 2.2 + p * 1.4 : 1.5 + p * 1.1;
+        arcRingRef.current.emissiveIntensity = isSelected ? 2.4 + p * 1.4 : 1.6 + p * 1.1;
       } else if (idle) {
         const p = (Math.sin(t * (2 * Math.PI / 2.5)) + 1) / 2;
-        arcRingRef.current.emissiveIntensity = isSelected ? 1.6 + p * 0.8 : 0.9 + p * 0.6;
+        arcRingRef.current.emissiveIntensity = isSelected ? 1.6 + p * 0.8 : 1.0 + p * 0.6;
       } else {
         arcRingRef.current.emissiveIntensity = 0.2;
       }
@@ -62,292 +65,312 @@ function Robot({
     if (arcCoreRef.current) {
       if (active) {
         const p = (Math.sin(t * (2 * Math.PI / 0.8)) + 1) / 2;
-        arcCoreRef.current.opacity = 0.58 + p * 0.38;
+        arcCoreRef.current.opacity = 0.60 + p * 0.36;
       } else if (idle) {
         const p = (Math.sin(t * (2 * Math.PI / 2.5)) + 1) / 2;
-        arcCoreRef.current.opacity = 0.38 + p * 0.32;
+        arcCoreRef.current.opacity = 0.40 + p * 0.30;
       } else {
-        arcCoreRef.current.opacity = 0.10;
+        arcCoreRef.current.opacity = 0.12;
       }
     }
 
-    // Eye slits
+    // Eyes
     [eyeRef0, eyeRef1].forEach(ref => {
       if (!ref.current) return;
       if (active) {
         const p = (Math.sin(t * (2 * Math.PI / 0.8) + 0.4) + 1) / 2;
-        ref.current.emissiveIntensity = isSelected ? 2.8 + p * 1.0 : 1.8 + p * 0.8;
+        ref.current.emissiveIntensity = isSelected ? 3.0 + p * 1.0 : 2.0 + p * 0.8;
       } else if (idle) {
-        ref.current.emissiveIntensity = isSelected ? 1.8 : 1.0;
+        ref.current.emissiveIntensity = isSelected ? 2.0 : 1.1;
       } else {
         ref.current.emissiveIntensity = 0.12;
       }
     });
 
-    // Boot thrusters — flicker when active
+    // Boot thrusters
     [thruster0Ref, thruster1Ref].forEach((ref, i) => {
       if (!ref.current) return;
       if (active) {
         const flicker = (Math.sin(t * (2 * Math.PI / 0.4) + i * 1.3) + 1) / 2;
-        ref.current.opacity = 0.38 + flicker * 0.30;
-      } else {
-        ref.current.opacity = idle ? 0.14 : 0.03;
-      }
+        ref.current.opacity = 0.40 + flicker * 0.32;
+      } else { ref.current.opacity = idle ? 0.14 : 0.03; }
     });
     [thruster2Ref, thruster3Ref].forEach((ref, i) => {
       if (!ref.current) return;
       if (active) {
         const flicker = (Math.sin(t * (2 * Math.PI / 0.4) + i * 1.3 + 0.8) + 1) / 2;
-        ref.current.opacity = 0.55 + flicker * 0.32;
-      } else {
-        ref.current.opacity = idle ? 0.26 : 0.06;
-      }
+        ref.current.opacity = 0.58 + flicker * 0.30;
+      } else { ref.current.opacity = idle ? 0.28 : 0.06; }
     });
 
-    // Outer energy shell (active only)
+    // Outer energy shell
     if (glowShellRef.current) {
       if (active) {
         const p = (Math.sin(t * (2 * Math.PI / 1.2)) + 1) / 2;
         glowShellRef.current.opacity = 0.04 + p * 0.07;
-      } else {
-        glowShellRef.current.opacity = 0;
-      }
+      } else { glowShellRef.current.opacity = 0; }
     }
   });
 
-  // ── Material factories — agent color is primary ───────────────────────────
-  // Raised armor plates: full agent color, metallic
+  // ── Material factories ────────────────────────────────────────────────────
+  // Primary armor plates — agent color, metallic
   const armor = () => ({
-    color:              offline ? '#1a1520' : c,
-    emissive:           offline ? errC : c,
-    emissiveIntensity:  offline ? 0.02 : ei * 0.28,
-    metalness:          0.80,
-    roughness:          0.20,
+    color:             offline ? '#1c1420' : c,
+    emissive:          offline ? errC : c,
+    emissiveIntensity: offline ? 0.02 : ei * 0.22,
+    metalness:         0.76,
+    roughness:         0.24,
   });
-  // Panel recesses / body base: darkened agent color
+  // Dark recesses between plates
   const recess = () => ({
-    color:              offline ? '#0f0c14' : cDark,
-    emissive:           offline ? errC : c,
-    emissiveIntensity:  offline ? 0.01 : ei * 0.12,
-    metalness:          0.92,
-    roughness:          0.07,
+    color:             offline ? '#0e0b12' : cDark,
+    emissive:          offline ? errC : c,
+    emissiveIntensity: offline ? 0.01 : ei * 0.08,
+    metalness:         0.94,
+    roughness:         0.06,
   });
-  // Glow-only elements (eyes, repulsors, etc.)
+  // Gold accent panels — joints, inner panels
+  const gold = () => ({
+    color:             offline ? '#1a1510' : GOLD,
+    emissive:          offline ? errC : GOLD_LIGHT,
+    emissiveIntensity: offline ? 0.01 : (isSelected ? 0.55 : 0.28),
+    metalness:         0.88,
+    roughness:         0.12,
+  });
   const glowC  = offline ? '#2a2030' : color;
   const glowEm = offline ? errC : c;
 
   return (
     <group scale={isJarvis ? 1.32 : 1.0}>
 
-      {/* ── Active energy shell ─────────────────────────────────────────── */}
+      {/* ── Active energy shell ──────────────────────────────────────────── */}
       <mesh>
-        <sphereGeometry args={[1.62, 16, 12]} />
-        <meshBasicMaterial
-          ref={glowShellRef} color={color} transparent opacity={0}
-          side={THREE.BackSide} depthWrite={false}
-        />
+        <sphereGeometry args={[1.68, 16, 12]} />
+        <meshBasicMaterial ref={glowShellRef} color={color} transparent opacity={0} side={THREE.BackSide} depthWrite={false} />
       </mesh>
 
       {/* ══ HELMET ══════════════════════════════════════════════════════════ */}
 
-      {/* Main helmet shell */}
-      <RoundedBox args={[0.78, 0.74, 0.66]} radius={0.04} smoothness={4} position={[0, 2.12, 0]}>
-        <meshStandardMaterial {...recess()} />
+      {/* Helmet shell — tall, slightly rounded */}
+      <RoundedBox args={[0.76, 0.84, 0.68]} radius={0.04} smoothness={4} position={[0, 2.16, 0]}>
+        <meshStandardMaterial {...armor()} />
       </RoundedBox>
-      {/* Faceplate — centered panel, slightly forward */}
-      <mesh position={[0, 2.09, 0.355]}>
-        <boxGeometry args={[0.56, 0.56, 0.052]} />
+      {/* Faceplate — distinct mask panel, tapers to chin */}
+      <mesh position={[0, 2.12, 0.358]}>
+        <boxGeometry args={[0.56, 0.62, 0.055]} />
         <meshStandardMaterial {...armor()} />
       </mesh>
-      {/* Brow ridge above eyes */}
-      <mesh position={[0, 2.36, 0.362]}>
-        <boxGeometry args={[0.50, 0.068, 0.042]} />
+      {/* Faceplate brow ridge — angular overhang */}
+      <mesh position={[0, 2.40, 0.364]}>
+        <boxGeometry args={[0.52, 0.075, 0.045]} />
         <meshStandardMaterial {...recess()} />
       </mesh>
-      {/* Chin guard — narrower, angular */}
-      <mesh position={[0, 1.815, 0.345]}>
-        <boxGeometry args={[0.28, 0.18, 0.058]} />
+      {/* Cheek panels — sides of faceplate */}
+      <mesh position={[-0.318, 2.12, 0.348]}>
+        <boxGeometry args={[0.092, 0.38, 0.060]} />
+        <meshStandardMaterial {...recess()} />
+      </mesh>
+      <mesh position={[0.318, 2.12, 0.348]}>
+        <boxGeometry args={[0.092, 0.38, 0.060]} />
+        <meshStandardMaterial {...recess()} />
+      </mesh>
+      {/* Chin — narrower, pointed */}
+      <mesh position={[0, 1.810, 0.348]}>
+        <boxGeometry args={[0.26, 0.195, 0.062]} />
         <meshStandardMaterial {...armor()} />
       </mesh>
-      {/* Cheek armor — left */}
-      <mesh position={[-0.315, 2.09, 0.34]}>
-        <boxGeometry args={[0.088, 0.32, 0.058]} />
-        <meshStandardMaterial {...recess()} />
-      </mesh>
-      {/* Cheek armor — right */}
-      <mesh position={[0.315, 2.09, 0.34]}>
-        <boxGeometry args={[0.088, 0.32, 0.058]} />
-        <meshStandardMaterial {...recess()} />
+      {/* Chin taper bottom */}
+      <mesh position={[0, 1.730, 0.340]}>
+        <boxGeometry args={[0.18, 0.100, 0.055]} />
+        <meshStandardMaterial {...armor()} />
       </mesh>
 
-      {/* Eye slits — angled slightly (inner lower, outer higher = Mark VII look) */}
-      <mesh position={[-0.145, 2.195, 0.395]} rotation={[0, 0, 0.20]}>
-        <boxGeometry args={[0.185, 0.046, 0.026]} />
-        <meshStandardMaterial
-          ref={eyeRef0} color={glowC} emissive={glowEm}
-          emissiveIntensity={offline ? 0.12 : (isSelected ? 3.4 : 2.4)}
-          metalness={0.2} roughness={0.05}
-        />
+      {/* Eye slits — wide, angled inward (Mark VII) */}
+      <mesh position={[-0.145, 2.225, 0.400]} rotation={[0, 0, 0.22]}>
+        <boxGeometry args={[0.195, 0.048, 0.028]} />
+        <meshStandardMaterial ref={eyeRef0} color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.12 : (isSelected ? 3.4 : 2.4)} metalness={0.2} roughness={0.04} />
       </mesh>
-      <mesh position={[0.145, 2.195, 0.395]} rotation={[0, 0, -0.20]}>
-        <boxGeometry args={[0.185, 0.046, 0.026]} />
-        <meshStandardMaterial
-          ref={eyeRef1} color={glowC} emissive={glowEm}
-          emissiveIntensity={offline ? 0.12 : (isSelected ? 3.4 : 2.4)}
-          metalness={0.2} roughness={0.05}
-        />
+      <mesh position={[0.145, 2.225, 0.400]} rotation={[0, 0, -0.22]}>
+        <boxGeometry args={[0.195, 0.048, 0.028]} />
+        <meshStandardMaterial ref={eyeRef1} color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.12 : (isSelected ? 3.4 : 2.4)} metalness={0.2} roughness={0.04} />
       </mesh>
 
-      {/* Sensor spike antenna */}
-      <mesh position={[0, 2.59, 0]}>
+      {/* Neck collar — connects helmet to chest */}
+      <mesh position={[0, 1.760, 0]}>
+        <cylinderGeometry args={[0.22, 0.28, 0.18, 12]} />
+        <meshStandardMaterial {...gold()} />
+      </mesh>
+
+      {/* Sensor spike */}
+      <mesh position={[0, 2.635, 0]}>
         <cylinderGeometry args={[0.014, 0.014, 0.36, 6]} />
         <meshStandardMaterial color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.05 : 0.55} metalness={0.5} roughness={0.2} />
       </mesh>
-      <mesh position={[0, 2.79, 0]}>
-        <coneGeometry args={[0.026, 0.10, 6]} />
-        <meshStandardMaterial color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.05 : (isSelected ? 2.6 : 1.5)} />
+      <mesh position={[0, 2.830, 0]}>
+        <coneGeometry args={[0.025, 0.10, 6]} />
+        <meshStandardMaterial color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.05 : (isSelected ? 2.6 : 1.6)} />
       </mesh>
 
       {/* ══ CHEST ═══════════════════════════════════════════════════════════ */}
 
-      {/* Upper chest base — broad */}
-      <RoundedBox args={[1.26, 0.72, 0.82]} radius={0.06} smoothness={4} position={[0, 1.27, 0]}>
+      {/* Upper chest base — very broad (Mark VII V-taper) */}
+      <RoundedBox args={[1.32, 0.74, 0.86]} radius={0.06} smoothness={4} position={[0, 1.29, 0]}>
         <meshStandardMaterial {...recess()} />
       </RoundedBox>
-      {/* Left pectoral plate — raised */}
-      <RoundedBox args={[0.46, 0.44, 0.075]} radius={0.04} smoothness={4} position={[-0.295, 1.38, 0.42]}>
+      {/* Left pectoral plate */}
+      <RoundedBox args={[0.505, 0.50, 0.082]} radius={0.045} smoothness={4} position={[-0.305, 1.405, 0.435]}>
         <meshStandardMaterial {...armor()} />
       </RoundedBox>
-      {/* Right pectoral plate — raised */}
-      <RoundedBox args={[0.46, 0.44, 0.075]} radius={0.04} smoothness={4} position={[0.295, 1.38, 0.42]}>
+      {/* Right pectoral plate */}
+      <RoundedBox args={[0.505, 0.50, 0.082]} radius={0.045} smoothness={4} position={[0.305, 1.405, 0.435]}>
         <meshStandardMaterial {...armor()} />
       </RoundedBox>
-      {/* Center sternum strip */}
-      <mesh position={[0, 1.38, 0.44]}>
-        <boxGeometry args={[0.095, 0.44, 0.038]} />
+      {/* Sternum center strip */}
+      <mesh position={[0, 1.40, 0.448]}>
+        <boxGeometry args={[0.085, 0.50, 0.040]} />
         <meshStandardMaterial {...recess()} />
       </mesh>
-
-      {/* Arc reactor ring — animated via ref */}
-      <mesh position={[0, 1.28, 0.450]}>
-        <torusGeometry args={[0.100, 0.032, 12, 32]} />
-        <meshStandardMaterial
-          ref={arcRingRef}
-          color={offline ? '#2a2030' : color}
-          emissive={glowEm}
-          emissiveIntensity={offline ? 0.2 : (isSelected ? 2.8 : 1.9)}
-          metalness={0.3} roughness={0.08}
-        />
+      {/* Arc reactor ring */}
+      <mesh position={[0, 1.295, 0.458]}>
+        <torusGeometry args={[0.105, 0.034, 14, 36]} />
+        <meshStandardMaterial ref={arcRingRef} color={offline ? '#2a2030' : color} emissive={glowEm} emissiveIntensity={offline ? 0.2 : (isSelected ? 2.8 : 2.0)} metalness={0.3} roughness={0.07} />
       </mesh>
       {/* Arc reactor core — white glow */}
-      <mesh position={[0, 1.28, 0.458]}>
-        <circleGeometry args={[0.068, 32]} />
-        <meshBasicMaterial
-          ref={arcCoreRef}
-          color={offline ? '#444450' : '#e8f4ff'}
-          transparent opacity={offline ? 0.10 : (isSelected ? 0.92 : 0.68)}
-        />
+      <mesh position={[0, 1.295, 0.467]}>
+        <circleGeometry args={[0.072, 36]} />
+        <meshBasicMaterial ref={arcCoreRef} color={offline ? '#444450' : '#d8f0ff'} transparent opacity={offline ? 0.10 : (isSelected ? 0.95 : 0.72)} />
       </mesh>
 
-      {/* Waist / abs — narrower than chest for Mark VII taper */}
-      <RoundedBox args={[0.98, 0.58, 0.75]} radius={0.05} smoothness={4} position={[0, 0.73, 0]}>
+      {/* Waist / abs — significantly narrower than chest */}
+      <RoundedBox args={[0.88, 0.56, 0.74]} radius={0.05} smoothness={4} position={[0, 0.74, 0]}>
         <meshStandardMaterial {...recess()} />
       </RoundedBox>
-      {/* Abdominal armor segments — 4 horizontal lines */}
-      {([0.90, 0.78, 0.66, 0.56] as number[]).map((y, i) => (
-        <mesh key={y} position={[0, y, 0.385]}>
-          <boxGeometry args={[0.58 - i * 0.05, 0.024, 0.022]} />
-          <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={offline ? 0.05 : (0.26 - i * 0.04)} />
+      {/* Abdominal armor lines */}
+      {([0.91, 0.79, 0.68, 0.58] as number[]).map((y, i) => (
+        <mesh key={y} position={[0, y, 0.378]}>
+          <boxGeometry args={[0.56 - i * 0.06, 0.022, 0.024]} />
+          <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={offline ? 0.04 : (0.22 - i * 0.04)} />
+        </mesh>
+      ))}
+      {/* Hip joint panels — gold accent (Mark VII signature) */}
+      {([-0.36, 0.36] as number[]).map(x => (
+        <mesh key={x} position={[x, 0.615, 0.365]}>
+          <boxGeometry args={[0.155, 0.130, 0.052]} />
+          <meshStandardMaterial {...gold()} />
         </mesh>
       ))}
 
-      {/* ══ SHOULDERS (rounded pauldrons) ═══════════════════════════════════ */}
+      {/* ══ SHOULDERS (large dome pauldrons) ════════════════════════════════ */}
 
       {([-1, 1] as number[]).map(side => (
         <group key={side}>
-          {/* Main pauldron — sphere scaled to rounded dome shape */}
-          <mesh position={[side * 0.75, 1.54, -0.04]} scale={[1.0, 0.74, 0.82]}>
-            <sphereGeometry args={[0.34, 18, 12]} />
+          {/* Main pauldron — large rounded dome */}
+          <mesh position={[side * 0.84, 1.56, -0.04]} scale={[1.05, 0.80, 0.90]}>
+            <sphereGeometry args={[0.38, 20, 14]} />
             <meshStandardMaterial {...armor()} />
           </mesh>
-          {/* Pauldron lower skirt / cap */}
-          <mesh position={[side * 0.75, 1.27, -0.04]}>
-            <cylinderGeometry args={[0.26, 0.21, 0.22, 16]} />
-            <meshStandardMaterial {...recess()} />
+          {/* Pauldron underside skirt — gold accent */}
+          <mesh position={[side * 0.84, 1.27, -0.04]}>
+            <cylinderGeometry args={[0.30, 0.23, 0.24, 18]} />
+            <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Top panel line across shoulder */}
-          <mesh position={[side * 0.75, 1.72, -0.04]}>
-            <boxGeometry args={[0.42, 0.022, 0.34]} />
-            <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={offline ? 0.04 : 0.18} />
+          {/* Top panel seam line */}
+          <mesh position={[side * 0.84, 1.74, 0.01]}>
+            <boxGeometry args={[0.44, 0.022, 0.34]} />
+            <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={offline ? 0.04 : 0.16} />
           </mesh>
         </group>
       ))}
 
       {/* ══ ARMS ════════════════════════════════════════════════════════════ */}
 
-      {([-0.75, 0.75] as number[]).map(x => (
+      {([-0.80, 0.80] as number[]).map(x => (
         <group key={x}>
-          {/* Upper arm — smooth cylinder */}
-          <mesh position={[x, 1.10, 0]}>
-            <cylinderGeometry args={[0.150, 0.140, 0.46, 16]} />
+          {/* Upper arm — narrower cylinder */}
+          <mesh position={[x, 1.105, 0]}>
+            <cylinderGeometry args={[0.140, 0.130, 0.44, 16]} />
             <meshStandardMaterial {...armor()} />
           </mesh>
-          {/* Elbow plate — angular */}
-          <mesh position={[x, 0.845, 0.055]}>
-            <boxGeometry args={[0.240, 0.160, 0.170]} />
-            <meshStandardMaterial {...recess()} />
+          {/* Elbow joint — gold accent sphere */}
+          <mesh position={[x, 0.860, 0]}>
+            <sphereGeometry args={[0.145, 14, 10]} />
+            <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Forearm / gauntlet — wider than upper arm */}
-          <RoundedBox args={[0.335, 0.46, 0.325]} radius={0.04} smoothness={4} position={[x, 0.595, 0]}>
+          {/* Forearm / gauntlet — MUCH wider than upper arm (Mark VII signature) */}
+          <RoundedBox args={[0.365, 0.505, 0.350]} radius={0.045} smoothness={4} position={[x, 0.575, 0]}>
             <meshStandardMaterial {...armor()} />
           </RoundedBox>
-          {/* Back of forearm tech panel */}
-          <mesh position={[x, 0.605, -0.175]}>
-            <boxGeometry args={[0.275, 0.330, 0.042]} />
+          {/* Forearm back tech panel — gold */}
+          <mesh position={[x, 0.590, -0.185]}>
+            <boxGeometry args={[0.280, 0.350, 0.044]} />
+            <meshStandardMaterial {...gold()} />
+          </mesh>
+          {/* Wrist band */}
+          <mesh position={[x, 0.340, 0]}>
+            <cylinderGeometry args={[0.175, 0.175, 0.068, 14]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
-          {/* Repulsor palm circle */}
-          <mesh position={[x, 0.370, 0.170]}>
-            <circleGeometry args={[0.062, 24]} />
-            <meshBasicMaterial color={offline ? '#444450' : color} transparent opacity={offline ? 0.05 : (isSelected ? 0.95 : 0.74)} />
+          {/* Repulsor palm */}
+          <mesh position={[x, 0.300, 0.180]}>
+            <circleGeometry args={[0.065, 24]} />
+            <meshBasicMaterial color={offline ? '#444450' : color} transparent opacity={offline ? 0.05 : (isSelected ? 0.95 : 0.76)} />
           </mesh>
-          {/* Repulsor ring */}
-          <mesh position={[x, 0.370, 0.163]}>
-            <torusGeometry args={[0.062, 0.014, 8, 24]} />
-            <meshStandardMaterial color={offline ? '#333340' : color} emissive={glowEm} emissiveIntensity={offline ? 0.05 : (isSelected ? 2.4 : 1.3)} metalness={0.3} roughness={0.08} />
+          <mesh position={[x, 0.300, 0.173]}>
+            <torusGeometry args={[0.065, 0.015, 8, 24]} />
+            <meshStandardMaterial color={offline ? '#333340' : color} emissive={glowEm} emissiveIntensity={offline ? 0.05 : (isSelected ? 2.4 : 1.4)} metalness={0.3} roughness={0.07} />
           </mesh>
         </group>
       ))}
 
       {/* ══ LEGS ════════════════════════════════════════════════════════════ */}
 
-      {([-0.290, 0.290] as number[]).map((x, legIdx) => (
+      {([-0.295, 0.295] as number[]).map((x, legIdx) => (
         <group key={x}>
-          {/* Thigh — large and prominent */}
-          <RoundedBox args={[0.455, 0.54, 0.435]} radius={0.05} smoothness={4} position={[x, 0.32, 0]}>
+          {/* Hip connection — gold accent */}
+          <mesh position={[x, 0.530, 0]} scale={[1, 0.55, 1]}>
+            <sphereGeometry args={[0.22, 12, 8]} />
+            <meshStandardMaterial {...gold()} />
+          </mesh>
+          {/* Thigh armor — large and prominent */}
+          <RoundedBox args={[0.475, 0.560, 0.455]} radius={0.055} smoothness={4} position={[x, 0.270, 0]}>
             <meshStandardMaterial {...armor()} />
           </RoundedBox>
-          {/* Knee plate — angular */}
-          <mesh position={[x, 0.018, 0.225]}>
-            <boxGeometry args={[0.310, 0.165, 0.072]} />
+          {/* Inner thigh panel — gold (very visible in Mark VII) */}
+          <mesh position={[x * 0.55, 0.270, 0.230]}>
+            <boxGeometry args={[0.180, 0.380, 0.048]} />
+            <meshStandardMaterial {...gold()} />
+          </mesh>
+          {/* Knee joint — gold */}
+          <mesh position={[x, 0.005, 0.050]}>
+            <boxGeometry args={[0.300, 0.120, 0.220]} />
+            <meshStandardMaterial {...gold()} />
+          </mesh>
+          {/* Knee front plate */}
+          <mesh position={[x, 0.010, 0.220]}>
+            <boxGeometry args={[0.265, 0.175, 0.075]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
           {/* Shin / greave */}
-          <RoundedBox args={[0.375, 0.480, 0.360]} radius={0.04} smoothness={4} position={[x, -0.170, 0]}>
+          <RoundedBox args={[0.390, 0.510, 0.375]} radius={0.045} smoothness={4} position={[x, -0.190, 0]}>
             <meshStandardMaterial {...armor()} />
           </RoundedBox>
-          {/* Front shin panel — flat face */}
-          <mesh position={[x, -0.155, 0.205]}>
-            <boxGeometry args={[0.220, 0.370, 0.042]} />
+          {/* Front shin panel — recessed face */}
+          <mesh position={[x, -0.175, 0.210]}>
+            <boxGeometry args={[0.235, 0.390, 0.045]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
+          {/* Ankle / boot top — gold accent band */}
+          <mesh position={[x, -0.455, 0.080]}>
+            <cylinderGeometry args={[0.200, 0.210, 0.072, 14]} />
+            <meshStandardMaterial {...gold()} />
+          </mesh>
           {/* Boot — wide and flat */}
-          <RoundedBox args={[0.450, 0.140, 0.570]} radius={0.04} smoothness={4} position={[x, -0.425, 0.092]}>
+          <RoundedBox args={[0.460, 0.145, 0.590]} radius={0.045} smoothness={4} position={[x, -0.530, 0.095]}>
             <meshStandardMaterial {...armor()} />
           </RoundedBox>
           {/* Boot thruster fill — animated */}
-          <mesh position={[x, -0.508, 0.092]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.145, 24]} />
+          <mesh position={[x, -0.615, 0.095]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[0.150, 24]} />
             <meshBasicMaterial
               ref={legIdx === 0 ? thruster0Ref : thruster1Ref}
               color={offline ? '#444450' : color}
@@ -355,21 +378,21 @@ function Robot({
             />
           </mesh>
           {/* Boot thruster ring — animated */}
-          <mesh position={[x, -0.510, 0.092]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.112, 0.158, 24]} />
+          <mesh position={[x, -0.617, 0.095]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.115, 0.162, 24]} />
             <meshBasicMaterial
               ref={legIdx === 0 ? thruster2Ref : thruster3Ref}
               color={offline ? '#444450' : color}
-              transparent opacity={offline ? 0.03 : (active ? 0.65 : idle ? 0.26 : 0.06)}
+              transparent opacity={offline ? 0.03 : (active ? 0.65 : idle ? 0.28 : 0.06)}
             />
           </mesh>
         </group>
       ))}
 
       {/* ── Floor glow disk ──────────────────────────────────────────────── */}
-      <mesh position={[0, -0.555, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.82, 32]} />
-        <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={active ? 0.16 : idle ? 0.08 : 0.03} />
+      <mesh position={[0, -0.635, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.88, 32]} />
+        <meshBasicMaterial color={offline ? '#333340' : color} transparent opacity={active ? 0.18 : idle ? 0.09 : 0.03} />
       </mesh>
     </group>
   );
@@ -408,10 +431,18 @@ function AgentMesh({
     >
       <pointLight
         color={agent.color}
-        intensity={agent.status === 'active' ? 1.6 : agent.status === 'idle' ? 0.6 : 0.15}
-        distance={3.8}
+        intensity={agent.status === 'active' ? 1.8 : agent.status === 'idle' ? 0.7 : 0.15}
+        distance={4.0}
         decay={2}
         position={[0, 3.2, 0]}
+      />
+      {/* Warm fill light from below (bounced thruster effect) */}
+      <pointLight
+        color={agent.color}
+        intensity={agent.status === 'active' ? 0.4 : 0.12}
+        distance={2.5}
+        decay={2}
+        position={[0, -0.4, 0]}
       />
       <Robot color={agent.color} status={agent.status} isSelected={isSelected} isJarvis={isJarvis} />
     </group>
@@ -440,20 +471,22 @@ interface Props {
 export default function AgentsScene({ agents, jarvis, selectedKey, onSelect }: Props) {
   return (
     <Canvas
-      camera={{ position: [0, 3.0, 10.5], fov: 48 }}
+      camera={{ position: [0, 2.8, 10.8], fov: 46 }}
       style={{ background: 'transparent' }}
-      gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.10 }}
+      gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.18 }}
       onClick={() => onSelect(null)}
     >
-      {/* Atmosphere */}
       <fog attach="fog" args={['#0b0c16', 14, 30]} />
-      <ambientLight intensity={0.20} />
-      <directionalLight position={[6, 10, 6]} intensity={0.70} color="#ffffff" castShadow />
-      <directionalLight position={[-6, 5, -4]} intensity={0.30} color="#4060d0" />
+      <ambientLight intensity={0.22} />
+      {/* Key light — warm from upper front */}
+      <directionalLight position={[4, 12, 8]} intensity={0.80} color="#ffe8d0" castShadow />
+      {/* Fill light — cool from left */}
+      <directionalLight position={[-8, 4, -4]} intensity={0.32} color="#3050c0" />
+      {/* Rim light — from behind */}
+      <directionalLight position={[0, 6, -8]} intensity={0.22} color="#ffffff" />
 
-      {/* Infinite grid floor */}
       <Grid
-        position={[0, -0.56, 0]}
+        position={[0, -0.64, 0]}
         args={[30, 30]}
         cellSize={0.9}
         cellThickness={0.4}
@@ -466,7 +499,6 @@ export default function AgentsScene({ agents, jarvis, selectedKey, onSelect }: P
         infiniteGrid
       />
 
-      {/* Jarvis — center, slightly back */}
       <AgentMesh
         agent={jarvis as any}
         position={[0, 0, -1.4]}
@@ -475,7 +507,6 @@ export default function AgentsScene({ agents, jarvis, selectedKey, onSelect }: P
         onSelect={() => onSelect(selectedKey === jarvis.key ? null : jarvis.key)}
       />
 
-      {/* Sub-agents in arc */}
       {agents.map((agent, i) => (
         <AgentMesh
           key={agent.key}
