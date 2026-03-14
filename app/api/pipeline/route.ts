@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const maxDuration = 30;
+
 const GHL_TOKEN    = 'pit-c40b9d94-28dd-4d00-9602-d6f765877cd8';
 const GHL_LOCATION = 'AymErWPrH9U1ddRouslC';
 const GHL_PIPELINE = 'o4kqU2y8DYjA73aKUxNu';

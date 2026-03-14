@@ -1,8 +1,1 @@
-{
-  "functions": {
-    "app/api/pipeline/route.ts":            { "maxDuration": 30 },
-    "app/api/recording-complete/route.ts":  { "maxDuration": 10 },
-    "app/api/el-recording/route.ts":        { "maxDuration": 30 },
-    "app/api/chat/route.ts":                { "maxDuration": 30 }
-  }
-}
+{}

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 30;
+
 const SYSTEM_PROMPTS: Record<string, string> = {
   'Jarvis': `You are Jarvis, the Chief of Staff AI for Chris Lovera's real estate wholesale operation in Orlando, FL.
 You oversee all AI agents: Alpha Scraper, Call Analyzer, County Scraper, Jarvis Caller, Jarvis Bot.
