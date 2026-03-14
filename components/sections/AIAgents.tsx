@@ -205,9 +205,10 @@ export function AIAgents() {
             onClick={() => setSelectedKey(selectedKey === a.key ? null : a.key)}
             className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all"
             style={{
-              background:   selectedKey === a.key ? `${a.color}12` : 'rgba(255,255,255,0.03)',
-              border:       `1px solid ${selectedKey === a.key ? a.color + '30' : 'rgba(255,255,255,0.07)'}`,
-              color:        selectedKey === a.key ? a.color : '#52526e',
+              background:   selectedKey === a.key ? `${a.color}12` : a.status === 'active' ? `${a.color}09` : 'rgba(255,255,255,0.03)',
+              border:       `1px solid ${selectedKey === a.key ? a.color + '30' : a.status === 'active' ? a.color + '28' : 'rgba(255,255,255,0.07)'}`,
+              color:        selectedKey === a.key ? a.color : a.status === 'active' ? a.color + 'cc' : '#52526e',
+              boxShadow:    a.status === 'active' ? `0 0 10px ${a.color}28` : 'none',
             }}
           >
             <span
