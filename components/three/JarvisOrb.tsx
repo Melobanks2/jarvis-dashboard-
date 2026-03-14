@@ -85,10 +85,11 @@ function Ring({ radius, tilt, speed, color }: { radius: number; tilt: number; sp
   );
 }
 
-export function JarvisOrb({ pulse = 0, className }: { pulse?: number; className?: string }) {
+export function JarvisOrb({ pulse = 0, className, style }: { pulse?: number; className?: string; style?: React.CSSProperties }) {
   return (
     <motion.div
       className={className}
+      style={style}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 1.2, ease: 'easeOut' }}

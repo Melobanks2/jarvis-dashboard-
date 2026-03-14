@@ -2,127 +2,121 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, RefreshCw, Zap, Eye, Terminal, ChevronRight } from 'lucide-react';
+import { Menu, Zap, Maximize2, Search } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
-import { StatusDot } from '@/components/ui/StatusDot';
+import { useCalls } from '@/lib/hooks/useCalls';
+import { useAgents } from '@/lib/hooks/useAgents';
+import { useFeed } from '@/lib/hooks/useFeed';
 
-function EastClock() {
-  const [time, setTime] = useState('');
-  const [date, setDate] = useState('');
-
+function Clock() {
+  const [t, setT] = useState('');
   useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      setTime(now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/New_York' }));
-      setDate(now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }));
-    };
+    const tick = () => setT(new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: true, timeZone: 'America/New_York',
+    }));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  return (
-    <div className="text-right">
-      <div className="font-orbitron text-[15px] text-ncyan glow-cyan tracking-[2px]">{time} <span className="text-[10px] text-dimtext">ET</span></div>
-      <div className="text-[9px] text-dimtext tracking-[1px] mt-0.5">{date}</div>
-    </div>
-  );
+  return <span className="font-orbitron text-[13px] text-ncyan tracking-[2px]" style={{ textShadow: '0 0 12px rgba(0,229,255,.5)' }}>{t} <span className="text-[9px] text-dimtext">ET</span></span>;
 }
 
 export function TopNav() {
-  const { setSidebarOpen, sidebarOpen, refresh, setActiveSection } = useApp();
-  const [refreshing, setRefreshing] = useState(false);
+  const { setSidebarOpen, sidebarOpen, setMissionControl, setActiveSection, refreshKey } = useApp();
+  const { calls }   = useCalls(refreshKey);
+  const { agents }  = useAgents(refreshKey);
+  const { items }   = useFeed(refreshKey, 5);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    refresh();
-    setTimeout(() => setRefreshing(false), 1200);
-  };
+  const online  = agents.filter(a => a.status === 'active').length;
+  const hotCount = 0; // pulled from pipeline in panel
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center px-4 gap-4"
       style={{
-        background: 'linear-gradient(135deg, rgba(6,6,15,0.95), rgba(10,10,28,0.95))',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(0,255,136,.15)',
-        boxShadow: '0 0 40px rgba(0,255,136,.06), 0 2px 0 rgba(0,255,136,.12)',
+        height: 52,
+        background: 'rgba(6,6,14,0.88)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
       }}
     >
-      {/* Left */}
-      <div className="flex items-center gap-3">
+      {/* Left: logo + hamburger */}
+      <div className="flex items-center gap-3 flex-shrink-0">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 rounded-sm transition-colors hover:bg-bg3 text-dimtext hover:text-ngreen"
+          className="w-8 h-8 flex items-center justify-center rounded-sm text-dimtext hover:text-ngreen transition-colors"
         >
-          <Menu size={18} />
+          <Menu size={16} />
         </button>
-
-        <div>
-          <h1 className="font-orbitron text-[18px] font-black tracking-[4px] text-ngreen glow-green leading-none">
-            JARVIS <span className="text-ngold glow-gold">COMMAND CENTER</span>
-          </h1>
-          <p className="text-[9px] text-dimtext tracking-[3px] uppercase mt-0.5">
-            Chris Lovera — Wholesale Operations • Orlando, FL
-          </p>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-ngreen" style={{ boxShadow: '0 0 8px #00ff88, 0 0 16px #00ff8840' }} />
+          <span className="font-orbitron text-[14px] font-black tracking-[3px]" style={{ color: '#00ff88', textShadow: '0 0 20px rgba(0,255,136,.5)' }}>
+            JARVIS
+          </span>
         </div>
       </div>
 
-      {/* Center — status indicators */}
-      <div className="hidden md:flex items-center gap-6">
-        <StatusPill label="Agents Online" value="5" color="#00ff88" />
-        <StatusPill label="Calls Today"   value="—"  color="#00e5ff" />
-        <StatusPill label="Hot Leads"     value="—"  color="#ff3366" />
+      {/* Center: live stats */}
+      <div className="flex-1 flex items-center justify-center gap-8">
+        <Stat label="Agents Online" value={String(online)}  color="#00ff88" pulse />
+        <Stat label="Calls Today"   value={String(calls.length)} color="#00e5ff" />
+        <Stat label="Hot Sellers"   value="—"               color="#ff3366" />
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-2">
-        <NavButton icon={<Zap size={13} />} label="Run Calls"   onClick={() => setActiveSection('call-center')} color="#00ff88" />
-        <NavButton icon={<Eye size={13} />}      label="View Leads" onClick={() => setActiveSection('lead-intelligence')} color="#00aaff" />
-        <NavButton icon={<Terminal size={13} />} label="Logs"       onClick={() => setActiveSection('ai-agents')} color="#aa44ff" />
-
-        <motion.button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono tracking-[2px] border rounded-sm transition-all disabled:opacity-40"
-          style={{ borderColor: 'rgba(0,255,136,.35)', color: '#00ff88', background: 'transparent' }}
-          whileHover={{ background: 'rgba(0,255,136,.06)', boxShadow: '0 0 12px rgba(0,255,136,.2)' }}
-        >
-          <motion.span animate={{ rotate: refreshing ? 360 : 0 }} transition={{ repeat: refreshing ? Infinity : 0, duration: 0.8, ease: 'linear' }}>
-            <RefreshCw size={11} />
-          </motion.span>
-          SYNC
-        </motion.button>
-
-        <EastClock />
+      {/* Right: actions + clock */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <GhostButton
+          icon={<Zap size={12} />}
+          label="Run Calls"
+          color="#00ff88"
+          onClick={() => setActiveSection('call-center')}
+        />
+        <GhostButton
+          icon={<Maximize2 size={12} />}
+          label="Mission Control"
+          color="#aa44ff"
+          onClick={() => setMissionControl(true)}
+        />
+        <GhostButton
+          icon={<Search size={12} />}
+          label="Leads"
+          color="#00aaff"
+          onClick={() => setActiveSection('lead-intelligence')}
+        />
+        <div className="w-px h-5 bg-white/10 mx-1" />
+        <Clock />
       </div>
     </header>
   );
 }
 
-function StatusPill({ label, value, color }: { label: string; value: string; color: string }) {
+function Stat({ label, value, color, pulse }: { label: string; value: string; color: string; pulse?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-1.5 h-1.5 rounded-full animate-blink" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+      <div className="relative">
+        <span className="w-1.5 h-1.5 rounded-full block" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+        {pulse && <span className="absolute inset-0 rounded-full animate-ping" style={{ background: color, opacity: 0.4 }} />}
+      </div>
       <div>
-        <div className="text-[8px] text-dimtext tracking-[1px] uppercase">{label}</div>
-        <div className="font-orbitron text-[12px] font-bold" style={{ color }}>{value}</div>
+        <div className="text-[8px] text-dimtext uppercase tracking-[1.5px]">{label}</div>
+        <div className="font-orbitron text-[13px] font-bold leading-none mt-0.5" style={{ color }}>{value}</div>
       </div>
     </div>
   );
 }
 
-function NavButton({ icon, label, onClick, color }: { icon: React.ReactNode; label: string; onClick: () => void; color: string }) {
+function GhostButton({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color: string; onClick: () => void }) {
   return (
     <motion.button
       onClick={onClick}
-      className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono tracking-[1px] border rounded-sm transition-colors"
-      style={{ borderColor: `${color}30`, color: color, background: `${color}08` }}
-      whileHover={{ background: `${color}14`, boxShadow: `0 0 10px ${color}20` }}
+      className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-sm font-mono text-[10px] tracking-[1px] transition-all"
+      style={{ color, border: `1px solid ${color}22`, background: `${color}08` }}
+      whileHover={{ background: `${color}16`, boxShadow: `0 0 16px ${color}25` }}
+      whileTap={{ scale: 0.97 }}
     >
-      {icon}
-      {label}
+      {icon}{label}
     </motion.button>
   );
 }
