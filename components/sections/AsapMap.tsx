@@ -207,7 +207,7 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'Memphis':           [-90.05, 35.15],
   'Murfreesboro':      [-86.39, 35.85],
   'Nashville':         [-86.78, 36.17],
-  'Smyrna':            [-86.52, 35.98],
+  'Smyrna:TN':         [-86.52, 35.98],
   // Missouri
   'Blue Springs':      [-94.28, 39.02],
   'Columbia':          [-92.33, 38.95],
@@ -228,7 +228,6 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'Canton':            [-81.38, 40.80],
   'Cincinnati':        [-84.51, 39.10],
   'Cleveland':         [-81.69, 41.50],
-  'Columbus':          [-82.99, 39.96],
   'Columbus:OH':       [-82.99, 39.96],
   'Dayton':            [-84.19, 39.76],
   'Dublin':            [-83.11, 40.10],
