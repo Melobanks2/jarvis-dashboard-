@@ -49,7 +49,7 @@ export function CenterOrb() {
         className="absolute pointer-events-none"
         style={{
           width: 520, height: 520,
-          background: 'radial-gradient(circle, rgba(0,255,136,0.06) 0%, rgba(0,229,255,0.03) 40%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(74,222,128,0.05) 0%, rgba(103,232,249,0.02) 40%, transparent 70%)',
           borderRadius: '50%',
         }}
       />
@@ -70,32 +70,32 @@ export function CenterOrb() {
       {/* Floating status badges */}
       <motion.div
         className="absolute top-[18%] left-[18%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.15)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(74,222,128,0.07)', border: '1px solid rgba(74,222,128,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -6, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-ngreen animate-blink" style={{ boxShadow: '0 0 6px #00ff88' }} />
-        <span className="text-[9px] text-ngreen font-mono tracking-[1px]">{onlineCount} Agents Online</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-ngreen animate-blink" />
+        <span className="text-[9px] text-ngreen font-medium tracking-[0.5px]">{onlineCount} Agents Online</span>
       </motion.div>
 
       <motion.div
         className="absolute top-[18%] right-[18%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.15)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(103,232,249,0.07)', border: '1px solid rgba(103,232,249,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-ncyan" style={{ boxShadow: '0 0 6px #00e5ff' }} />
-        <span className="text-[9px] text-ncyan font-mono tracking-[1px]">Systems Active</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-ncyan" />
+        <span className="text-[9px] text-ncyan font-medium tracking-[0.5px]">Systems Active</span>
       </motion.div>
 
       <motion.div
         className="absolute bottom-[22%] left-[20%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(170,68,255,0.08)', border: '1px solid rgba(170,68,255,0.15)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -5, 0] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-npurple" style={{ boxShadow: '0 0 6px #aa44ff' }} />
-        <span className="text-[9px] text-npurple font-mono tracking-[1px]">GHL Synced</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-npurple" />
+        <span className="text-[9px] text-npurple font-medium tracking-[0.5px]">GHL Synced</span>
       </motion.div>
 
       {/* The orb */}
@@ -114,7 +114,7 @@ export function CenterOrb() {
       >
         <h1
           className="font-orbitron text-[22px] font-black tracking-[6px] uppercase"
-          style={{ color: '#00ff88', textShadow: '0 0 32px rgba(0,255,136,.6), 0 0 64px rgba(0,255,136,.2)' }}
+          style={{ color: '#4ade80', textShadow: '0 0 24px rgba(74,222,128,.3)' }}
         >
           JARVIS AI
         </h1>

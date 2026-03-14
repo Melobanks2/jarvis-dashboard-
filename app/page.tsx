@@ -5,12 +5,12 @@ import { ArrowLeft, Maximize2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 import { useApp } from '@/lib/AppContext';
-import { TopNav }         from '@/components/layout/TopNav';
-import { SectionsDrawer } from '@/components/layout/SectionsDrawer';
-import { BottomTimeline } from '@/components/layout/BottomTimeline';
-import { LeftIntelPanel }         from '@/components/panels/LeftIntelPanel';
-import { CenterOrb }              from '@/components/panels/CenterOrb';
-import { RightAnalyticsPanel }    from '@/components/panels/RightAnalyticsPanel';
+import { TopNav }              from '@/components/layout/TopNav';
+import { SectionsDrawer }      from '@/components/layout/SectionsDrawer';
+import { BottomTimeline }      from '@/components/layout/BottomTimeline';
+import { LeftIntelPanel }      from '@/components/panels/LeftIntelPanel';
+import { CenterOrb }           from '@/components/panels/CenterOrb';
+import { RightAnalyticsPanel } from '@/components/panels/RightAnalyticsPanel';
 
 import { AIAgents }         from '@/components/sections/AIAgents';
 import { CallCenter }       from '@/components/sections/CallCenter';
@@ -18,6 +18,7 @@ import { LeadIntelligence } from '@/components/sections/LeadIntelligence';
 import { Pipeline }         from '@/components/sections/Pipeline';
 import { GoalsVision }      from '@/components/sections/GoalsVision';
 import { IdeasLab }         from '@/components/sections/IdeasLab';
+import { AsapScraper }      from '@/components/sections/AsapScraper';
 import { AgentChat }        from '@/components/sections/AgentChat';
 
 const MissionControl = dynamic(
@@ -32,6 +33,7 @@ const SECTION_TITLES: Record<string, string> = {
   'pipeline':          'Pipeline',
   'goals-vision':      'Goals & Vision',
   'ideas-lab':         'Ideas Lab',
+  'asap-scraper':      'ASAP Scraper',
   'agent-chat':        'Agent Chat',
   'analytics':         'Analytics',
   'settings':          'Settings',
@@ -45,9 +47,10 @@ function SectionContent({ section }: { section: string }) {
     case 'pipeline':          return <Pipeline />;
     case 'goals-vision':      return <GoalsVision />;
     case 'ideas-lab':         return <IdeasLab />;
+    case 'asap-scraper':      return <AsapScraper />;
     case 'agent-chat':        return <AgentChat />;
     default: return (
-      <div className="flex items-center justify-center h-64 text-dimtext font-mono text-[11px]">
+      <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon
       </div>
     );
@@ -59,25 +62,22 @@ export default function Home() {
   const isHome = activeSection === 'command-center';
 
   return (
-    <div
-      className="fixed inset-0 flex flex-col overflow-hidden"
-      style={{ background: '#0a0a0f' }}
-    >
-      {/* Subtle radial ambient */}
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: '#0c0d14' }}>
+
+      {/* Subtle ambient */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(0,255,136,0.03) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(74,222,128,0.025) 0%, transparent 70%)' }}
       />
 
       <TopNav />
       <SectionsDrawer />
 
-      {/* Main content area — between nav (52px) and timeline (68px) */}
-      <div className="relative flex-1 overflow-hidden" style={{ marginTop: 52, marginBottom: 68 }}>
+      {/* Main content — between nav (52px) and timeline (60px) */}
+      <div className="relative flex-1 overflow-hidden" style={{ marginTop: 52, marginBottom: 60 }}>
 
         <AnimatePresence mode="wait">
           {isHome ? (
-            /* ── COMMAND CENTER: spatial 3-panel layout ── */
             <motion.div
               key="home"
               className="absolute inset-0 flex"
@@ -92,46 +92,45 @@ export default function Home() {
             </motion.div>
 
           ) : (
-            /* ── SECTION VIEW: slides over command center ── */
             <motion.div
               key={activeSection}
               className="absolute inset-0 flex flex-col overflow-hidden"
-              style={{ background: 'rgba(6,6,14,0.97)', backdropFilter: 'blur(20px)' }}
-              initial={{ opacity: 0, y: 16 }}
+              style={{ background: 'rgba(11,12,19,0.97)', backdropFilter: 'blur(20px)' }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.22 }}
             >
-              {/* Section header breadcrumb */}
+              {/* Breadcrumb header */}
               <div
                 className="flex items-center gap-3 px-6 py-3 flex-shrink-0"
                 style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
               >
                 <motion.button
                   onClick={() => setActiveSection('command-center')}
-                  className="flex items-center gap-2 text-dimtext hover:text-ngreen transition-colors"
+                  className="flex items-center gap-1.5 text-dimtext hover:text-ngreen transition-colors"
                   whileHover={{ x: -2 }}
                 >
-                  <ArrowLeft size={14} />
-                  <span className="font-mono text-[9px] tracking-[2px] uppercase">Command Center</span>
+                  <ArrowLeft size={13} />
+                  <span className="text-[10px] font-medium">Command Center</span>
                 </motion.button>
-                <span className="text-white/10">›</span>
-                <span className="font-orbitron text-[10px] text-textb tracking-[2px] uppercase">
+                <span className="text-white/15">›</span>
+                <span className="text-[11px] font-semibold text-textb">
                   {SECTION_TITLES[activeSection]}
                 </span>
                 <div className="ml-auto">
                   <motion.button
                     onClick={() => setMissionControl(true)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-orbitron tracking-[1px] border rounded-sm"
-                    style={{ borderColor: 'rgba(0,255,136,.2)', color: '#00ff88', background: 'rgba(0,255,136,.05)' }}
-                    whileHover={{ background: 'rgba(0,255,136,.1)' }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium rounded-md"
+                    style={{ borderColor: 'rgba(74,222,128,0.20)', color: '#4ade80', background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.18)' }}
+                    whileHover={{ background: 'rgba(74,222,128,0.10)' }}
                   >
                     <Maximize2 size={10} /> Mission Control
                   </motion.button>
                 </div>
               </div>
 
-              {/* Scrollable section content */}
+              {/* Scrollable content */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-6 max-w-[1400px] mx-auto">
                   <SectionContent section={activeSection} />
@@ -144,7 +143,6 @@ export default function Home() {
 
       <BottomTimeline />
 
-      {/* Mission Control overlay */}
       <AnimatePresence>
         {missionControl && (
           <MissionControl

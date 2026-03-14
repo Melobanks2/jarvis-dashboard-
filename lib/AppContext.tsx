@@ -10,6 +10,7 @@ export type Section =
   | 'pipeline'
   | 'goals-vision'
   | 'ideas-lab'
+  | 'asap-scraper'
   | 'agent-chat'
   | 'analytics'
   | 'settings';
