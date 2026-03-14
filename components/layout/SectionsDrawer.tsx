@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LayoutDashboard, Bot, Phone, Search, GitBranch, Target, Lightbulb, MessageSquare, BarChart2, Settings, Map } from 'lucide-react';
+import { X, LayoutDashboard, Bot, Phone, Search, GitBranch, Target, Lightbulb, MessageSquare, BarChart2, Settings, Map, BrainCircuit } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
 const ITEMS: { section: Section; label: string; icon: React.ReactNode; color: string; desc: string }[] = [
@@ -14,6 +14,7 @@ const ITEMS: { section: Section; label: string; icon: React.ReactNode; color: st
   { section: 'ideas-lab',         label: 'Ideas Lab',         icon: <Lightbulb size={15} />,       color: '#a78bfa', desc: 'Feature backlog' },
   { section: 'asap-scraper',      label: 'ASAP Scraper',      icon: <Map size={15} />,             color: '#4ade80', desc: 'City scraping progress' },
   { section: 'agent-chat',        label: 'Agent Chat',        icon: <MessageSquare size={15} />,   color: '#67e8f9', desc: 'Talk to agents' },
+  { section: 'david-training',    label: 'David Training',    icon: <BrainCircuit size={15} />,    color: '#fbbf24', desc: 'AI caller command center' },
   { section: 'analytics',         label: 'Analytics',         icon: <BarChart2 size={15} />,       color: '#60a5fa', desc: 'Deep analytics' },
   { section: 'settings',          label: 'Settings',          icon: <Settings size={15} />,        color: '#52526e', desc: 'System config' },
 ];

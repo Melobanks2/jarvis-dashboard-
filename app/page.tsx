@@ -20,6 +20,7 @@ import { GoalsVision }      from '@/components/sections/GoalsVision';
 import { IdeasLab }         from '@/components/sections/IdeasLab';
 import { AsapScraper }      from '@/components/sections/AsapScraper';
 import { AgentChat }        from '@/components/sections/AgentChat';
+import { DavidTraining }    from '@/components/sections/DavidTraining';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -35,6 +36,7 @@ const SECTION_TITLES: Record<string, string> = {
   'ideas-lab':         'Ideas Lab',
   'asap-scraper':      'ASAP Scraper',
   'agent-chat':        'Agent Chat',
+  'david-training':    'David Training Center',
   'analytics':         'Analytics',
   'settings':          'Settings',
 };
@@ -49,6 +51,7 @@ function SectionContent({ section }: { section: string }) {
     case 'ideas-lab':         return <IdeasLab />;
     case 'asap-scraper':      return <AsapScraper />;
     case 'agent-chat':        return <AgentChat />;
+    case 'david-training':    return <DavidTraining />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon

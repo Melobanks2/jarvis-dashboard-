@@ -12,6 +12,7 @@ export type Section =
   | 'ideas-lab'
   | 'asap-scraper'
   | 'agent-chat'
+  | 'david-training'
   | 'analytics'
   | 'settings';
 
