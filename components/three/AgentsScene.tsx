@@ -20,8 +20,6 @@ const GOLD_LIGHT = new THREE.Color('#c49a30');
 const GREY_MIX   = new THREE.Color('#5a5a68');
 
 // ── Iron Man Mark VII suit ────────────────────────────────────────────────────
-// Total height ≈ 3.26 units (y: −0.62 to 2.64)
-// Proportions match spec: shoulders 52u, waist 26u, helmet 35h×28w, 3:1 h:w
 function Robot({
   color, status, isSelected, isJarvis,
 }: {
@@ -112,6 +110,9 @@ function Robot({
   });
 
   // ── Material factories ────────────────────────────────────────────────────
+  // armor()  = agent color (primary plates)
+  // recess() = dark recessed panels (joints, seams, faceplate)
+  // gold()   = gold accent joints
   const armor = () => ({
     color:             offline ? cOff   : c,
     emissive:          offline ? cOff   : c,
@@ -136,39 +137,39 @@ function Robot({
   return (
     <group scale={isJarvis ? 1.32 : 1.0}>
 
-      {/* Active energy shell — glow aura */}
+      {/* Active energy shell */}
       <mesh>
         <sphereGeometry args={[1.55, 16, 12]} />
-        <meshBasicMaterial ref={glowShellRef} color={color} transparent opacity={0} side={THREE.BackSide} depthWrite={false} />
+        <meshBasicMaterial ref={glowShellRef} color={color} transparent opacity={0}
+          side={THREE.BackSide} depthWrite={false} />
       </mesh>
 
       {/* ══ HELMET ═══════════════════════════════════════════════════════════
-          Target: 35u tall × 28u wide (taller than wide, ratio 1.25:1)
-          Sphere r=0.30 scale(1, 1.25, 0.92) → 0.60w × 0.75h × 0.55d
-          Center y=2.250 → top 2.625, chin 1.875
+          KEY FIX: dome = armor() (agent color), faceplate = recess() (dark).
+          This creates instant visual contrast — you can READ the Iron Man face.
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Main helmet dome — elongated vertically, NOT a ball */}
+      {/* Main dome — elongated sphere, taller than wide */}
       <mesh position={[0, 2.250, 0]} scale={[1.0, 1.25, 0.92]}>
         <sphereGeometry args={[0.300, 22, 16]} />
         <meshStandardMaterial {...armor()} />
       </mesh>
 
-      {/* Faceplate — flat panel inset on front face of dome */}
-      <mesh position={[0, 2.205, 0.285]}>
-        <boxGeometry args={[0.320, 0.440, 0.050]} />
-        <meshStandardMaterial {...armor()} />
-      </mesh>
-
-      {/* Brow ridge — horizontal bar above eyes */}
-      <mesh position={[0, 2.392, 0.282]}>
-        <boxGeometry args={[0.490, 0.058, 0.038]} />
+      {/* Faceplate — DARK (recess) for contrast against colored dome */}
+      <mesh position={[0, 2.195, 0.283]}>
+        <boxGeometry args={[0.298, 0.432, 0.046]} />
         <meshStandardMaterial {...recess()} />
       </mesh>
 
-      {/* Left eye slit — angled (outer corner higher = Iron Man angry look) */}
-      <mesh position={[-0.094, 2.304, 0.296]} rotation={[0, 0, 0.22]}>
-        <boxGeometry args={[0.150, 0.035, 0.026]} />
+      {/* Brow visor — prominent horizontal bar, separates dome from face */}
+      <mesh position={[0, 2.374, 0.292]}>
+        <boxGeometry args={[0.560, 0.082, 0.060]} />
+        <meshStandardMaterial {...recess()} />
+      </mesh>
+
+      {/* Left eye slit — wider, taller, angled for Iron Man scowl */}
+      <mesh position={[-0.096, 2.296, 0.302]} rotation={[0, 0, 0.24]}>
+        <boxGeometry args={[0.178, 0.048, 0.034]} />
         <meshStandardMaterial
           ref={eyeRef0} color={glowC} emissive={glowEm}
           emissiveIntensity={offline ? 0.0 : (isSelected ? 3.4 : 2.4)}
@@ -176,8 +177,8 @@ function Robot({
         />
       </mesh>
       {/* Right eye slit — mirror */}
-      <mesh position={[0.094, 2.304, 0.296]} rotation={[0, 0, -0.22]}>
-        <boxGeometry args={[0.150, 0.035, 0.026]} />
+      <mesh position={[0.096, 2.296, 0.302]} rotation={[0, 0, -0.24]}>
+        <boxGeometry args={[0.178, 0.048, 0.034]} />
         <meshStandardMaterial
           ref={eyeRef1} color={glowC} emissive={glowEm}
           emissiveIntensity={offline ? 0.0 : (isSelected ? 3.4 : 2.4)}
@@ -185,29 +186,29 @@ function Robot({
         />
       </mesh>
 
-      {/* Cheek flares — armor panels on each side of faceplate */}
+      {/* Cheek armor flares — armor() color, angled out (visible side panels) */}
       {([-1, 1] as number[]).map(s => (
-        <mesh key={s} position={[s * 0.268, 2.172, 0.202]} rotation={[0, s * -0.40, 0]}>
-          <boxGeometry args={[0.056, 0.168, 0.060]} />
+        <mesh key={s} position={[s * 0.265, 2.168, 0.198]} rotation={[0, s * -0.42, 0]}>
+          <boxGeometry args={[0.060, 0.175, 0.068]} />
+          <meshStandardMaterial {...armor()} />
+        </mesh>
+      ))}
+
+      {/* Faceplate side seam lines — narrow grooves */}
+      {([-1, 1] as number[]).map(s => (
+        <mesh key={s} position={[s * 0.152, 2.195, 0.268]} rotation={[0, s * 0.30, 0]}>
+          <boxGeometry args={[0.012, 0.410, 0.013]} />
           <meshStandardMaterial {...recess()} />
         </mesh>
       ))}
 
-      {/* Faceplate side seam lines */}
-      {([-1, 1] as number[]).map(s => (
-        <mesh key={s} position={[s * 0.158, 2.205, 0.272]} rotation={[0, s * 0.30, 0]}>
-          <boxGeometry args={[0.013, 0.415, 0.014]} />
-          <meshStandardMaterial {...recess()} />
-        </mesh>
-      ))}
-
-      {/* Chin piece — tapered, angled slightly forward */}
-      <mesh position={[0, 1.918, 0.248]} rotation={[0.20, 0, 0]}>
-        <boxGeometry args={[0.192, 0.115, 0.058]} />
-        <meshStandardMaterial {...armor()} />
+      {/* Chin taper — dark, angled forward (points downward) */}
+      <mesh position={[0, 1.905, 0.244]} rotation={[0.26, 0, 0]}>
+        <boxGeometry args={[0.188, 0.122, 0.060]} />
+        <meshStandardMaterial {...recess()} />
       </mesh>
 
-      {/* Neck collar — connects helmet to chest */}
+      {/* Neck collar */}
       <mesh position={[0, 1.785, 0]}>
         <cylinderGeometry args={[0.095, 0.116, 0.155, 12]} />
         <meshStandardMaterial {...gold()} />
@@ -216,49 +217,54 @@ function Robot({
       {/* Crown sensor nub */}
       <mesh position={[0, 2.638, -0.012]}>
         <sphereGeometry args={[0.026, 10, 8]} />
-        <meshStandardMaterial color={glowC} emissive={glowEm} emissiveIntensity={offline ? 0.0 : 0.55} metalness={0.5} roughness={0.2} />
+        <meshStandardMaterial color={glowC} emissive={glowEm}
+          emissiveIntensity={offline ? 0.0 : 0.55} metalness={0.5} roughness={0.2} />
       </mesh>
 
-      {/* ══ CHEST — tapered: wide at shoulders, narrow at waist ══════════════
-          Shoulder width target: 52u → 0.900 total → ±0.450 outer edge
-          Upper chest: 0.68w, lower/abs: 0.50w (creates heroic taper)
+      {/* ══ CHEST — barrel chest via deep box + domed pec plates ═════════════
+          KEY FIX: pec plates are quarter-sphere domes (rotation PI/2 around X
+          so north pole faces +Z) — they bulge outward like real muscle armor.
+          Upper chest depth increased to 0.820 for more 3D silhouette.
       ══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Upper chest — broad, houses pec plates */}
-      <RoundedBox args={[0.680, 0.520, 0.600]} radius={0.055} smoothness={4} position={[0, 1.442, 0]}>
+      {/* Upper chest base — deep for barrel silhouette */}
+      <RoundedBox args={[0.680, 0.520, 0.820]} radius={0.055} smoothness={4} position={[0, 1.442, 0]}>
         <meshStandardMaterial {...recess()} />
       </RoundedBox>
 
       {/* Lower chest / abs — narrower at waist */}
-      <RoundedBox args={[0.500, 0.440, 0.540]} radius={0.050} smoothness={4} position={[0, 0.950, 0]}>
+      <RoundedBox args={[0.500, 0.440, 0.640]} radius={0.050} smoothness={4} position={[0, 0.950, 0]}>
         <meshStandardMaterial {...recess()} />
       </RoundedBox>
 
-      {/* Left pec plate */}
-      <RoundedBox args={[0.265, 0.368, 0.070]} radius={0.036} smoothness={4} position={[-0.172, 1.502, 0.315]}>
+      {/* Left pec plate — quarter-sphere dome, rotated to face forward (+Z) */}
+      {/* rotation [PI/2, 0, 0] makes north pole of sphere point toward +Z */}
+      <mesh position={[-0.172, 1.502, 0.258]} rotation={[Math.PI / 2, 0, 0]}>
+        <sphereGeometry args={[0.168, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
         <meshStandardMaterial {...armor()} />
-      </RoundedBox>
-      {/* Right pec plate */}
-      <RoundedBox args={[0.265, 0.368, 0.070]} radius={0.036} smoothness={4} position={[0.172, 1.502, 0.315]}>
+      </mesh>
+      {/* Right pec plate — mirror */}
+      <mesh position={[0.172, 1.502, 0.258]} rotation={[Math.PI / 2, 0, 0]}>
+        <sphereGeometry args={[0.168, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
         <meshStandardMaterial {...armor()} />
-      </RoundedBox>
+      </mesh>
 
       {/* Sternum center strip */}
       <mesh position={[0, 1.470, 0.318]}>
-        <boxGeometry args={[0.060, 0.392, 0.036]} />
+        <boxGeometry args={[0.058, 0.388, 0.036]} />
         <meshStandardMaterial {...recess()} />
       </mesh>
 
       {/* Pec lower seam lines */}
       {([-0.172, 0.172] as number[]).map(x => (
         <mesh key={x} position={[x, 1.222, 0.308]}>
-          <boxGeometry args={[0.255, 0.013, 0.018]} />
+          <boxGeometry args={[0.250, 0.012, 0.018]} />
           <meshStandardMaterial {...recess()} />
         </mesh>
       ))}
 
       {/* Arc reactor ring */}
-      <mesh position={[0, 1.316, 0.324]}>
+      <mesh position={[0, 1.316, 0.348]}>
         <torusGeometry args={[0.095, 0.028, 16, 36]} />
         <meshStandardMaterial
           ref={arcRingRef} color={offline ? '#888898' : color} emissive={glowEm}
@@ -267,16 +273,18 @@ function Robot({
         />
       </mesh>
       {/* Arc reactor core */}
-      <mesh position={[0, 1.316, 0.336]}>
+      <mesh position={[0, 1.316, 0.360]}>
         <circleGeometry args={[0.065, 36]} />
-        <meshBasicMaterial ref={arcCoreRef} color={offline ? '#666676' : '#d8f0ff'} transparent opacity={offline ? 0.0 : (isSelected ? 0.95 : 0.72)} />
+        <meshBasicMaterial ref={arcCoreRef} color={offline ? '#666676' : '#d8f0ff'}
+          transparent opacity={offline ? 0.0 : (isSelected ? 0.95 : 0.72)} />
       </mesh>
 
-      {/* Abdominal plates — three horizontal segments */}
+      {/* Abdominal plates — three horizontal armor bands */}
       {([1.068, 0.964, 0.866] as number[]).map((y, i) => (
-        <mesh key={y} position={[0, y, 0.283]}>
-          <boxGeometry args={[0.360 - i * 0.040, 0.022, 0.022]} />
-          <meshBasicMaterial color={offline ? '#666676' : color} transparent opacity={offline ? 0.0 : (0.22 - i * 0.04)} />
+        <mesh key={y} position={[0, y, 0.295]}>
+          <boxGeometry args={[0.355 - i * 0.038, 0.022, 0.022]} />
+          <meshBasicMaterial color={offline ? '#666676' : color}
+            transparent opacity={offline ? 0.0 : (0.22 - i * 0.04)} />
         </mesh>
       ))}
 
@@ -287,19 +295,17 @@ function Robot({
 
       {/* Hip gold panels */}
       {([-0.160, 0.160] as number[]).map(x => (
-        <mesh key={x} position={[x, 0.665, 0.240]}>
-          <boxGeometry args={[0.134, 0.115, 0.044]} />
+        <mesh key={x} position={[x, 0.665, 0.238]}>
+          <boxGeometry args={[0.132, 0.113, 0.042]} />
           <meshStandardMaterial {...gold()} />
         </mesh>
       ))}
 
-      {/* ══ SHOULDERS — at ±0.420, pauldron outer edge ≈ ±0.630 ═════════════
-          Target total shoulder width: 52u → ±0.450 outer, pauldron center ±0.420
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ══ SHOULDERS ════════════════════════════════════════════════════════ */}
 
       {([-1, 1] as number[]).map(side => (
         <group key={side}>
-          {/* Pauldron dome — sphere scaled for heroic look */}
+          {/* Pauldron dome — sphere scaled for heroic proportions */}
           <mesh position={[side * 0.418, 1.552, -0.038]} scale={[1.04, 0.82, 0.92]}>
             <sphereGeometry args={[0.212, 18, 12]} />
             <meshStandardMaterial {...armor()} />
@@ -309,50 +315,51 @@ function Robot({
             <torusGeometry args={[0.064, 0.016, 8, 20]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Pauldron skirt — tapered cylinder below dome */}
+          {/* Pauldron skirt */}
           <mesh position={[side * 0.418, 1.276, -0.038]}>
             <cylinderGeometry args={[0.165, 0.126, 0.192, 16]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Top seam line across dome */}
+          {/* Top seam */}
           <mesh position={[side * 0.418, 1.735, 0.014]}>
             <boxGeometry args={[0.330, 0.016, 0.270]} />
-            <meshBasicMaterial color={offline ? '#666676' : color} transparent opacity={offline ? 0.0 : 0.14} />
+            <meshBasicMaterial color={offline ? '#666676' : color}
+              transparent opacity={offline ? 0.0 : 0.14} />
           </mesh>
         </group>
       ))}
 
-      {/* ══ ARMS — center at ±0.338 ═══════════════════════════════════════════
-          Target: upper 13u wide, forearm 15u wide (slightly wider)
-          At our scale: 0.225 and 0.260 → centers at ±0.338 (inside pauldrons)
+      {/* ══ ARMS — CylinderGeometry for natural curvature under lighting ═════
+          Tapered cylinders look muscular; forearms slightly wider (gauntlets).
       ══════════════════════════════════════════════════════════════════════ */}
 
       {([-0.338, 0.338] as number[]).map(x => (
         <group key={x}>
-          {/* Upper arm */}
+          {/* Upper arm — smooth tapered cylinder */}
           <mesh position={[x, 1.092, 0]}>
-            <cylinderGeometry args={[0.085, 0.078, 0.398, 14]} />
+            <cylinderGeometry args={[0.088, 0.080, 0.398, 14]} />
             <meshStandardMaterial {...armor()} />
           </mesh>
-          {/* Elbow joint */}
+          {/* Elbow joint gold sphere */}
           <mesh position={[x, 0.849, 0]}>
             <sphereGeometry args={[0.096, 12, 8]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Forearm / gauntlet — slightly wider than upper arm */}
-          <RoundedBox args={[0.220, 0.396, 0.212]} radius={0.036} smoothness={4} position={[x, 0.572, 0]}>
+          {/* Forearm / gauntlet — tapered cylinder, slightly wider than upper arm */}
+          <mesh position={[x, 0.580, 0]}>
+            <cylinderGeometry args={[0.116, 0.096, 0.408, 14]} />
             <meshStandardMaterial {...armor()} />
-          </RoundedBox>
-          {/* Forearm vertical panel lines */}
-          {([-0.052, 0.052] as number[]).map(dx => (
-            <mesh key={dx} position={[x + dx, 0.578, -0.108]}>
-              <boxGeometry args={[0.011, 0.258, 0.010]} />
+          </mesh>
+          {/* Forearm vertical panel lines — on front face */}
+          {([-0.050, 0.050] as number[]).map(dx => (
+            <mesh key={dx} position={[x + dx, 0.585, 0.090]}>
+              <boxGeometry args={[0.010, 0.265, 0.010]} />
               <meshStandardMaterial {...recess()} />
             </mesh>
           ))}
-          {/* Back-of-forearm gold tech panel */}
-          <mesh position={[x, 0.582, -0.116]}>
-            <boxGeometry args={[0.188, 0.292, 0.036]} />
+          {/* Back-of-gauntlet gold tech panel */}
+          <mesh position={[x, 0.588, -0.108]}>
+            <boxGeometry args={[0.186, 0.295, 0.036]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
           {/* Wrist band */}
@@ -360,42 +367,45 @@ function Robot({
             <cylinderGeometry args={[0.112, 0.112, 0.053, 12]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
-          {/* Repulsor disc */}
-          <mesh position={[x, 0.308, 0.115]}>
+          {/* Repulsor disc — on front of gauntlet */}
+          <mesh position={[x, 0.308, 0.116]}>
             <circleGeometry args={[0.048, 24]} />
-            <meshBasicMaterial color={offline ? '#888898' : color} transparent opacity={offline ? 0.0 : (isSelected ? 0.95 : 0.76)} />
+            <meshBasicMaterial color={offline ? '#888898' : color}
+              transparent opacity={offline ? 0.0 : (isSelected ? 0.95 : 0.76)} />
           </mesh>
-          <mesh position={[x, 0.308, 0.108]}>
+          <mesh position={[x, 0.308, 0.109]}>
             <torusGeometry args={[0.048, 0.013, 8, 24]} />
-            <meshStandardMaterial color={offline ? '#888898' : color} emissive={glowEm} emissiveIntensity={offline ? 0.0 : (isSelected ? 2.4 : 1.4)} metalness={0.3} roughness={0.07} />
+            <meshStandardMaterial color={offline ? '#888898' : color} emissive={glowEm}
+              emissiveIntensity={offline ? 0.0 : (isSelected ? 2.4 : 1.4)}
+              metalness={0.3} roughness={0.07} />
           </mesh>
         </group>
       ))}
 
-      {/* ══ LEGS — center at ±0.165 ═══════════════════════════════════════════
-          Target: thigh 16u wide, shin 14u wide
-          At our scale: 0.277 thigh, 0.242 shin → centers at ±0.165
+      {/* ══ LEGS — CylinderGeometry for muscular rounded appearance ══════════
+          Thighs taper from wide top to narrower knee; shins taper to ankle.
       ══════════════════════════════════════════════════════════════════════ */}
 
       {([-0.165, 0.165] as number[]).map((x, legIdx) => (
         <group key={x}>
-          {/* Hip joint */}
+          {/* Hip joint — flattened gold sphere */}
           <mesh position={[x, 0.558, 0]} scale={[1, 0.56, 1]}>
             <sphereGeometry args={[0.160, 12, 8]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
-          {/* Thigh */}
-          <RoundedBox args={[0.268, 0.452, 0.262]} radius={0.044} smoothness={4} position={[x, 0.284, 0]}>
+          {/* Thigh — tapered cylinder, curves under lighting like real armor */}
+          <mesh position={[x, 0.284, 0]}>
+            <cylinderGeometry args={[0.142, 0.128, 0.460, 14]} />
             <meshStandardMaterial {...armor()} />
-          </RoundedBox>
-          {/* Outer thigh vertical panel line */}
+          </mesh>
+          {/* Outer thigh vertical seam line */}
           <mesh position={[x * 1.22, 0.284, 0.095]}>
-            <boxGeometry args={[0.013, 0.330, 0.016]} />
+            <boxGeometry args={[0.012, 0.335, 0.016]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
           {/* Inner thigh gold panel */}
-          <mesh position={[x * 0.52, 0.284, 0.136]}>
-            <boxGeometry args={[0.140, 0.316, 0.040]} />
+          <mesh position={[x * 0.52, 0.284, 0.138]}>
+            <boxGeometry args={[0.138, 0.318, 0.040]} />
             <meshStandardMaterial {...gold()} />
           </mesh>
           {/* Knee joint block */}
@@ -408,13 +418,14 @@ function Robot({
             <boxGeometry args={[0.168, 0.150, 0.062]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
-          {/* Shin */}
-          <RoundedBox args={[0.230, 0.412, 0.228]} radius={0.036} smoothness={4} position={[x, -0.196, 0]}>
+          {/* Shin — tapered cylinder */}
+          <mesh position={[x, -0.196, 0]}>
+            <cylinderGeometry args={[0.120, 0.096, 0.420, 12]} />
             <meshStandardMaterial {...armor()} />
-          </RoundedBox>
-          {/* Front shin panel */}
-          <mesh position={[x, -0.184, 0.126]}>
-            <boxGeometry args={[0.156, 0.318, 0.038]} />
+          </mesh>
+          {/* Front shin panel — armor plate on cylinder front face */}
+          <mesh position={[x, -0.184, 0.122]}>
+            <boxGeometry args={[0.155, 0.322, 0.038]} />
             <meshStandardMaterial {...recess()} />
           </mesh>
           {/* Ankle band */}
@@ -423,10 +434,11 @@ function Robot({
             <meshStandardMaterial {...gold()} />
           </mesh>
           {/* Boot */}
-          <RoundedBox args={[0.278, 0.132, 0.462]} radius={0.038} smoothness={4} position={[x, -0.525, 0.088]}>
+          <RoundedBox args={[0.278, 0.132, 0.462]} radius={0.038} smoothness={4}
+            position={[x, -0.525, 0.088]}>
             <meshStandardMaterial {...armor()} />
           </RoundedBox>
-          {/* Boot seam line */}
+          {/* Boot seam */}
           <mesh position={[x, -0.460, 0.196]}>
             <boxGeometry args={[0.265, 0.012, 0.016]} />
             <meshStandardMaterial {...recess()} />
@@ -455,7 +467,8 @@ function Robot({
       {/* Floor glow */}
       <mesh position={[0, -0.618, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.82, 32]} />
-        <meshBasicMaterial color={offline ? '#666676' : color} transparent opacity={active ? 0.22 : idle ? 0.09 : 0.0} />
+        <meshBasicMaterial color={offline ? '#666676' : color}
+          transparent opacity={active ? 0.22 : idle ? 0.09 : 0.0} />
       </mesh>
     </group>
   );
@@ -483,8 +496,8 @@ function AgentMesh({
       : Math.sin(t * 0.20 + base) * 0.10;
   });
 
-  const isActive  = agent.status === 'active';
-  const isIdle    = agent.status === 'idle';
+  const isActive = agent.status === 'active';
+  const isIdle   = agent.status === 'idle';
 
   const dotColor   = isActive ? '#4ade80' : isIdle ? '#fbbf24' : '#ef4444';
   const nameColor  = isActive ? agent.color : isIdle ? `${agent.color}bb` : `${agent.color}66`;
@@ -499,35 +512,17 @@ function AgentMesh({
       onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { document.body.style.cursor = 'default'; }}
     >
-      {/* Main suit light */}
-      <pointLight
-        color={agent.color}
-        intensity={isActive ? 3.0 : isIdle ? 0.9 : 0.50}
-        distance={4.5}
-        decay={2}
-        position={[0, 3.2, 0]}
-      />
-      {/* Front-facing fill — illuminates face and chest when active */}
-      <pointLight
-        color={agent.color}
-        intensity={isActive ? 0.90 : 0.0}
-        distance={3.0}
-        decay={2}
-        position={[0, 1.5, 2.2]}
-      />
-      {/* Bounce fill from below */}
-      <pointLight
-        color={agent.color}
-        intensity={isActive ? 0.55 : isIdle ? 0.18 : 0.10}
-        distance={2.5}
-        decay={2}
-        position={[0, -0.4, 0]}
-      />
+      <pointLight color={agent.color} intensity={isActive ? 3.0 : isIdle ? 0.9 : 0.50}
+        distance={4.5} decay={2} position={[0, 3.2, 0]} />
+      <pointLight color={agent.color} intensity={isActive ? 0.90 : 0.0}
+        distance={3.0} decay={2} position={[0, 1.5, 2.2]} />
+      <pointLight color={agent.color} intensity={isActive ? 0.55 : isIdle ? 0.18 : 0.10}
+        distance={2.5} decay={2} position={[0, -0.4, 0]} />
 
       <Robot color={agent.color} status={agent.status} isSelected={isSelected} isJarvis={isJarvis} />
 
-      {/* Name label */}
-      <Html position={[0, -0.92, 0]} center distanceFactor={7.5} style={{ pointerEvents: 'none' }} zIndexRange={[10, 0]}>
+      <Html position={[0, -0.92, 0]} center distanceFactor={7.5}
+        style={{ pointerEvents: 'none' }} zIndexRange={[10, 0]}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '5px',
           color: nameColor, fontSize: '12px', fontWeight: 500,
