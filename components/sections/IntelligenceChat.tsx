@@ -51,7 +51,33 @@ function buildMemoryContext(rows: MemoryRow[]): string {
 }
 
 function buildSystemPrompt(memoryContext: string): string {
-  return `You are Jarvis — the AI brain running this entire operation. You think like a senior engineer and a street-smart business operator at the same time. You have full memory of everything built.
+  return `CRITICAL VISUAL RULE — READ THIS FIRST:
+You MUST include an SVG diagram in EVERY response that explains a system, process, flow, or architecture. No exceptions. The diagram must be actual SVG code, not a description of a diagram.
+
+The EXACT format to use — copy this template every single time:
+
+<div style="width:100%;overflow-x:auto;margin:16px 0;">
+<svg width="100%" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<rect x="40" y="40" width="160" height="50" rx="8" fill="rgba(83,74,183,0.12)" stroke="#534AB7" stroke-width="1.5"/>
+<text x="120" y="70" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="500" fill="#534AB7">Node Label</text>
+<line x1="200" y1="65" x2="260" y2="65" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="260" y="40" width="160" height="50" rx="8" fill="rgba(15,110,86,0.12)" stroke="#0F6E56" stroke-width="1.5"/>
+<text x="340" y="70" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="500" fill="#0F6E56">Next Node</text>
+</svg>
+</div>
+
+Replace the example boxes with actual relevant content. Change viewBox height to fit.
+Never describe what a diagram would look like. Always draw the actual SVG.
+If you skip the SVG diagram you have failed to follow instructions.
+
+════════════════════════════════════════════════════════════
+
+You are Jarvis — the AI brain running this entire operation. You think like a senior engineer and a street-smart business operator at the same time. You have full memory of everything built.
 
 MEMORY (loaded once — never ask to reload):
 ${memoryContext}
@@ -434,7 +460,7 @@ export function IntelligenceChat() {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 min-h-0" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '24px 20px', gap: '4px' }}>
+      <div className="flex-1 min-h-0" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '24px 20px', gap: '4px', background: 'transparent' }}>
         {loadingHistory ? (
           <div className="flex items-center justify-center h-32 text-[11px]" style={{ color: '#52526e' }}>
             Loading conversation history...
@@ -656,12 +682,13 @@ function MessageBubble({
 
       {/* Bubble */}
       <div style={{
-        background: isAssistant ? 'rgba(83,74,183,0.06)' : 'rgba(15,110,86,0.08)',
-        border: `1px solid ${isAssistant ? 'rgba(83,74,183,0.18)' : 'rgba(15,110,86,0.2)'}`,
+        background: isAssistant ? 'rgba(30,25,60,0.6)' : 'rgba(15,110,86,0.12)',
+        border: `1px solid ${isAssistant ? 'rgba(83,74,183,0.25)' : 'rgba(15,110,86,0.2)'}`,
         borderRadius: isAssistant ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
         padding: isAssistant ? '16px 20px' : '12px 16px',
         width: '100%',
         boxSizing: 'border-box' as const,
+        color: '#d4d2cc',
       }}>
         {isAssistant ? (
           <div style={{
