@@ -37,79 +37,90 @@ function escapeHtml(s: string) {
     .replace(/"/g, '&quot;');
 }
 
+// Use null-byte delimiters so they never appear in markdown text
+const SLOT = '\x00';
+const svgSlot  = (i: number) => `${SLOT}S${i}${SLOT}`;
+const codeSlot = (i: number) => `${SLOT}C${i}${SLOT}`;
+
 function renderMarkdown(raw: string): string {
-  let text = raw;
+  let text = raw.replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '').trim();
 
-  // Strip MEMORY_UPDATE tags from display
-  text = text.replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '').trim();
-
-  // Protect SVG blocks (including wrapper divs)
-  const svgs: string[] = [];
-  text = text.replace(/<div[^>]*>[\s\S]*?<\/div>/g, (m) => {
-    if (m.includes('<svg')) {
-      svgs.push(m);
-      return `%%SVG${svgs.length - 1}%%`;
-    }
-    return m;
-  });
-  text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (m) => {
-    svgs.push(`<div style="width:100%;overflow-x:auto;margin:12px 0">${m}</div>`);
-    return `%%SVG${svgs.length - 1}%%`;
-  });
-
-  // Protect code blocks
+  const svgs:  string[] = [];
   const codes: string[] = [];
+
+  // ── Step 1: Code fences FIRST — check for SVG inside before escaping ────────
   text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const trimmed = code.trim();
+    // If the fence contains an SVG, render it as a diagram — never as escaped code
+    if (/<svg[\s\S]*?<\/svg>/i.test(trimmed)) {
+      const wrapped = trimmed.startsWith('<div')
+        ? trimmed
+        : `<div style="width:100%;overflow-x:auto;margin:12px 0">${trimmed}</div>`;
+      svgs.push(wrapped);
+      return svgSlot(svgs.length - 1);
+    }
     codes.push(
       `<div class="jv-code-block">` +
       (lang ? `<div class="jv-code-lang">${lang}</div>` : '') +
-      `<pre><code>${escapeHtml(code.trim())}</code></pre></div>`
+      `<pre><code>${escapeHtml(trimmed)}</code></pre></div>`
     );
-    return `%%CODE${codes.length - 1}%%`;
+    return codeSlot(codes.length - 1);
   });
 
-  // Inline code (after block code)
+  // ── Step 2: Raw SVG blocks not already inside a code fence ──────────────────
+  // Div-wrapped SVGs (non-greedy stops at first </div> — SVG never contains </div>)
+  text = text.replace(/<div[^>]*>[\s\S]*?<\/div>/g, (m) => {
+    if (m.includes('<svg')) { svgs.push(m); return svgSlot(svgs.length - 1); }
+    return m;
+  });
+  // Bare <svg>...</svg>
+  text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (m) => {
+    svgs.push(`<div style="width:100%;overflow-x:auto;margin:12px 0">${m}</div>`);
+    return svgSlot(svgs.length - 1);
+  });
+
+  // ── Step 3: Inline code ──────────────────────────────────────────────────────
   text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
 
-  // Headers
+  // ── Step 4: Headers ──────────────────────────────────────────────────────────
   text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  text = text.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
+  text = text.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
 
-  // Bold + italic
+  // ── Step 5: Bold + italic ────────────────────────────────────────────────────
   text = text.replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  text = text.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
-  text = text.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  text = text.replace(/\*\*([^*\n]+)\*\*/g,     '<strong>$1</strong>');
+  text = text.replace(/\*([^*\n]+)\*/g,          '<em>$1</em>');
 
-  // Lists — gather consecutive list lines into <ul>
+  // ── Step 6: Lists ────────────────────────────────────────────────────────────
   const lines = text.split('\n');
-  const result: string[] = [];
+  const listOut: string[] = [];
   let inList = false;
   for (const line of lines) {
-    const listMatch = line.match(/^[-•*] (.+)$/);
-    const numMatch = line.match(/^\d+\. (.+)$/);
-    if (listMatch || numMatch) {
-      if (!inList) { result.push('<ul>'); inList = true; }
-      result.push(`<li>${listMatch?.[1] ?? numMatch?.[1] ?? ''}</li>`);
+    const li = line.match(/^[-•*] (.+)$/) ?? line.match(/^\d+\. (.+)$/);
+    if (li) {
+      if (!inList) { listOut.push('<ul>'); inList = true; }
+      listOut.push(`<li>${li[1]}</li>`);
     } else {
-      if (inList) { result.push('</ul>'); inList = false; }
-      result.push(line);
+      if (inList) { listOut.push('</ul>'); inList = false; }
+      listOut.push(line);
     }
   }
-  if (inList) result.push('</ul>');
-  text = result.join('\n');
+  if (inList) listOut.push('</ul>');
+  text = listOut.join('\n');
 
-  // Paragraphs
+  // ── Step 7: Paragraphs ───────────────────────────────────────────────────────
   text = text.split(/\n{2,}/).map(p => {
     p = p.trim();
     if (!p) return '';
-    if (/^<[hul1-6]/.test(p) || p.startsWith('%%')) return p;
+    // Don't wrap HTML blocks, slots, or list/header tags in <p>
+    if (p.includes(SLOT) || /^<[hul]/.test(p)) return p;
     return `<p>${p.replace(/\n/g, '<br />')}</p>`;
   }).join('\n');
 
-  // Restore code blocks and SVGs
-  codes.forEach((c, i) => { text = text.split(`%%CODE${i}%%`).join(c); });
-  svgs.forEach((s, i) => { text = text.split(`%%SVG${i}%%`).join(s); });
+  // ── Step 8: Restore slots (codes first so SVG inside code stays clean) ───────
+  codes.forEach((c, i) => { text = text.split(codeSlot(i)).join(c); });
+  svgs.forEach((s, i)  => { text = text.split(svgSlot(i)).join(s); });
 
   return text;
 }
