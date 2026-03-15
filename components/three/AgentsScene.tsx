@@ -48,6 +48,16 @@ function Robot({
   const thruster3Ref = useRef<THREE.MeshBasicMaterial>(null);
   const glowShellRef = useRef<THREE.MeshBasicMaterial>(null);
 
+  // Thruster beam refs — group scale for flicker, material opacity for on/off
+  const beamGrp0Ref    = useRef<THREE.Group>(null);
+  const beamGrp1Ref    = useRef<THREE.Group>(null);
+  const beamCore0Ref   = useRef<THREE.MeshBasicMaterial>(null);
+  const beamCore1Ref   = useRef<THREE.MeshBasicMaterial>(null);
+  const beamOuter0Ref  = useRef<THREE.MeshBasicMaterial>(null);
+  const beamOuter1Ref  = useRef<THREE.MeshBasicMaterial>(null);
+  const beamSpread0Ref = useRef<THREE.MeshBasicMaterial>(null);
+  const beamSpread1Ref = useRef<THREE.MeshBasicMaterial>(null);
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
 
@@ -106,6 +116,30 @@ function Robot({
         const p = (Math.sin(t * (2 * Math.PI / 1.0)) + 1) / 2;
         glowShellRef.current.opacity = 0.07 + p * 0.13;
       } else { glowShellRef.current.opacity = 0; }
+    }
+
+    // ── Thruster beams ──────────────────────────────────────────────────────
+    // active: high-frequency flicker (18Hz); idle: dim static; offline: off
+    const beamDefs = [
+      { grp: beamGrp0Ref, core: beamCore0Ref, outer: beamOuter0Ref, spread: beamSpread0Ref, ph: 0   },
+      { grp: beamGrp1Ref, core: beamCore1Ref, outer: beamOuter1Ref, spread: beamSpread1Ref, ph: 2.1 },
+    ];
+    for (const { grp, core, outer, spread, ph } of beamDefs) {
+      const g = grp.current; const c = core.current;
+      const o = outer.current; const s = spread.current;
+      if (!g || !c || !o || !s) continue;
+      if (active) {
+        const flicker = 0.85 + Math.sin(t * 18 + ph) * 0.15;
+        g.scale.y = flicker;
+        c.opacity  = 0.85 + flicker * 0.12;
+        o.opacity  = 0.40 + flicker * 0.14;
+        s.opacity  = 0.18 + flicker * 0.10;
+      } else if (idle) {
+        g.scale.y = 1.0;
+        c.opacity = 0.10; o.opacity = 0.07; s.opacity = 0.03;
+      } else {
+        c.opacity = 0; o.opacity = 0; s.opacity = 0;
+      }
     }
   });
 
@@ -461,6 +495,41 @@ function Robot({
               transparent opacity={offline ? 0.0 : (active ? 0.65 : idle ? 0.22 : 0.0)}
             />
           </mesh>
+
+          {/* ── Thruster beam — three-layer exhaust column ──────────────────
+              active: flickers bright at 18Hz cycle with scale.y variation
+              idle:   faint static glow
+              offline: invisible (opacity 0)
+          ─────────────────────────────────────────────────────────────────── */}
+          <group ref={legIdx === 0 ? beamGrp0Ref : beamGrp1Ref} position={[x, -0.610, 0.088]}>
+            {/* Core — tight bright white beam, narrow at nozzle, widens with distance */}
+            <mesh position={[0, -0.165, 0]}>
+              <cylinderGeometry args={[0.010, 0.024, 0.330, 8]} />
+              <meshBasicMaterial
+                ref={legIdx === 0 ? beamCore0Ref : beamCore1Ref}
+                color="#ffffff" transparent opacity={0} depthWrite={false}
+              />
+            </mesh>
+            {/* Outer glow — agent color, wider flare */}
+            <mesh position={[0, -0.210, 0]}>
+              <cylinderGeometry args={[0.024, 0.088, 0.420, 8]} />
+              <meshBasicMaterial
+                ref={legIdx === 0 ? beamOuter0Ref : beamOuter1Ref}
+                color={color} transparent opacity={0} depthWrite={false}
+              />
+            </mesh>
+            {/* Bottom spread — wide diffuse exhaust at end of beam */}
+            <mesh position={[0, -0.460, 0]}>
+              <cylinderGeometry args={[0.072, 0.118, 0.160, 12]} />
+              <meshBasicMaterial
+                ref={legIdx === 0 ? beamSpread0Ref : beamSpread1Ref}
+                color={color} transparent opacity={0} depthWrite={false}
+              />
+            </mesh>
+            {/* Point light — illuminates ground and suit base when firing */}
+            <pointLight color={color} intensity={active ? 1.8 : idle ? 0.3 : 0}
+              distance={1.8} decay={2} position={[0, -0.20, 0]} />
+          </group>
         </group>
       ))}
 
