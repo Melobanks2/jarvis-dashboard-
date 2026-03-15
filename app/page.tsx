@@ -16,6 +16,7 @@ import { AIAgents }         from '@/components/sections/AIAgents';
 import { CallCenter }       from '@/components/sections/CallCenter';
 import { LeadIntelligence } from '@/components/sections/LeadIntelligence';
 import { Pipeline }         from '@/components/sections/Pipeline';
+import { ProspectsHub }     from '@/components/sections/ProspectsHub';
 import { GoalsVision }      from '@/components/sections/GoalsVision';
 import { IdeasLab }         from '@/components/sections/IdeasLab';
 import { AsapScraper }      from '@/components/sections/AsapScraper';
@@ -33,6 +34,7 @@ const SECTION_TITLES: Record<string, string> = {
   'call-center':       'Call Center',
   'lead-intelligence': 'Lead Intelligence',
   'pipeline':          'Pipeline',
+  'prospects-hub':     'Prospects Hub',
   'goals-vision':      'Goals & Vision',
   'ideas-lab':         'Ideas Lab',
   'asap-scraper':      'ASAP Scraper',
@@ -49,6 +51,7 @@ function SectionContent({ section }: { section: string }) {
     case 'call-center':       return <CallCenter />;
     case 'lead-intelligence': return <LeadIntelligence />;
     case 'pipeline':          return <Pipeline />;
+    case 'prospects-hub':     return <ProspectsHub />;
     case 'goals-vision':      return <GoalsVision />;
     case 'ideas-lab':         return <IdeasLab />;
     case 'asap-scraper':      return <AsapScraper />;

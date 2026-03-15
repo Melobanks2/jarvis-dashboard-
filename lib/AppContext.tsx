@@ -8,6 +8,7 @@ export type Section =
   | 'call-center'
   | 'lead-intelligence'
   | 'pipeline'
+  | 'prospects-hub'
   | 'goals-vision'
   | 'ideas-lab'
   | 'asap-scraper'

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LayoutDashboard, Bot, Phone, Search, GitBranch, Target, Lightbulb, MessageSquare, BarChart2, Settings, Map, BrainCircuit, Sparkles } from 'lucide-react';
+import { X, LayoutDashboard, Bot, Phone, Search, GitBranch, Target, Lightbulb, MessageSquare, BarChart2, Settings, Map, BrainCircuit, Sparkles, Users } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
 const ITEMS: { section: Section; label: string; icon: React.ReactNode; color: string; desc: string }[] = [
@@ -10,6 +10,7 @@ const ITEMS: { section: Section; label: string; icon: React.ReactNode; color: st
   { section: 'call-center',       label: 'Call Center',       icon: <Phone size={15} />,           color: '#67e8f9', desc: 'Calls & recordings' },
   { section: 'lead-intelligence', label: 'Lead Intelligence', icon: <Search size={15} />,          color: '#60a5fa', desc: 'Lead database' },
   { section: 'pipeline',          label: 'Pipeline',          icon: <GitBranch size={15} />,       color: '#a78bfa', desc: 'CRM pipeline view' },
+  { section: 'prospects-hub',     label: 'Prospects Hub',     icon: <Users size={15} />,           color: '#aa44ff', desc: 'Deal approvals & CRM' },
   { section: 'goals-vision',      label: 'Goals & Vision',    icon: <Target size={15} />,          color: '#fbbf24', desc: 'Revenue targets' },
   { section: 'ideas-lab',         label: 'Ideas Lab',         icon: <Lightbulb size={15} />,       color: '#a78bfa', desc: 'Feature backlog' },
   { section: 'asap-scraper',      label: 'ASAP Scraper',      icon: <Map size={15} />,             color: '#4ade80', desc: 'City scraping progress' },
