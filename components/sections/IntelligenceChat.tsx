@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Copy, Zap, X, ChevronDown, Check, Brain } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { supabase } from '@/lib/supabase';
 
 interface ChatMessage {
@@ -27,102 +29,9 @@ interface PushedPrompt {
   created_at: string;
 }
 
-// ── Markdown renderer ─────────────────────────────────────────────────────────
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// Use null-byte delimiters so they never appear in markdown text
-const SLOT = '\x00';
-const svgSlot  = (i: number) => `${SLOT}S${i}${SLOT}`;
-const codeSlot = (i: number) => `${SLOT}C${i}${SLOT}`;
-
-function renderMarkdown(raw: string): string {
-  let text = raw.replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '').trim();
-
-  const svgs:  string[] = [];
-  const codes: string[] = [];
-
-  // ── Step 1: Code fences FIRST — check for SVG inside before escaping ────────
-  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
-    const trimmed = code.trim();
-    // If the fence contains an SVG, render it as a diagram — never as escaped code
-    if (/<svg[\s\S]*?<\/svg>/i.test(trimmed)) {
-      const wrapped = trimmed.startsWith('<div')
-        ? trimmed
-        : `<div style="width:100%;overflow-x:auto;margin:12px 0">${trimmed}</div>`;
-      svgs.push(wrapped);
-      return svgSlot(svgs.length - 1);
-    }
-    codes.push(
-      `<div class="jv-code-block">` +
-      (lang ? `<div class="jv-code-lang">${lang}</div>` : '') +
-      `<pre><code>${escapeHtml(trimmed)}</code></pre></div>`
-    );
-    return codeSlot(codes.length - 1);
-  });
-
-  // ── Step 2: Raw SVG blocks not already inside a code fence ──────────────────
-  // Div-wrapped SVGs (non-greedy stops at first </div> — SVG never contains </div>)
-  text = text.replace(/<div[^>]*>[\s\S]*?<\/div>/g, (m) => {
-    if (m.includes('<svg')) { svgs.push(m); return svgSlot(svgs.length - 1); }
-    return m;
-  });
-  // Bare <svg>...</svg>
-  text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (m) => {
-    svgs.push(`<div style="width:100%;overflow-x:auto;margin:12px 0">${m}</div>`);
-    return svgSlot(svgs.length - 1);
-  });
-
-  // ── Step 3: Inline code ──────────────────────────────────────────────────────
-  text = text.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-
-  // ── Step 4: Headers ──────────────────────────────────────────────────────────
-  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  text = text.replace(/^## (.+)$/gm,  '<h2>$1</h2>');
-  text = text.replace(/^# (.+)$/gm,   '<h1>$1</h1>');
-
-  // ── Step 5: Bold + italic ────────────────────────────────────────────────────
-  text = text.replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  text = text.replace(/\*\*([^*\n]+)\*\*/g,     '<strong>$1</strong>');
-  text = text.replace(/\*([^*\n]+)\*/g,          '<em>$1</em>');
-
-  // ── Step 6: Lists ────────────────────────────────────────────────────────────
-  const lines = text.split('\n');
-  const listOut: string[] = [];
-  let inList = false;
-  for (const line of lines) {
-    const li = line.match(/^[-•*] (.+)$/) ?? line.match(/^\d+\. (.+)$/);
-    if (li) {
-      if (!inList) { listOut.push('<ul>'); inList = true; }
-      listOut.push(`<li>${li[1]}</li>`);
-    } else {
-      if (inList) { listOut.push('</ul>'); inList = false; }
-      listOut.push(line);
-    }
-  }
-  if (inList) listOut.push('</ul>');
-  text = listOut.join('\n');
-
-  // ── Step 7: Paragraphs ───────────────────────────────────────────────────────
-  text = text.split(/\n{2,}/).map(p => {
-    p = p.trim();
-    if (!p) return '';
-    // Don't wrap HTML blocks, slots, or list/header tags in <p>
-    if (p.includes(SLOT) || /^<[hul]/.test(p)) return p;
-    return `<p>${p.replace(/\n/g, '<br />')}</p>`;
-  }).join('\n');
-
-  // ── Step 8: Restore slots (codes first so SVG inside code stays clean) ───────
-  codes.forEach((c, i) => { text = text.split(codeSlot(i)).join(c); });
-  svgs.forEach((s, i)  => { text = text.split(svgSlot(i)).join(s); });
-
-  return text;
+// ── Strip MEMORY_UPDATE tags before rendering ─────────────────────────────────
+function cleanContent(raw: string): string {
+  return raw.replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '').trim();
 }
 
 // ── Memory helpers ────────────────────────────────────────────────────────────
@@ -140,18 +49,29 @@ function buildMemoryContext(rows: MemoryRow[]): string {
 }
 
 function buildSystemPrompt(memoryContext: string): string {
-  return `You are Jarvis, the AI brain behind this entire operation. You have full memory of everything we have built.
+  return `You are Jarvis — the AI brain running this entire operation. You think like a senior engineer and a street-smart business operator at the same time. You have full memory of everything built.
 
-MEMORY (loaded from Supabase — do not ask to reload):
+MEMORY (loaded once — never ask to reload):
 ${memoryContext}
 
-═══════════════════════════════════════════════════
-VISUAL RESPONSE RULES — NON-NEGOTIABLE
-═══════════════════════════════════════════════════
+════════════════════════════════
+HOW YOU COMMUNICATE
+════════════════════════════════
 
-Whenever you explain, break down, or show ANYTHING — architecture, flows, comparisons, systems, processes — you MUST draw it as a real SVG diagram. Not spaced-out text. Not ASCII art. A real SVG with colored boxes, arrows, and labels.
+You talk like a smart friend who knows the system cold — not like a report generator. Every response:
 
-MANDATORY SVG FORMAT — use this exactly every time:
+1. Opens with ONE punchy sentence — the core answer, no preamble
+2. Shows a diagram if anything visual would help (systems, flows, comparisons, architecture)
+3. Breaks it down in plain steps or bullets
+4. Ends with the Claude Code prompt block if a build task is needed, then 2–3 next steps
+
+No "Great question." No "Certainly!" No "I'd be happy to help." Just go.
+
+════════════════════════════════
+SVG DIAGRAMS — draw these, don't describe them
+════════════════════════════════
+
+Any time you explain a system, flow, or connection — draw it. Raw HTML SVG, output directly (not in a code block):
 
 <div style="width:100%;overflow-x:auto;margin:12px 0;">
 <svg width="100%" viewBox="0 0 680 [HEIGHT]" xmlns="http://www.w3.org/2000/svg">
@@ -160,43 +80,27 @@ MANDATORY SVG FORMAT — use this exactly every time:
     <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </marker>
 </defs>
-[diagram content]
+[boxes, arrows, labels]
 </svg>
 </div>
 
-COLOR SYSTEM — use consistently:
-- Purple  #534AB7 — main concepts, key nodes           → fill="#534AB71A" stroke="#534AB7"
-- Teal    #0F6E56 — active/running/correct things      → fill="#0F6E561A" stroke="#0F6E56"
-- Coral   #993C1D — disabled/paused/errors             → fill="#993C1D1A" stroke="#993C1D"
-- Blue    #185FA5 — data flows, information            → fill="#185FA51A" stroke="#185FA5"
-- Amber   #BA7517 — warnings, manual steps             → fill="#BA75171A" stroke="#BA7517"
-- Gray    #5F5E5A — neutral/structural nodes           → fill="#5F5E5A1A" stroke="#5F5E5A"
+Color system:
+- Purple  #534AB7 — main concepts        fill="#534AB71A" stroke="#534AB7"
+- Teal    #0F6E56 — active/running       fill="#0F6E561A" stroke="#0F6E56"
+- Coral   #993C1D — disabled/broken      fill="#993C1D1A" stroke="#993C1D"
+- Blue    #185FA5 — data / info flow     fill="#185FA51A" stroke="#185FA5"
+- Amber   #BA7517 — warnings / manual    fill="#BA75171A" stroke="#BA7517"
+- Gray    #5F5E5A — structural / neutral fill="#5F5E5A1A" stroke="#5F5E5A"
 
-Box pattern:   <rect x="X" y="Y" width="W" height="H" rx="8" fill="#COLOR1A" stroke="#COLOR" stroke-width="1.5"/>
-Label pattern: <text x="CX" y="CY" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#COLOR">Label</text>
-Arrow pattern: <line x1="X1" y1="Y1" x2="X2" y2="Y2" stroke="#COLOR" stroke-width="1.5" marker-end="url(#arrow)"/>
+Box:   <rect x="X" y="Y" width="W" height="H" rx="8" fill="#COLOR1A" stroke="#COLOR" stroke-width="1.5"/>
+Label: <text x="CX" y="CY" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#COLOR">text</text>
+Arrow: <line x1="X1" y1="Y1" x2="X2" y2="Y2" stroke="#COLOR" stroke-width="1.5" marker-end="url(#arrow)"/>
 
-VISUAL CACHE RULES:
-- Before drawing ANY diagram, check if topic already exists in jarvis_visual_cache
-- If cached → return the cached SVG and note "Retrieved from visual cache ✓"
-- If not cached → draw it → save to jarvis_visual_cache → return it
-- Topic naming: snake_case, descriptive (e.g. "jarvis_system_overview", "call_flow_diagram")
+════════════════════════════════
+CLAUDE CODE PROMPT BLOCK
+════════════════════════════════
 
-═══════════════════════════════════════════════════
-RESPONSE STRUCTURE — 3 SECTIONS, EVERY TIME
-═══════════════════════════════════════════════════
-
-Structure every response in exactly this order:
-
-## SECTION 1 — Teaching / Explanation
-- Use markdown headers to organize
-- Draw SVG diagram when showing a system, flow, or architecture
-- Use bullet points for lists
-- Write like a senior engineer teaching: clear, direct, no fluff
-
-## SECTION 2 — Claude Code Prompt (only include when a build task exists)
-Visually separate this from Section 1 with a --- divider.
-Format it EXACTLY like this every time:
+When the answer involves building something, add this after your explanation — separated by a --- divider:
 
 ---
 
@@ -206,36 +110,23 @@ Format it EXACTLY like this every time:
 **[TASK TITLE]**
 
 Read these files first:
-- [list relevant file paths]
+- [exact file paths]
 
-[Full self-contained instructions. No assumed context. Everything Claude Code needs is here.]
+[Full instructions. Self-contained. Claude Code has zero context — everything it needs is here.]
 
 Success looks like:
-- [bullet describing what done means]
-- [another success criterion]
+- [specific done criteria]
 
 ---
 
-Rules for the Claude Code prompt block:
-- Must be fully self-contained — Claude Code has zero context
-- Always starts with "Read these files first:" + relevant paths
-- Exact instructions, not vague directions
-- Always ends with "Success looks like:" criteria
-- User reviews this block before hitting Push to Claude Code
+════════════════════════════════
+MEMORY UPDATES
+════════════════════════════════
 
-## SECTION 3 — Next Steps
-End every response with exactly 2-3 bullet points telling the user what to do next.
+When you learn something worth keeping, append at the end of your message:
+[MEMORY_UPDATE: category="x" key="y" value="z"]
 
-═══════════════════════════════════════════════════
-BEHAVIOR RULES
-═══════════════════════════════════════════════════
-
-1. Be direct. No filler. No "great question". Smart, clear answers only.
-2. Think like a senior engineer + business strategist combined.
-3. When you learn something worth remembering, end your message with:
-   [MEMORY_UPDATE: category="x" key="y" value="z"]
-4. Memory is loaded once per session — never ask to reload it.
-5. Each message = 1 API call max. Be token-efficient.`;
+One call = one API hit. Stay token-efficient. Memory loads once per session.`;
 }
 
 function getRelevantMemory(rows: MemoryRow[], messageText: string, n = 5): MemoryRow[] {
@@ -771,11 +662,11 @@ function MessageBubble({
           }}
         >
           {isAssistant ? (
-            <div
-              className="jarvis-content text-[13px]"
-              style={{ color: '#c4c4d6', lineHeight: '1.65' }}
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-            />
+            <div className="jarvis-content text-[13px]" style={{ color: '#c4c4d6', lineHeight: '1.65' }}>
+              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                {cleanContent(msg.content)}
+              </ReactMarkdown>
+            </div>
           ) : (
             <div className="text-[13px] whitespace-pre-wrap" style={{ color: '#c4c4d6', lineHeight: '1.65' }}>
               {msg.content}
