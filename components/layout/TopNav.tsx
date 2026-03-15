@@ -42,9 +42,10 @@ export function TopNav() {
     >
       {/* Left: logo */}
       <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Hamburger: mobile only */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="w-8 h-8 flex items-center justify-center text-dimtext hover:text-textb transition-colors rounded"
+          className="md:hidden w-8 h-8 flex items-center justify-center text-dimtext hover:text-textb transition-colors rounded"
         >
           <Menu size={16} />
         </button>
@@ -68,7 +69,7 @@ export function TopNav() {
 
       {/* Right: actions + clock */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <NavBtn icon={<Zap size={11} />}      label="Run Calls"       color="#4ade80" onClick={() => setActiveSection('call-center')} />
+        <NavBtn icon={<Zap size={11} />}      label="David HQ"        color="#4ade80" onClick={() => setActiveSection('david-hq')} />
         <NavBtn icon={<Maximize2 size={11} />} label="Mission Control" color="#a78bfa" onClick={() => setMissionControl(true)} />
         <NavBtn icon={<Search size={11} />}   label="Leads"           color="#60a5fa" onClick={() => setActiveSection('lead-intelligence')} />
         <div className="w-px h-4 bg-white/10 mx-1" />
