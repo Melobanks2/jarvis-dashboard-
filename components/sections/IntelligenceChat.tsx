@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Copy, Zap, X, ChevronDown, Check, Brain } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { supabase } from '@/lib/supabase';
 
 interface ChatMessage {
@@ -432,7 +434,7 @@ export function IntelligenceChat() {
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+      <div className="flex-1 min-h-0" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '24px 20px', gap: '4px' }}>
         {loadingHistory ? (
           <div className="flex items-center justify-center h-32 text-[11px]" style={{ color: '#52526e' }}>
             Loading conversation history...
@@ -631,79 +633,140 @@ function MessageBubble({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      className={`flex items-start gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isAssistant ? 'flex-start' : 'flex-end',
+        marginBottom: '24px',
+        maxWidth: isAssistant ? '88%' : '75%',
+        marginLeft: isAssistant ? undefined : 'auto',
+      }}
     >
-      {/* Avatar */}
-      {isAssistant ? (
-        <div
-          className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-1"
-          style={{ background: 'rgba(83,74,183,0.2)', border: '1px solid rgba(83,74,183,0.3)' }}
-        >
-          <Brain size={13} style={{ color: '#a78bfa' }} />
-        </div>
-      ) : (
-        <div
-          className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-1 text-[10px] font-bold"
-          style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80' }}
-        >
-          C
-        </div>
-      )}
+      {/* Label */}
+      <div style={{
+        fontSize: '10px',
+        fontWeight: 700,
+        letterSpacing: '0.1em',
+        color: isAssistant ? '#534AB7' : '#0F6E56',
+        marginBottom: '6px',
+        opacity: 0.9,
+      }}>
+        {isAssistant ? 'JARVIS' : 'YOU'}
+      </div>
 
-      {/* Bubble + actions */}
-      <div className={`flex flex-col gap-1.5 ${isAssistant ? 'max-w-[88%]' : 'max-w-[75%] items-end'}`}>
-        <div
-          className="px-4 py-3 rounded-2xl"
-          style={{
-            background: isAssistant ? 'rgba(255,255,255,0.04)' : 'rgba(83,74,183,0.15)',
-            border: `1px solid ${isAssistant ? 'rgba(255,255,255,0.07)' : 'rgba(83,74,183,0.25)'}`,
-            borderTopLeftRadius: isAssistant ? 4 : undefined,
-            borderTopRightRadius: isAssistant ? undefined : 4,
-          }}
-        >
-          {isAssistant ? (
-            <div className="jarvis-content text-[13px]" style={{ color: '#c4c4d6', lineHeight: '1.65' }}>
-              <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                {cleanContent(msg.content)}
-              </ReactMarkdown>
-            </div>
-          ) : (
-            <div className="text-[13px] whitespace-pre-wrap" style={{ color: '#c4c4d6', lineHeight: '1.65' }}>
-              {msg.content}
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons — assistant only */}
-        {isAssistant && (
-          <div className="flex items-center gap-1 px-1">
-            <button
-              onClick={() => onCopy(msg)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] transition-colors"
-              style={{ color: copiedId === msg.id ? '#4ade80' : '#52526e' }}
-              onMouseEnter={e => { if (copiedId !== msg.id) (e.currentTarget as HTMLElement).style.color = '#c4c4d6'; }}
-              onMouseLeave={e => { if (copiedId !== msg.id) (e.currentTarget as HTMLElement).style.color = '#52526e'; }}
-            >
-              {copiedId === msg.id ? <Check size={10} /> : <Copy size={10} />}
-              {copiedId === msg.id ? 'Copied!' : 'Copy'}
-            </button>
-            <button
-              onClick={() => onPush(msg)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors"
-              style={{
-                color: '#a78bfa',
-                background: 'rgba(83,74,183,0.1)',
-                border: '1px solid rgba(83,74,183,0.2)',
+      {/* Bubble */}
+      <div style={{
+        background: isAssistant ? 'rgba(83,74,183,0.06)' : 'rgba(15,110,86,0.08)',
+        border: `1px solid ${isAssistant ? 'rgba(83,74,183,0.18)' : 'rgba(15,110,86,0.2)'}`,
+        borderRadius: isAssistant ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
+        padding: isAssistant ? '16px 20px' : '12px 16px',
+        width: '100%',
+        boxSizing: 'border-box' as const,
+      }}>
+        {isAssistant ? (
+          <div style={{
+            lineHeight: '1.75',
+            fontSize: '14px',
+            color: '#d4d2cc',
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+          }}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkBreaks]}
+              rehypePlugins={[rehypeRaw]}
+              components={{
+                h1: ({ children }) => (
+                  <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#a89ef5', margin: '20px 0 10px', borderBottom: '1px solid rgba(168,158,245,0.2)', paddingBottom: '8px' }}>{children}</h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#a89ef5', margin: '16px 0 8px' }}>{children}</h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#8b82e0', margin: '12px 0 6px' }}>{children}</h3>
+                ),
+                p: ({ children }) => (
+                  <p style={{ margin: '8px 0', color: '#d4d2cc', lineHeight: '1.75' }}>{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul style={{ paddingLeft: '20px', margin: '8px 0', color: '#d4d2cc' }}>{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol style={{ paddingLeft: '20px', margin: '8px 0', color: '#d4d2cc' }}>{children}</ol>
+                ),
+                li: ({ children }) => (
+                  <li style={{ margin: '5px 0', lineHeight: '1.65' }}>{children}</li>
+                ),
+                strong: ({ children }) => (
+                  <strong style={{ color: '#ffffff', fontWeight: 600 }}>{children}</strong>
+                ),
+                em: ({ children }) => (
+                  <em style={{ color: '#c4b8ff', fontStyle: 'italic' }}>{children}</em>
+                ),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                code: ({ inline, children, ...props }: any) => (
+                  inline
+                    ? <code style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '1px 6px', fontFamily: 'monospace', fontSize: '12px', color: '#9FE1CB' }}>{children}</code>
+                    : <pre style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '14px 16px', overflowX: 'auto', margin: '12px 0' }}>
+                        <code style={{ fontFamily: 'monospace', fontSize: '12px', color: '#9FE1CB', lineHeight: '1.6' }}>{children}</code>
+                      </pre>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote style={{ borderLeft: '3px solid #534AB7', background: 'rgba(83,74,183,0.08)', borderRadius: '0 8px 8px 0', margin: '16px 0', padding: '12px 16px', color: '#c2c0b6' }}>{children}</blockquote>
+                ),
+                hr: () => (
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '20px 0' }} />
+                ),
+                table: ({ children }) => (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', margin: '12px 0', fontSize: '13px' }}>{children}</table>
+                ),
+                th: ({ children }) => (
+                  <th style={{ background: 'rgba(83,74,183,0.2)', color: '#a89ef5', padding: '8px 12px', textAlign: 'left', border: '1px solid rgba(255,255,255,0.08)' }}>{children}</th>
+                ),
+                td: ({ children }) => (
+                  <td style={{ padding: '7px 12px', border: '1px solid rgba(255,255,255,0.06)', color: '#c2c0b6' }}>{children}</td>
+                ),
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(83,74,183,0.2)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(83,74,183,0.1)'; }}
             >
-              <Zap size={10} />
-              Push to Claude Code
-            </button>
+              {cleanContent(msg.content)}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          <div style={{ fontSize: '14px', color: '#e0e0e0', lineHeight: '1.65', wordBreak: 'break-word' }}>
+            {msg.content}
           </div>
         )}
       </div>
+
+      {/* Action buttons — assistant only */}
+      {isAssistant && (
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <button
+            onClick={() => onCopy(msg)}
+            style={{
+              fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
+              border: '1px solid rgba(255,255,255,0.12)', background: 'transparent',
+              color: copiedId === msg.id ? '#4ade80' : 'rgba(255,255,255,0.45)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+            }}
+          >
+            {copiedId === msg.id ? <Check size={10} /> : <Copy size={10} />}
+            {copiedId === msg.id ? 'Copied!' : 'Copy'}
+          </button>
+          <button
+            onClick={() => onPush(msg)}
+            style={{
+              fontSize: '11px', padding: '4px 12px', borderRadius: '5px',
+              border: '1px solid rgba(83,74,183,0.4)', background: 'rgba(83,74,183,0.1)',
+              color: '#a89ef5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+            }}
+          >
+            <Zap size={10} />
+            Push to Claude Code
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
