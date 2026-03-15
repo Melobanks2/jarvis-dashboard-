@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@react-three/drei": "^9.117.0",
     "@react-three/fiber": "^8.17.0",
+    "@splinetool/react-spline": "^4.1.0",
+    "@splinetool/runtime": "^1.12.69",
     "@supabase/supabase-js": "^2.46.0",
     "@types/topojson-client": "^3.1.5",
     "clsx": "^2.1.1",

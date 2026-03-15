@@ -9,6 +9,12 @@ import { useFeed } from '@/lib/hooks/useFeed';
 import { useApp } from '@/lib/AppContext';
 import { timeAgo } from '@/lib/supabase';
 import type { AgentSceneDef } from '@/components/three/AgentsScene';
+import { SplineScene } from '@/components/ui/SplineScene';
+
+// Feature flag — set NEXT_PUBLIC_USE_SPLINE=true + NEXT_PUBLIC_SPLINE_SCENE_URL=<url>
+// in .env.local to switch from Three.js robots to a Spline 3D scene.
+const USE_SPLINE     = process.env.NEXT_PUBLIC_USE_SPLINE === 'true';
+const SPLINE_SCENE   = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL ?? '';
 
 const AgentsScene = dynamic(
   () => import('@/components/three/AgentsScene'),
@@ -78,12 +84,46 @@ export function AIAgents() {
           border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <AgentsScene
-          agents={agents}
-          jarvis={JARVIS}
-          selectedKey={selectedKey}
-          onSelect={setSelectedKey}
-        />
+        {USE_SPLINE && SPLINE_SCENE ? (
+          /* ── Spline 3D scene ─────────────────────────────────────────────
+             HOW TO SET UP:
+             1. Go to spline.design — create a free account
+             2. Build or import 7 Iron Man suits (import .glb from Sketchfab)
+             3. Agent colors: Jarvis #4ade80, Alpha #60a5fa, Call #a78bfa,
+                County #fb923c, Caller #4ade80, Bot #67e8f9, ASAP #fbbf24
+             4. Name each object exactly as the agent key (e.g. ALPHA_SCRAPER)
+             5. Add hover/float animations per suit
+             6. Share → Copy link → paste .splinecode URL into .env.local:
+                NEXT_PUBLIC_USE_SPLINE=true
+                NEXT_PUBLIC_SPLINE_SCENE_URL=https://...splinecode
+          ─────────────────────────────────────────────────────────────────── */
+          <SplineScene
+            scene={SPLINE_SCENE}
+            className="w-full h-full"
+            onLoad={(spline) => {
+              // Wire agent status to Spline object emissive intensity
+              const all = [JARVIS, ...agents];
+              all.forEach(agent => {
+                const obj = spline.findObjectByName(agent.key);
+                if (!obj) return;
+                if (agent.status === 'active') {
+                  obj.emissiveIntensity = 2.0;
+                } else if (agent.status === 'idle') {
+                  obj.emissiveIntensity = 0.5;
+                } else {
+                  obj.emissiveIntensity = 0.1;
+                }
+              });
+            }}
+          />
+        ) : (
+          <AgentsScene
+            agents={agents}
+            jarvis={JARVIS}
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+          />
+        )}
 
         {/* Edge vignette */}
         <div
