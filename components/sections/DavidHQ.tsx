@@ -54,7 +54,8 @@ interface Recording {
   contact_name: string;
   phone: string;
   address: string;
-  transcript: string;
+  transcript_full: string;
+  recording_url: string | null;
   call_duration: number;
   stage_after: string;
   called_at: string;
@@ -310,7 +311,11 @@ function PendingApprovalsTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 15000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const handleDecision = (id: string, action: string) => {
     setItems(prev => prev.map(item =>
@@ -432,8 +437,8 @@ function RecordingsTab() {
   useEffect(() => {
     supabase
       .from('jarvis_calls')
-      .select('id,contact_name,phone,address,transcript,call_duration,stage_after,called_at')
-      .not('transcript', 'is', null)
+      .select('id,contact_name,phone,address,transcript_full,recording_url,call_duration,stage_after,called_at')
+      .not('transcript_full', 'is', null)
       .order('called_at', { ascending: false })
       .limit(50)
       .then(({ data }) => {
@@ -495,7 +500,7 @@ function RecordingsTab() {
     <div>
       {recordings.map(rec => {
         const isOpen = expanded === rec.id;
-        const lines  = (rec.transcript || '').split('\n').filter(Boolean);
+        const lines  = (rec.transcript_full || '').split('\n').filter(Boolean);
         const fb     = feedback[rec.id] || {};
 
         return (
@@ -509,8 +514,21 @@ function RecordingsTab() {
                 <div className="text-[12px] font-semibold" style={{ color: '#e8e8f0' }}>{rec.contact_name}</div>
                 <div className="text-[10px]" style={{ color: '#52526e' }}>{rec.address} · {fmtDate(rec.called_at)}</div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {rec.stage_after && <Tag label={rec.stage_after} color="#a78bfa" />}
+                {rec.recording_url && (
+                  <a
+                    href={`/api/el-recording?id=${rec.recording_url.match(/conversations\/(conv_\w+)/)?.[1] || ''}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="p-1.5 rounded flex items-center"
+                    title="Play recording"
+                    style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', flexShrink: 0 }}
+                  >
+                    <Play size={11} />
+                  </a>
+                )}
                 <span style={{ color: '#52526e' }}>{isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
               </div>
             </button>
@@ -528,7 +546,7 @@ function RecordingsTab() {
                   <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                     {lines.map((line, idx) => {
                       const lineFb = fb[idx];
-                      const isDavid = line.startsWith('DAVID:');
+                      const isDavid = line.startsWith('David:') || line.startsWith('Jarvis:');
                       const isComment = line.startsWith('[');
                       return (
                         <div
