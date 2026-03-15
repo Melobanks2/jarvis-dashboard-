@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Activity, Clock, X, Zap } from 'lucide-react';
@@ -8,40 +7,19 @@ import { useAgents } from '@/lib/hooks/useAgents';
 import { useFeed } from '@/lib/hooks/useFeed';
 import { useApp } from '@/lib/AppContext';
 import { timeAgo } from '@/lib/supabase';
-import type { AgentSceneDef } from '@/components/three/AgentsScene';
 import { SplineScene } from '@/components/ui/SplineScene';
 
-// Feature flag — set NEXT_PUBLIC_USE_SPLINE=true + NEXT_PUBLIC_SPLINE_SCENE_URL=<url>
-// in .env.local to switch from Three.js robots to a Spline 3D scene.
-const USE_SPLINE     = process.env.NEXT_PUBLIC_USE_SPLINE === 'true';
-const SPLINE_SCENE   = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL ?? '';
+const SPLINE_URL = 'https://prod.spline.design/k3flo1TvD6BpvJUoXywqz1RT/scene.splinecode';
 
-const AgentsScene = dynamic(
-  () => import('@/components/three/AgentsScene'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex items-center justify-center" style={{ height: 500 }}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border border-ngreen/30 animate-pulse flex items-center justify-center">
-            <div className="w-5 h-5 rounded-full bg-ngreen/20 animate-pulse" />
-          </div>
-          <span className="text-[10px] text-dimtext tracking-[1.5px] uppercase animate-pulse">Initializing 3D Scene</span>
-        </div>
-      </div>
-    ),
-  }
-);
-
-const JARVIS: AgentSceneDef = {
+const JARVIS = {
   key:          'JARVIS',
   name:         'Jarvis',
   color:        '#4ade80',
   description:  'Central AI orchestrator. Coordinates all agents, manages Telegram communications, analyzes calls, and drives wholesale operations end-to-end.',
   schedule:     'Always Active',
-  lastActivity: null,
+  lastActivity: null as string | null,
   runCount:     0,
-  status:       'active',
+  status:       'active' as const,
 };
 
 const STATUS_LABEL: Record<string, string> = { active: 'Online', idle: 'Idle', offline: 'Offline' };
@@ -72,56 +50,35 @@ export function AIAgents() {
             {agents.filter(a => a.status === 'offline').length} offline
           </p>
         </div>
-        <p className="text-[9px] text-dimtext tracking-[1.5px] uppercase">Click any agent to inspect</p>
+        <p className="text-[9px] text-dimtext tracking-[1.5px] uppercase">Live 3D Scene</p>
       </div>
 
-      {/* 3D Scene canvas */}
+      {/* Spline 3D scene */}
       <div
         className="relative rounded-2xl overflow-hidden"
         style={{
-          height: 500,
+          width: '100%',
+          height: '500px',
           background: 'radial-gradient(ellipse 80% 70% at 50% 40%, rgba(74,222,128,0.04) 0%, rgba(11,12,22,0.95) 65%)',
           border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        {USE_SPLINE && SPLINE_SCENE ? (
-          /* ── Spline 3D scene ─────────────────────────────────────────────
-             HOW TO SET UP:
-             1. Go to spline.design — create a free account
-             2. Build or import 7 Iron Man suits (import .glb from Sketchfab)
-             3. Agent colors: Jarvis #4ade80, Alpha #60a5fa, Call #a78bfa,
-                County #fb923c, Caller #4ade80, Bot #67e8f9, ASAP #fbbf24
-             4. Name each object exactly as the agent key (e.g. ALPHA_SCRAPER)
-             5. Add hover/float animations per suit
-             6. Share → Copy link → paste .splinecode URL into .env.local:
-                NEXT_PUBLIC_USE_SPLINE=true
-                NEXT_PUBLIC_SPLINE_SCENE_URL=https://...splinecode
-          ─────────────────────────────────────────────────────────────────── */
-          <SplineScene
-            scene={SPLINE_SCENE}
-            className="w-full h-full"
-            onLoad={(spline) => {
-              try {
-                const all = [JARVIS, ...agents];
-                all.forEach(agent => {
-                  const obj = spline.findObjectByName(agent.key) ?? spline.findObjectByName(agent.name);
-                  if (!obj) return;
-                  obj.emissiveIntensity = agent.status === 'active' ? 3.0
-                    : agent.status === 'idle' ? 0.8 : 0.2;
-                });
-              } catch (e) {
-                console.log('[Spline] object control skipped:', e);
-              }
-            }}
-          />
-        ) : (
-          <AgentsScene
-            agents={agents}
-            jarvis={JARVIS}
-            selectedKey={selectedKey}
-            onSelect={setSelectedKey}
-          />
-        )}
+        <SplineScene
+          scene={SPLINE_URL}
+          className="w-full h-full"
+          onLoad={(spline) => {
+            try {
+              allAgents.forEach(agent => {
+                const obj = spline.findObjectByName(agent.key) ?? spline.findObjectByName(agent.name);
+                if (!obj) return;
+                obj.emissiveIntensity = agent.status === 'active' ? 3.0
+                  : agent.status === 'idle' ? 0.8 : 0.2;
+              });
+            } catch (e) {
+              console.log('[Spline] object control skipped:', e);
+            }
+          }}
+        />
 
         {/* Edge vignette */}
         <div
@@ -235,7 +192,7 @@ export function AIAgents() {
         )}
       </AnimatePresence>
 
-      {/* Name tag pills — always visible, clickable */}
+      {/* Agent name labels + status dots */}
       <div className="flex items-center justify-center gap-2 flex-wrap">
         {allAgents.map(a => (
           <button
@@ -243,10 +200,10 @@ export function AIAgents() {
             onClick={() => setSelectedKey(selectedKey === a.key ? null : a.key)}
             className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium transition-all"
             style={{
-              background:   selectedKey === a.key ? `${a.color}12` : a.status === 'active' ? `${a.color}09` : 'rgba(255,255,255,0.03)',
-              border:       `1px solid ${selectedKey === a.key ? a.color + '30' : a.status === 'active' ? a.color + '28' : 'rgba(255,255,255,0.07)'}`,
-              color:        selectedKey === a.key ? a.color : a.status === 'active' ? a.color + 'cc' : '#52526e',
-              boxShadow:    a.status === 'active' ? `0 0 10px ${a.color}28` : 'none',
+              background:  selectedKey === a.key ? `${a.color}12` : a.status === 'active' ? `${a.color}09` : 'rgba(255,255,255,0.03)',
+              border:      `1px solid ${selectedKey === a.key ? a.color + '30' : a.status === 'active' ? a.color + '28' : 'rgba(255,255,255,0.07)'}`,
+              color:       selectedKey === a.key ? a.color : a.status === 'active' ? a.color + 'cc' : '#52526e',
+              boxShadow:   a.status === 'active' ? `0 0 10px ${a.color}28` : 'none',
             }}
           >
             <span
