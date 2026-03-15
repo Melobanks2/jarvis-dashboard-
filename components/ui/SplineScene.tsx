@@ -13,9 +13,13 @@ export function SplineScene({ scene, className, onLoad }: SplineSceneProps) {
   return (
     <Suspense
       fallback={
-        <div className="w-full h-full flex items-center justify-center">
+        <div style={{
+          width: '100%', height: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'transparent',
+        }}>
           <div style={{
-            width: '40px', height: '40px',
+            width: '48px', height: '48px',
             border: '2px solid rgba(83,74,183,0.3)',
             borderTop: '2px solid #534AB7',
             borderRadius: '50%',

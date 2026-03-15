@@ -101,19 +101,17 @@ export function AIAgents() {
             scene={SPLINE_SCENE}
             className="w-full h-full"
             onLoad={(spline) => {
-              // Wire agent status to Spline object emissive intensity
-              const all = [JARVIS, ...agents];
-              all.forEach(agent => {
-                const obj = spline.findObjectByName(agent.key);
-                if (!obj) return;
-                if (agent.status === 'active') {
-                  obj.emissiveIntensity = 2.0;
-                } else if (agent.status === 'idle') {
-                  obj.emissiveIntensity = 0.5;
-                } else {
-                  obj.emissiveIntensity = 0.1;
-                }
-              });
+              try {
+                const all = [JARVIS, ...agents];
+                all.forEach(agent => {
+                  const obj = spline.findObjectByName(agent.key) ?? spline.findObjectByName(agent.name);
+                  if (!obj) return;
+                  obj.emissiveIntensity = agent.status === 'active' ? 3.0
+                    : agent.status === 'idle' ? 0.8 : 0.2;
+                });
+              } catch (e) {
+                console.log('[Spline] object control skipped:', e);
+              }
             }}
           />
         ) : (
