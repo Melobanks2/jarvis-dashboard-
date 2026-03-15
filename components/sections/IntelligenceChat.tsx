@@ -681,80 +681,33 @@ function MessageBubble({
       </div>
 
       {/* Bubble */}
-      <div style={{
-        background: isAssistant ? 'rgba(30,25,60,0.6)' : 'rgba(15,110,86,0.12)',
-        border: `1px solid ${isAssistant ? 'rgba(83,74,183,0.25)' : 'rgba(15,110,86,0.2)'}`,
-        borderRadius: isAssistant ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
-        padding: isAssistant ? '16px 20px' : '12px 16px',
-        width: '100%',
+      <div style={isAssistant ? {
+        maxWidth: '85%',
+        padding: '16px 20px',
+        background: 'rgba(83,74,183,0.08)',
+        border: '1px solid rgba(83,74,183,0.2)',
+        borderRadius: '4px 12px 12px 12px',
         boxSizing: 'border-box' as const,
-        color: '#d4d2cc',
+        overflowX: 'hidden',
+      } : {
+        padding: '12px 16px',
+        background: 'rgba(15,110,86,0.12)',
+        border: '1px solid rgba(15,110,86,0.2)',
+        borderRadius: '12px 4px 12px 12px',
+        boxSizing: 'border-box' as const,
       }}>
         {isAssistant ? (
-          <div style={{
+          <div className="jarvis-content" style={{
             lineHeight: '1.75',
             fontSize: '14px',
             color: '#d4d2cc',
             wordBreak: 'break-word',
             overflowWrap: 'anywhere',
             whiteSpace: 'normal',
-            maxWidth: '100%',
           }}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkBreaks]}
               rehypePlugins={[rehypeRaw]}
-              components={{
-                h1: ({ children }) => (
-                  <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#a89ef5', margin: '20px 0 10px', borderBottom: '1px solid rgba(168,158,245,0.2)', paddingBottom: '8px' }}>{children}</h1>
-                ),
-                h2: ({ children }) => (
-                  <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#a89ef5', margin: '16px 0 8px' }}>{children}</h2>
-                ),
-                h3: ({ children }) => (
-                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#8b82e0', margin: '12px 0 6px' }}>{children}</h3>
-                ),
-                p: ({ children }) => (
-                  <p style={{ margin: '8px 0', color: '#d4d2cc', lineHeight: '1.75' }}>{children}</p>
-                ),
-                ul: ({ children }) => (
-                  <ul style={{ paddingLeft: '20px', margin: '8px 0', color: '#d4d2cc' }}>{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol style={{ paddingLeft: '20px', margin: '8px 0', color: '#d4d2cc' }}>{children}</ol>
-                ),
-                li: ({ children }) => (
-                  <li style={{ margin: '5px 0', lineHeight: '1.65' }}>{children}</li>
-                ),
-                strong: ({ children }) => (
-                  <strong style={{ color: '#ffffff', fontWeight: 600 }}>{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em style={{ color: '#c4b8ff', fontStyle: 'italic' }}>{children}</em>
-                ),
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                code: ({ inline, children, ...props }: any) => (
-                  inline
-                    ? <code style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '1px 6px', fontFamily: 'monospace', fontSize: '12px', color: '#9FE1CB' }}>{children}</code>
-                    : <pre style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '14px 16px', overflowX: 'auto', margin: '12px 0' }}>
-                        <code style={{ fontFamily: 'monospace', fontSize: '12px', color: '#9FE1CB', lineHeight: '1.6' }}>{children}</code>
-                      </pre>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote style={{ borderLeft: '3px solid #534AB7', background: 'rgba(83,74,183,0.08)', borderRadius: '0 8px 8px 0', margin: '16px 0', padding: '12px 16px', color: '#c2c0b6' }}>{children}</blockquote>
-                ),
-                hr: () => (
-                  <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '20px 0' }} />
-                ),
-                table: ({ children }) => (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', margin: '12px 0', fontSize: '13px' }}>{children}</table>
-                ),
-                th: ({ children }) => (
-                  <th style={{ background: 'rgba(83,74,183,0.2)', color: '#a89ef5', padding: '8px 12px', textAlign: 'left', border: '1px solid rgba(255,255,255,0.08)' }}>{children}</th>
-                ),
-                td: ({ children }) => (
-                  <td style={{ padding: '7px 12px', border: '1px solid rgba(255,255,255,0.06)', color: '#c2c0b6' }}>{children}</td>
-                ),
-              }}
             >
               {cleanContent(msg.content)}
             </ReactMarkdown>
