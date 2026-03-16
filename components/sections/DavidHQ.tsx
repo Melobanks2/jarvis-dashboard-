@@ -364,7 +364,7 @@ function LiveCallsTab() {
     cutoff.setHours(cutoff.getHours() - 48);
     const { data, error } = await supabase
       .from('jarvis_calls')
-      .select('*')
+      .select('id,contact_name,phone,address,call_duration,stage_before,stage_after,tags_applied,summary,called_at')
       .gte('called_at', cutoff.toISOString())
       .order('called_at', { ascending: false })
       .limit(50);
@@ -666,11 +666,15 @@ function PerformanceTab() {
       const week   = new Date(now); week.setDate(now.getDate() - 7);
       const month  = new Date(now); month.setDate(1); month.setHours(0,0,0,0);
 
-      const { data: all, error: allErr } = await supabase
-        .from('jarvis_calls')
-        .select('called_at,call_duration,stage_after,tags_applied')
-        .gte('called_at', month.toISOString());
+      const [
+        { data: all, error: allErr },
+        { data: approvals, error: appErr },
+      ] = await Promise.all([
+        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after,tags_applied').gte('called_at', month.toISOString()),
+        supabase.from('david_pending_approvals').select('status').gte('created_at', month.toISOString()),
+      ]);
       console.log('[Performance] jarvis_calls result:', { count: all?.length, error: allErr?.message });
+      console.log('[Performance] pending_approvals result:', { count: approvals?.length, error: appErr?.message });
 
       if (!all) return;
 
@@ -683,12 +687,6 @@ function PerformanceTab() {
       ).length;
       const contracts = all.filter(r => r.stage_after === 'Contract Sent').length;
       const closed    = all.filter(r => r.stage_after === 'Closed Won').length;
-
-      const { data: approvals, error: appErr } = await supabase
-        .from('david_pending_approvals')
-        .select('status')
-        .gte('created_at', month.toISOString());
-      console.log('[Performance] pending_approvals result:', { count: approvals?.length, error: appErr?.message });
       const approved = (approvals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
 
       const avgDur = all.length
