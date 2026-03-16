@@ -650,7 +650,7 @@ function PerformanceTab() {
   } | null>(null);
 
   useEffect(() => {
-    (async () => {
+    const load = async () => {
       const now    = new Date();
       const today  = new Date(now); today.setHours(0,0,0,0);
       const week   = new Date(now); week.setDate(now.getDate() - 7);
@@ -689,7 +689,10 @@ function PerformanceTab() {
       });
 
       setStats({ today: todayNum, week: weekNum, month: monthNum, qualified, offersApproved: approved, contractsSent: contracts, dealsClosed: closed, avgDuration: avgDur, stageBreakdown });
-    })();
+    };
+    load();
+    const id = setInterval(load, 60000);
+    return () => clearInterval(id);
   }, []);
 
   if (!stats) return <Spinner />;
