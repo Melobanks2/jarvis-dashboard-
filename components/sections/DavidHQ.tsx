@@ -302,11 +302,12 @@ function PendingApprovalsTab() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('david_pending_approvals')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(20);
+    console.log('[PendingApprovals] query result:', { count: data?.length, error: error?.message });
     if (data) setItems(data as PendingApproval[]);
     setLoading(false);
   }, []);
@@ -358,29 +359,35 @@ function LiveCallsTab() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    // Show last 48h so calls are visible even if none happened today
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - 48);
+    const { data, error } = await supabase
       .from('jarvis_calls')
       .select('*')
-      .gte('called_at', todayStart())
+      .gte('called_at', cutoff.toISOString())
       .order('called_at', { ascending: false })
-      .limit(30);
+      .limit(50);
+    console.log('[LiveCalls] query result:', { count: data?.length, error: error?.message });
     if (data) setCalls(data as LiveCall[]);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    setCalls([]);
+    setLoading(true);
     load();
     const id = setInterval(load, 15000);
     return () => clearInterval(id);
   }, [load]);
 
   if (loading) return <Spinner />;
-  if (calls.length === 0) return <Empty icon={<Phone size={28} />} text="No calls today" sub="Active calls will appear here every 15 seconds" />;
+  if (calls.length === 0) return <Empty icon={<Phone size={28} />} text="No calls in last 48 hours" sub="Active calls will appear here every 15 seconds" />;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionHeader label={`${calls.length} calls today`} color="#67e8f9" />
+        <SectionHeader label={`${calls.length} calls (last 48h)`} color="#67e8f9" />
         <div className="flex items-center gap-1.5 text-[9px]" style={{ color: '#52526e' }}>
           <div className="w-1.5 h-1.5 rounded-full bg-ngreen animate-pulse" />
           Live · 15s refresh
@@ -435,13 +442,16 @@ function RecordingsTab() {
   const [comment, setComment]       = useState<Record<string, string>>({});
 
   useEffect(() => {
+    setRecordings([]);
+    setLoading(true);
     supabase
       .from('jarvis_calls')
       .select('id,contact_name,phone,address,transcript_full,recording_url,call_duration,stage_after,called_at')
       .not('transcript_full', 'is', null)
       .order('called_at', { ascending: false })
       .limit(50)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        console.log('[Recordings] query result:', { count: data?.length, error: error?.message });
         if (data) setRecordings(data as Recording[]);
         setLoading(false);
       });
@@ -656,10 +666,11 @@ function PerformanceTab() {
       const week   = new Date(now); week.setDate(now.getDate() - 7);
       const month  = new Date(now); month.setDate(1); month.setHours(0,0,0,0);
 
-      const { data: all } = await supabase
+      const { data: all, error: allErr } = await supabase
         .from('jarvis_calls')
         .select('called_at,call_duration,stage_after,tags_applied')
         .gte('called_at', month.toISOString());
+      console.log('[Performance] jarvis_calls result:', { count: all?.length, error: allErr?.message });
 
       if (!all) return;
 
@@ -673,10 +684,11 @@ function PerformanceTab() {
       const contracts = all.filter(r => r.stage_after === 'Contract Sent').length;
       const closed    = all.filter(r => r.stage_after === 'Closed Won').length;
 
-      const { data: approvals } = await supabase
+      const { data: approvals, error: appErr } = await supabase
         .from('david_pending_approvals')
         .select('status')
         .gte('created_at', month.toISOString());
+      console.log('[Performance] pending_approvals result:', { count: approvals?.length, error: appErr?.message });
       const approved = (approvals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
 
       const avgDur = all.length
