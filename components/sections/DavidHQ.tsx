@@ -103,8 +103,9 @@ type TabId = typeof TABS[number]['id'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt$(n: number) {
-  return '$' + n.toLocaleString();
+function fmt$(n: number | null | undefined) {
+  if (n == null || isNaN(Number(n))) return '—';
+  return '$' + Number(n).toLocaleString();
 }
 
 function ScoreBar({ label, value, max = 10 }: { label: string; value: number; max?: number }) {
@@ -151,7 +152,8 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
     }
   };
 
-  const scoreColor = item.motivation_score >= 7 ? '#4ade80' : item.motivation_score >= 4 ? '#fbbf24' : '#f87171';
+  const score = item.motivation_score ?? 0;
+  const scoreColor = score >= 7 ? '#4ade80' : score >= 4 ? '#fbbf24' : '#f87171';
   const glowStyle = isPending
     ? { boxShadow: '0 0 0 1px rgba(248,113,113,0.25), 0 0 20px rgba(248,113,113,0.06)' }
     : {};
@@ -186,7 +188,7 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
           <div className="text-right">
             <div className="text-[10px]" style={{ color: '#52526e' }}>Motivation</div>
             <div className="text-[18px] font-bold font-orbitron" style={{ color: scoreColor }}>
-              {item.motivation_score}<span className="text-[11px]">/10</span>
+              {score || '—'}<span className="text-[11px]">/10</span>
             </div>
           </div>
         </div>
@@ -216,8 +218,8 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
         {/* Quick info */}
         <div className="flex gap-3 mb-3 flex-wrap">
           <Info label="Payoff" value={fmt$(item.mortgage_payoff)} />
-          <Info label="Timeline" value={item.timeline} />
-          <Info label="Condition" value={item.condition_summary} />
+          <Info label="Timeline" value={item.timeline || '—'} />
+          <Info label="Condition" value={item.condition_summary || '—'} />
         </div>
 
         {/* Motivation summary */}
