@@ -541,19 +541,10 @@ function RecordingsTab() {
               </div>
               <div className="flex items-center gap-2">
                 {rec.stage_after && <Tag label={rec.stage_after} color="#a78bfa" />}
-                {rec.recording_url && (
-                  <a
-                    href={rec.recording_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="p-1.5 rounded flex items-center"
-                    title="Play recording"
-                    style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', flexShrink: 0 }}
-                  >
-                    <Play size={11} />
-                  </a>
-                )}
+                {rec.recording_url
+                  ? <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>🎙️ REC</span>
+                  : <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(82,82,110,0.1)', color: '#52526e', border: '1px solid rgba(82,82,110,0.2)' }}>NO REC</span>
+                }
                 <span style={{ color: '#52526e' }}>{isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
               </div>
             </button>
@@ -569,6 +560,19 @@ function RecordingsTab() {
                   className="overflow-hidden"
                 >
                   <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                    {/* Inline audio player */}
+                    {rec.recording_url && (
+                      <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(74,222,128,0.03)' }}>
+                        <div className="text-[8px] font-orbitron text-dimtext mb-1.5 tracking-[1px]">CALL RECORDING</div>
+                        <audio
+                          controls
+                          preload="none"
+                          className="w-full"
+                          style={{ height: 28, colorScheme: 'dark' }}
+                          src={rec.recording_url}
+                        />
+                      </div>
+                    )}
                     {lines.map((line, idx) => {
                       const lineFb = fb[idx];
                       const isDavid = line.startsWith('David:') || line.startsWith('Jarvis:');
