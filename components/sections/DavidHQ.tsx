@@ -6,8 +6,11 @@ import {
   Shield, Clock, Mic, BarChart2, BookOpen,
   ThumbsUp, ThumbsDown, Star, Flag, MessageSquare,
   CheckCircle2, XCircle, Play, ChevronDown, ChevronUp,
-  RefreshCw, AlertTriangle, Phone, TrendingUp,
+  RefreshCw, AlertTriangle, Phone, TrendingUp, ArrowUpRight, ArrowDownRight, Minus,
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
+} from 'recharts';
 import { supabase, timeAgo, fmtDate, todayStart } from '@/lib/supabase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -669,111 +672,283 @@ function RecordingsTab() {
 
 // ─── Tab 4: Performance ───────────────────────────────────────────────────────
 
+type PerfPeriod = 'today' | 'week' | 'month';
+
+interface DayBar { day: string; calls: number; contacts: number; qualified: number; }
+interface PerfStats {
+  totalCalls: number; prevCalls: number;
+  contacted: number; prevContacted: number;
+  qualified: number; prevQualified: number;
+  offersApproved: number; prevOffers: number;
+  contractsSent: number; dealsClosed: number;
+  avgDuration: number; totalTalkSec: number;
+  contactRate: number; convRate: number;
+  stageBreakdown: Record<string, number>;
+  dailyBars: DayBar[];
+}
+
+function pctChange(cur: number, prev: number) {
+  if (prev === 0) return cur > 0 ? 100 : 0;
+  return Math.round(((cur - prev) / prev) * 100);
+}
+
+function DeltaBadge({ cur, prev }: { cur: number; prev: number }) {
+  const d = pctChange(cur, prev);
+  if (d > 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#4ade80' }}><ArrowUpRight size={10} />+{d}%</span>;
+  if (d < 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#f87171' }}><ArrowDownRight size={10} />{d}%</span>;
+  return <span className="flex items-center gap-0.5 text-[9px]" style={{ color: '#52526e' }}><Minus size={10} />0%</span>;
+}
+
+const PERIOD_DAYS: Record<PerfPeriod, number> = { today: 1, week: 7, month: 30 };
+
 function PerformanceTab() {
-  const [stats, setStats] = useState<{
-    today: number; week: number; month: number;
-    qualified: number; offersApproved: number;
-    contractsSent: number; dealsClosed: number;
-    avgDuration: number;
-    stageBreakdown: Record<string, number>;
-  } | null>(null);
+  const [period, setPeriod] = useState<PerfPeriod>('week');
+  const [stats, setStats] = useState<PerfStats | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const now    = new Date();
-      const today  = new Date(now); today.setHours(0,0,0,0);
-      const week   = new Date(now); week.setDate(now.getDate() - 7);
-      const month  = new Date(now); month.setDate(1); month.setHours(0,0,0,0);
+      const days = PERIOD_DAYS[period];
+      const now = new Date();
+      const curStart = new Date(now);
+      if (period === 'today') { curStart.setHours(0, 0, 0, 0); }
+      else { curStart.setDate(now.getDate() - days); curStart.setHours(0, 0, 0, 0); }
+      const prevStart = new Date(curStart);
+      prevStart.setDate(prevStart.getDate() - days);
 
       const [
-        { data: all, error: allErr },
-        { data: approvals, error: appErr },
+        { data: curCalls },
+        { data: prevCalls },
+        { data: curApprovals },
+        { data: prevApprovals },
       ] = await Promise.all([
-        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after,tags_applied').gte('called_at', month.toISOString()).neq('phone', '+13479704969'),
-        supabase.from('david_pending_approvals').select('status').gte('created_at', month.toISOString()),
+        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after').gte('called_at', curStart.toISOString()).neq('phone', '+13479704969'),
+        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after').gte('called_at', prevStart.toISOString()).lt('called_at', curStart.toISOString()).neq('phone', '+13479704969'),
+        supabase.from('david_pending_approvals').select('status').gte('created_at', curStart.toISOString()),
+        supabase.from('david_pending_approvals').select('status').gte('created_at', prevStart.toISOString()).lt('created_at', curStart.toISOString()),
       ]);
-      console.log('[Performance] jarvis_calls result:', { count: all?.length, error: allErr?.message });
-      console.log('[Performance] pending_approvals result:', { count: approvals?.length, error: appErr?.message });
 
-      if (!all) return;
+      const cur = curCalls || [];
+      const prev = prevCalls || [];
 
-      const todayNum  = all.filter(r => new Date(r.called_at) >= today).length;
-      const weekNum   = all.filter(r => new Date(r.called_at) >= week).length;
-      const monthNum  = all.length;
+      const isContacted = (r: { call_duration: number; stage_after: string }) =>
+        (r.call_duration || 0) > 30 && !['Attempt 1 No Contact','Attempt 2 No Contact','Attempt 3-5 No Contact','Attempt 6+ Unresponsive','Attempt 1','New Lead'].includes(r.stage_after);
+      const isQualified = (r: { stage_after: string }) =>
+        ['Decision Pending','Hot Follow Up','Warm Follow Up','Contract Sent','Closed Won'].includes(r.stage_after || '');
 
-      const qualified = all.filter(r =>
-        r.stage_after && ['Decision Pending','Hot Follow Up','Warm Follow Up','Contract Sent','Closed Won'].includes(r.stage_after)
-      ).length;
-      const contracts = all.filter(r => r.stage_after === 'Contract Sent').length;
-      const closed    = all.filter(r => r.stage_after === 'Closed Won').length;
-      const approved = (approvals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
-
-      const avgDur = all.length
-        ? Math.round(all.reduce((s, r) => s + (r.call_duration || 0), 0) / all.length)
-        : 0;
+      const curContacted  = cur.filter(isContacted).length;
+      const prevContacted = prev.filter(isContacted).length;
+      const curQualified  = cur.filter(isQualified).length;
+      const prevQualified = prev.filter(isQualified).length;
+      const curOffers     = (curApprovals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
+      const prevOffers    = (prevApprovals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
+      const contracts     = cur.filter(r => r.stage_after === 'Contract Sent').length;
+      const closed        = cur.filter(r => r.stage_after === 'Closed Won').length;
+      const totalTalk     = cur.reduce((s, r) => s + (r.call_duration || 0), 0);
+      const avgDur        = cur.length ? Math.round(totalTalk / cur.length) : 0;
+      const contactRate   = cur.length ? Math.round((curContacted / cur.length) * 100) : 0;
+      const convRate      = cur.length ? Math.round((curQualified / cur.length) * 100) : 0;
 
       const stageBreakdown: Record<string, number> = {};
-      all.forEach(r => {
-        if (r.stage_after) stageBreakdown[r.stage_after] = (stageBreakdown[r.stage_after] || 0) + 1;
-      });
+      cur.forEach(r => { if (r.stage_after) stageBreakdown[r.stage_after] = (stageBreakdown[r.stage_after] || 0) + 1; });
 
-      setStats({ today: todayNum, week: weekNum, month: monthNum, qualified, offersApproved: approved, contractsSent: contracts, dealsClosed: closed, avgDuration: avgDur, stageBreakdown });
+      // Build last 7 days bars (always show 7 days regardless of period)
+      const barDays = 7;
+      const dailyBars: DayBar[] = [];
+      for (let i = barDays - 1; i >= 0; i--) {
+        const d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0, 0, 0, 0);
+        const dEnd = new Date(d); dEnd.setDate(d.getDate() + 1);
+        const dayRows = (curCalls || []).filter(r => {
+          const t = new Date(r.called_at).getTime();
+          return t >= d.getTime() && t < dEnd.getTime();
+        });
+        // Also pull from prevCalls if period < 7 days
+        const allRows = period === 'today'
+          ? [...(curCalls || []), ...(prevCalls || [])].filter(r => {
+              const t = new Date(r.called_at).getTime();
+              return t >= d.getTime() && t < dEnd.getTime();
+            })
+          : dayRows;
+        dailyBars.push({
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          calls: allRows.length,
+          contacts: allRows.filter(isContacted).length,
+          qualified: allRows.filter(isQualified).length,
+        });
+      }
+
+      setStats({
+        totalCalls: cur.length, prevCalls: prev.length,
+        contacted: curContacted, prevContacted,
+        qualified: curQualified, prevQualified,
+        offersApproved: curOffers, prevOffers,
+        contractsSent: contracts, dealsClosed: closed,
+        avgDuration: avgDur, totalTalkSec: totalTalk,
+        contactRate, convRate,
+        stageBreakdown, dailyBars,
+      });
     };
     load();
     const id = setInterval(load, 60000);
     return () => clearInterval(id);
-  }, []);
+  }, [period]);
 
   if (!stats) return <Spinner />;
 
-  const convRate = stats.month > 0 ? Math.round((stats.qualified / stats.month) * 100) : 0;
+  const fmtDur = (s: number) => s >= 3600
+    ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+    : `${Math.floor(s / 60)}m ${s % 60}s`;
+
+  const PERIOD_LABEL: Record<PerfPeriod, string> = { today: 'Today', week: 'This Week', month: 'This Month' };
+  const PERIOD_VS:    Record<PerfPeriod, string> = { today: 'vs yesterday', week: 'vs last week', month: 'vs last month' };
+
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="rounded-lg px-3 py-2 text-[10px]" style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.12)' }}>
+        <div className="font-bold mb-1" style={{ color: '#e8e8f0' }}>{label}</div>
+        {payload.map(p => (
+          <div key={p.name} className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
+            <span style={{ color: '#9090a8' }}>{p.name}:</span>
+            <span className="font-bold" style={{ color: p.color }}>{p.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div>
-      {/* KPI grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div className="space-y-4">
+
+      {/* Period toggle */}
+      <div className="flex items-center justify-between">
+        <div className="text-[9px] uppercase tracking-widest" style={{ color: '#52526e' }}>{PERIOD_VS[period]}</div>
+        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {(['today','week','month'] as PerfPeriod[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className="px-3 py-1 rounded-md text-[9px] font-orbitron uppercase tracking-wider transition-all"
+              style={period === p
+                ? { background: 'rgba(103,232,249,0.15)', color: '#67e8f9', border: '1px solid rgba(103,232,249,0.3)' }
+                : { color: '#52526e', border: '1px solid transparent' }}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Top KPI row — big numbers like VA dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Calls Today',       value: stats.today,         color: '#67e8f9', icon: <Phone size={14} /> },
-          { label: 'Calls This Week',   value: stats.week,          color: '#60a5fa', icon: <TrendingUp size={14} /> },
-          { label: 'Qualified Leads',   value: stats.qualified,     color: '#4ade80', icon: <CheckCircle2 size={14} /> },
-          { label: 'Offers Approved',   value: stats.offersApproved,color: '#fbbf24', icon: <Shield size={14} /> },
-          { label: 'Contracts Sent',    value: stats.contractsSent, color: '#a78bfa', icon: <TrendingUp size={14} /> },
-          { label: 'Deals Closed',      value: stats.dealsClosed,   color: '#4ade80', icon: <CheckCircle2 size={14} /> },
-          { label: 'Conversion Rate',   value: `${convRate}%`,      color: '#fbbf24', icon: <BarChart2 size={14} /> },
-          { label: 'Avg Call Duration', value: `${Math.floor(stats.avgDuration / 60)}m ${stats.avgDuration % 60}s`, color: '#67e8f9', icon: <Clock size={14} /> },
+          { label: 'Total Calls',    value: stats.totalCalls,   prev: stats.prevCalls,     color: '#67e8f9', sub: PERIOD_LABEL[period], icon: <Phone size={13} /> },
+          { label: 'Sellers Reached',value: stats.contacted,    prev: stats.prevContacted, color: '#4ade80', sub: 'Spoke > 30s',         icon: <CheckCircle2 size={13} /> },
+          { label: 'Contact Rate',   value: `${stats.contactRate}%`, prev: -1,             color: '#fbbf24', sub: 'Reached / Calls',      icon: <TrendingUp size={13} /> },
+          { label: 'Conversion Rate',value: `${stats.convRate}%`,    prev: -1,             color: '#a78bfa', sub: 'Qualified / Calls',    icon: <BarChart2 size={13} /> },
         ].map(kpi => (
           <div key={kpi.label} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <div className="flex items-center gap-1.5 mb-2" style={{ color: kpi.color }}>
-              {kpi.icon}
+            <div className="flex items-center gap-1.5 mb-3">
+              <span style={{ color: kpi.color }}>{kpi.icon}</span>
               <span className="text-[9px] uppercase tracking-wide" style={{ color: '#52526e' }}>{kpi.label}</span>
             </div>
-            <div className="font-orbitron text-[20px] font-bold" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="font-orbitron text-[26px] font-bold leading-none mb-2" style={{ color: kpi.color }}>{kpi.value}</div>
+            <div className="flex items-center justify-between">
+              <span className="text-[8px]" style={{ color: '#52526e' }}>{kpi.sub}</span>
+              {kpi.prev >= 0 && <DeltaBadge cur={typeof kpi.value === 'string' ? 0 : kpi.value as number} prev={kpi.prev} />}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Stage breakdown */}
-      {Object.keys(stats.stageBreakdown).length > 0 && (
+      {/* Bar chart — last 7 days */}
+      <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[11px] font-semibold" style={{ color: '#e8e8f0' }}>Daily Activity — Last 7 Days</div>
+          <div className="flex items-center gap-3">
+            {[
+              { color: '#67e8f9', label: 'Calls' },
+              { color: '#4ade80', label: 'Reached' },
+              { color: '#a78bfa', label: 'Qualified' },
+            ].map(l => (
+              <div key={l.label} className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: l.color }} />
+                <span className="text-[8px]" style={{ color: '#52526e' }}>{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={stats.dailyBars} barCategoryGap="30%" barGap={2}>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
+            <XAxis dataKey="day" tick={{ fill: '#52526e', fontSize: 9, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: '#52526e', fontSize: 9, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={20} allowDecimals={false} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Bar dataKey="calls"     name="Calls"     fill="#67e8f9" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="contacts"  name="Reached"   fill="#4ade80" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="qualified" name="Qualified" fill="#a78bfa" radius={[3,3,0,0]} opacity={0.85} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Bottom row: secondary KPIs + stage breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+        {/* Secondary stats — right panel style from VA dashboard */}
+        <div className="p-4 rounded-xl space-y-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="text-[11px] font-semibold mb-1" style={{ color: '#e8e8f0' }}>Summary</div>
+          {[
+            { icon: <Clock size={12} />,       label: 'Total Talk Time',   value: fmtDur(stats.totalTalkSec),         color: '#67e8f9' },
+            { icon: <Clock size={12} />,       label: 'Avg Call Duration', value: fmtDur(stats.avgDuration),          color: '#60a5fa' },
+            { icon: <Shield size={12} />,      label: 'Offers Approved',   value: String(stats.offersApproved),       color: '#fbbf24' },
+            { icon: <CheckCircle2 size={12} />,label: 'Contracts Sent',    value: String(stats.contractsSent),        color: '#a78bfa' },
+            { icon: <Star size={12} />,        label: 'Deals Closed',      value: String(stats.dealsClosed),          color: '#4ade80' },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between py-1.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              <div className="flex items-center gap-2">
+                <span style={{ color: row.color }}>{row.icon}</span>
+                <span className="text-[10px]" style={{ color: '#9090a8' }}>{row.label}</span>
+              </div>
+              <span className="font-orbitron text-[13px] font-bold" style={{ color: row.color }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Stage breakdown */}
         <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="text-[11px] font-semibold mb-3" style={{ color: '#e8e8f0' }}>Stage Breakdown (This Month)</div>
+          <div className="text-[11px] font-semibold mb-3" style={{ color: '#e8e8f0' }}>Pipeline Outcomes</div>
+          {Object.keys(stats.stageBreakdown).length === 0 && (
+            <div className="text-[10px] text-center py-6" style={{ color: '#52526e' }}>No calls in this period</div>
+          )}
           {Object.entries(stats.stageBreakdown)
             .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
             .map(([stage, count]) => {
-              const pct = stats.month > 0 ? (count / stats.month) * 100 : 0;
+              const pct = stats.totalCalls > 0 ? (count / stats.totalCalls) * 100 : 0;
+              const stageColor = stage.includes('Hot') ? '#f87171'
+                : stage.includes('Warm') ? '#fbbf24'
+                : stage.includes('Contract') ? '#a78bfa'
+                : stage.includes('Closed') ? '#4ade80'
+                : stage.includes('Decision') ? '#60a5fa'
+                : '#52526e';
               return (
-                <div key={stage} className="mb-2">
+                <div key={stage} className="mb-2.5">
                   <div className="flex justify-between mb-1">
-                    <span className="text-[10px]" style={{ color: '#9090a8' }}>{stage}</span>
-                    <span className="text-[10px] font-bold" style={{ color: '#c4c4d6' }}>{count}</span>
+                    <span className="text-[9px]" style={{ color: '#9090a8' }}>{stage}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px]" style={{ color: '#52526e' }}>{pct.toFixed(0)}%</span>
+                      <span className="text-[9px] font-bold font-orbitron" style={{ color: stageColor }}>{count}</span>
+                    </div>
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#4ade80' }} />
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: stageColor }} />
                   </div>
                 </div>
               );
             })}
         </div>
-      )}
+      </div>
+
     </div>
   );
 }
