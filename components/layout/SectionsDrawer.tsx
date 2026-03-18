@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Bot, Search, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
@@ -16,6 +16,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#4ade80', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#fbbf24', desc: 'Revenue targets' },
   { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#a78bfa', desc: 'Feature backlog' },
+  { section: 'knowledge-base',   label: 'Knowledge Base',    Icon: BookOpen,        color: '#fb923c', desc: 'Wholesale research' },
   { section: 'intelligence-chat',label: 'Intelligence Chat', Icon: Sparkles,        color: '#a78bfa', desc: 'Jarvis AI brain' },
   { section: 'agent-chat',       label: 'Agent Chat',        Icon: MessageSquare,   color: '#67e8f9', desc: 'Talk to agents' },
   { section: 'settings',         label: 'Settings',          Icon: Settings,        color: '#52526e', desc: 'System config' },
