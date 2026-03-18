@@ -674,11 +674,12 @@ function RecordingsTab() {
 
 type PerfPeriod = 'today' | 'week' | 'month';
 
-interface DayBar { day: string; calls: number; contacts: number; qualified: number; }
+interface DayBar { day: string; calls: number; contacts: number; qualified: number; offers: number; }
 interface PerfStats {
   totalCalls: number; prevCalls: number;
   contacted: number; prevContacted: number;
   qualified: number; prevQualified: number;
+  offersMade: number; prevOffersMade: number;
   offersApproved: number; prevOffers: number;
   contractsSent: number; dealsClosed: number;
   avgDuration: number; totalTalkSec: number;
@@ -723,8 +724,8 @@ function PerformanceTab() {
       ] = await Promise.all([
         supabase.from('jarvis_calls').select('called_at,call_duration,stage_after').gte('called_at', curStart.toISOString()).neq('phone', '+13479704969'),
         supabase.from('jarvis_calls').select('called_at,call_duration,stage_after').gte('called_at', prevStart.toISOString()).lt('called_at', curStart.toISOString()).neq('phone', '+13479704969'),
-        supabase.from('david_pending_approvals').select('status').gte('created_at', curStart.toISOString()),
-        supabase.from('david_pending_approvals').select('status').gte('created_at', prevStart.toISOString()).lt('created_at', curStart.toISOString()),
+        supabase.from('david_pending_approvals').select('status,created_at').gte('created_at', new Date(now.getTime() - 7 * 86400000).toISOString()),
+        supabase.from('david_pending_approvals').select('status,created_at').gte('created_at', prevStart.toISOString()).lt('created_at', curStart.toISOString()),
       ]);
 
       const cur = curCalls || [];
@@ -739,8 +740,13 @@ function PerformanceTab() {
       const prevContacted = prev.filter(isContacted).length;
       const curQualified  = cur.filter(isQualified).length;
       const prevQualified = prev.filter(isQualified).length;
-      const curOffers     = (curApprovals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
-      const prevOffers    = (prevApprovals || []).filter(a => a.status !== 'pending' && a.status !== 'passed').length;
+      // All approvals regardless of status = "offers made" (a card was sent to Chris for approval)
+      const allCurApprovals = curApprovals || [];
+      const allPrevApprovals = prevApprovals || [];
+      const curOffersMade  = allCurApprovals.filter(a => new Date(a.created_at) >= curStart).length;
+      const prevOffersMade = allPrevApprovals.length;
+      const curOffers      = allCurApprovals.filter(a => new Date(a.created_at) >= curStart && a.status !== 'pending' && a.status !== 'passed').length;
+      const prevOffers     = allPrevApprovals.filter(a => a.status !== 'pending' && a.status !== 'passed').length;
       const contracts     = cur.filter(r => r.stage_after === 'Contract Sent').length;
       const closed        = cur.filter(r => r.stage_after === 'Closed Won').length;
       const totalTalk     = cur.reduce((s, r) => s + (r.call_duration || 0), 0);
@@ -768,11 +774,16 @@ function PerformanceTab() {
               return t >= d.getTime() && t < dEnd.getTime();
             })
           : dayRows;
+        const dayOffers = (curApprovals || []).filter(a => {
+          const t = new Date(a.created_at).getTime();
+          return t >= d.getTime() && t < dEnd.getTime();
+        }).length;
         dailyBars.push({
           day: d.toLocaleDateString('en-US', { weekday: 'short' }),
           calls: allRows.length,
           contacts: allRows.filter(isContacted).length,
           qualified: allRows.filter(isQualified).length,
+          offers: dayOffers,
         });
       }
 
@@ -780,6 +791,7 @@ function PerformanceTab() {
         totalCalls: cur.length, prevCalls: prev.length,
         contacted: curContacted, prevContacted,
         qualified: curQualified, prevQualified,
+        offersMade: curOffersMade, prevOffersMade,
         offersApproved: curOffers, prevOffers,
         contractsSent: contracts, dealsClosed: closed,
         avgDuration: avgDur, totalTalkSec: totalTalk,
@@ -839,13 +851,14 @@ function PerformanceTab() {
         </div>
       </div>
 
-      {/* Top KPI row — big numbers like VA dashboard */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Top KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Total Calls',    value: stats.totalCalls,   prev: stats.prevCalls,     color: '#67e8f9', sub: PERIOD_LABEL[period], icon: <Phone size={13} /> },
-          { label: 'Sellers Reached',value: stats.contacted,    prev: stats.prevContacted, color: '#4ade80', sub: 'Spoke > 30s',         icon: <CheckCircle2 size={13} /> },
-          { label: 'Contact Rate',   value: `${stats.contactRate}%`, prev: -1,             color: '#fbbf24', sub: 'Reached / Calls',      icon: <TrendingUp size={13} /> },
-          { label: 'Conversion Rate',value: `${stats.convRate}%`,    prev: -1,             color: '#a78bfa', sub: 'Qualified / Calls',    icon: <BarChart2 size={13} /> },
+          { label: 'Total Calls',    value: stats.totalCalls,   prev: stats.prevCalls,       color: '#67e8f9', sub: PERIOD_LABEL[period],  icon: <Phone size={13} />,        numVal: stats.totalCalls },
+          { label: 'Sellers Reached',value: stats.contacted,    prev: stats.prevContacted,   color: '#4ade80', sub: 'Spoke > 30s',          icon: <CheckCircle2 size={13} />, numVal: stats.contacted },
+          { label: 'Offers Made',    value: stats.offersMade,   prev: stats.prevOffersMade,  color: '#fb923c', sub: 'Sent to approval',      icon: <Shield size={13} />,       numVal: stats.offersMade },
+          { label: 'Contact Rate',   value: `${stats.contactRate}%`, prev: -1,               color: '#fbbf24', sub: 'Reached / Calls',       icon: <TrendingUp size={13} />,   numVal: -1 },
+          { label: 'Conversion Rate',value: `${stats.convRate}%`,    prev: -1,               color: '#a78bfa', sub: 'Qualified / Calls',     icon: <BarChart2 size={13} />,    numVal: -1 },
         ].map(kpi => (
           <div key={kpi.label} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="flex items-center gap-1.5 mb-3">
@@ -855,7 +868,7 @@ function PerformanceTab() {
             <div className="font-orbitron text-[26px] font-bold leading-none mb-2" style={{ color: kpi.color }}>{kpi.value}</div>
             <div className="flex items-center justify-between">
               <span className="text-[8px]" style={{ color: '#52526e' }}>{kpi.sub}</span>
-              {kpi.prev >= 0 && <DeltaBadge cur={typeof kpi.value === 'string' ? 0 : kpi.value as number} prev={kpi.prev} />}
+              {kpi.prev >= 0 && <DeltaBadge cur={kpi.numVal} prev={kpi.prev} />}
             </div>
           </div>
         ))}
@@ -869,6 +882,7 @@ function PerformanceTab() {
             {[
               { color: '#67e8f9', label: 'Calls' },
               { color: '#4ade80', label: 'Reached' },
+              { color: '#fb923c', label: 'Offers' },
               { color: '#a78bfa', label: 'Qualified' },
             ].map(l => (
               <div key={l.label} className="flex items-center gap-1">
@@ -886,6 +900,7 @@ function PerformanceTab() {
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Bar dataKey="calls"     name="Calls"     fill="#67e8f9" radius={[3,3,0,0]} opacity={0.85} />
             <Bar dataKey="contacts"  name="Reached"   fill="#4ade80" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="offers"    name="Offers"    fill="#fb923c" radius={[3,3,0,0]} opacity={0.85} />
             <Bar dataKey="qualified" name="Qualified" fill="#a78bfa" radius={[3,3,0,0]} opacity={0.85} />
           </BarChart>
         </ResponsiveContainer>
@@ -900,6 +915,7 @@ function PerformanceTab() {
           {[
             { icon: <Clock size={12} />,       label: 'Total Talk Time',   value: fmtDur(stats.totalTalkSec),         color: '#67e8f9' },
             { icon: <Clock size={12} />,       label: 'Avg Call Duration', value: fmtDur(stats.avgDuration),          color: '#60a5fa' },
+            { icon: <Shield size={12} />,      label: 'Offers Made',       value: String(stats.offersMade),           color: '#fb923c' },
             { icon: <Shield size={12} />,      label: 'Offers Approved',   value: String(stats.offersApproved),       color: '#fbbf24' },
             { icon: <CheckCircle2 size={12} />,label: 'Contracts Sent',    value: String(stats.contractsSent),        color: '#a78bfa' },
             { icon: <Star size={12} />,        label: 'Deals Closed',      value: String(stats.dealsClosed),          color: '#4ade80' },
