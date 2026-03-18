@@ -346,8 +346,30 @@ function BigStat({ label, value, color, icon }: { label: string; value: number; 
 function CallRow({ call: c }: { call: CallRecord }) {
   const outcome = callOutcome(c);
   const style   = OUTCOME_STYLE[outcome];
-  const hasAudio = c.recording_url || c.elevenlabs_recording_url;
-  const audioUrl = c.elevenlabs_recording_url || c.recording_url;
+  const hasAudio = !!(c.recording_url || c.twilio_call_sid);
+  const [loadingAudio, setLoadingAudio] = useState(false);
+
+  const playRecording = async () => {
+    if (loadingAudio) return;
+    // If we have a stored URL and it looks fresh (< 8 min old), use it directly
+    const callAge = Date.now() - new Date(c.called_at).getTime();
+    if (c.recording_url && callAge < 8 * 60 * 1000) {
+      window.open(c.recording_url, '_blank');
+      return;
+    }
+    // Otherwise fetch a fresh URL from Telnyx
+    if (!c.twilio_call_sid) {
+      if (c.recording_url) window.open(c.recording_url, '_blank');
+      return;
+    }
+    setLoadingAudio(true);
+    try {
+      const res = await fetch(`/api/fresh-recording?cid=${encodeURIComponent(c.twilio_call_sid)}`);
+      const json = await res.json();
+      if (json.url) window.open(json.url, '_blank');
+    } catch {}
+    setLoadingAudio(false);
+  };
 
   return (
     <motion.div
@@ -377,17 +399,17 @@ function CallRow({ call: c }: { call: CallRecord }) {
 
       {/* Play button */}
       {hasAudio && (
-        <a
-          href={audioUrl!}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          onClick={playRecording}
+          disabled={loadingAudio}
           className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full border border-ngreen/30 hover:border-ngreen hover:bg-ngreen/10 transition-colors"
-          title="Play recording"
+          title={loadingAudio ? 'Loading...' : 'Play recording'}
         >
-          <svg width="8" height="10" viewBox="0 0 8 10" fill="currentColor" className="text-ngreen ml-0.5">
-            <path d="M0 0L8 5L0 10V0Z" />
-          </svg>
-        </a>
+          {loadingAudio
+            ? <div className="w-2 h-2 border border-ngreen/60 border-t-ngreen rounded-full animate-spin" />
+            : <svg width="8" height="10" viewBox="0 0 8 10" fill="currentColor" className="text-ngreen ml-0.5"><path d="M0 0L8 5L0 10V0Z" /></svg>
+          }
+        </button>
       )}
     </motion.div>
   );

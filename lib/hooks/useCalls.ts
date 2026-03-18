@@ -59,20 +59,23 @@ export function useCalls(refreshKey: number) {
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     Promise.all([
-      // Today's calls
+      // Today's calls — exclude test calls to Chris
       supabase.from('jarvis_calls')
         .select('*')
         .gte('called_at', todayStart())
+        .neq('phone', '+13479704969')
         .order('called_at', { ascending: false }),
-      // Last 20 calls (live feed)
+      // Last 50 calls (live feed) — exclude test calls
       supabase.from('jarvis_calls')
         .select('*')
+        .neq('phone', '+13479704969')
         .order('called_at', { ascending: false })
-        .limit(20),
-      // Last 7 days (for weekly chart)
+        .limit(50),
+      // Last 7 days (for weekly chart) — exclude test calls
       supabase.from('jarvis_calls')
         .select('called_at, call_duration, stage_after')
         .gte('called_at', sevenDaysAgo.toISOString())
+        .neq('phone', '+13479704969')
         .order('called_at', { ascending: true }),
       // Pending approvals
       supabase.from('david_pending_approvals')

@@ -8,9 +8,7 @@ import { useApp } from '@/lib/AppContext';
 import { TopNav }              from '@/components/layout/TopNav';
 import { SectionsDrawer }      from '@/components/layout/SectionsDrawer';
 import { BottomTimeline }      from '@/components/layout/BottomTimeline';
-import { LeftIntelPanel }      from '@/components/panels/LeftIntelPanel';
-import { CenterOrb }           from '@/components/panels/CenterOrb';
-import { RightAnalyticsPanel } from '@/components/panels/RightAnalyticsPanel';
+import { CommandCenter }       from '@/components/sections/CommandCenter';
 
 import { AIAgents }         from '@/components/sections/AIAgents';
 import { CallCenter }       from '@/components/sections/CallCenter';
@@ -102,15 +100,15 @@ export default function Home() {
             {isHome ? (
               <motion.div
                 key="home"
-                className="absolute inset-0 flex"
+                className="absolute inset-0 overflow-y-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <LeftIntelPanel />
-                <CenterOrb />
-                <RightAnalyticsPanel />
+                <div className="p-6 max-w-[1400px] mx-auto">
+                  <CommandCenter />
+                </div>
               </motion.div>
 
             ) : (

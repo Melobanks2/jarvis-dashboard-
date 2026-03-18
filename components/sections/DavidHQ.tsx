@@ -368,6 +368,7 @@ function LiveCallsTab() {
       .from('jarvis_calls')
       .select('id,contact_name,phone,address,call_duration,stage_before,stage_after,tags_applied,summary,called_at')
       .gte('called_at', cutoff.toISOString())
+      .neq('phone', '+13479704969')
       .order('called_at', { ascending: false })
       .limit(50);
     console.log('[LiveCalls] query result:', { count: data?.length, error: error?.message });
@@ -450,6 +451,7 @@ function RecordingsTab() {
       .from('jarvis_calls')
       .select('id,contact_name,phone,address,transcript_full,recording_url,call_duration,stage_after,called_at')
       .not('transcript_full', 'is', null)
+      .neq('phone', '+13479704969')
       .order('called_at', { ascending: false })
       .limit(50)
       .then(({ data, error }) => {
@@ -530,7 +532,7 @@ function RecordingsTab() {
                 {rec.stage_after && <Tag label={rec.stage_after} color="#a78bfa" />}
                 {rec.recording_url && (
                   <a
-                    href={`/api/el-recording?id=${rec.recording_url.match(/conversations\/(conv_\w+)/)?.[1] || ''}`}
+                    href={rec.recording_url}
                     target="_blank"
                     rel="noreferrer"
                     onClick={e => e.stopPropagation()}
@@ -672,7 +674,7 @@ function PerformanceTab() {
         { data: all, error: allErr },
         { data: approvals, error: appErr },
       ] = await Promise.all([
-        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after,tags_applied').gte('called_at', month.toISOString()),
+        supabase.from('jarvis_calls').select('called_at,call_duration,stage_after,tags_applied').gte('called_at', month.toISOString()).neq('phone', '+13479704969'),
         supabase.from('david_pending_approvals').select('status').gte('created_at', month.toISOString()),
       ]);
       console.log('[Performance] jarvis_calls result:', { count: all?.length, error: allErr?.message });
