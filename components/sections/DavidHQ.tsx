@@ -220,6 +220,17 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
           <Info label="Payoff" value={fmt$(item.mortgage_payoff)} />
           <Info label="Timeline" value={item.timeline || '—'} />
           <Info label="Condition" value={item.condition_summary || '—'} />
+          {(item as any).asap_report_url && (
+            <a
+              href={(item as any).asap_report_url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[9px] font-orbitron px-2 py-1 rounded-sm border transition-colors"
+              style={{ color: '#00aaff', borderColor: 'rgba(0,170,255,0.3)', background: 'rgba(0,170,255,0.06)' }}
+            >
+              VIEW ASAP REPORT ↗
+            </a>
+          )}
         </div>
 
         {/* Motivation summary */}
