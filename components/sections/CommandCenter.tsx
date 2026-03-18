@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import { Flame, TrendingUp, Users, Activity, GitBranch, Clock } from 'lucide-react';
+import { Flame, TrendingUp, Users, Activity, GitBranch, Clock, Phone, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { StatusDot } from '@/components/ui/StatusDot';
@@ -11,7 +11,26 @@ import { usePipeline } from '@/lib/hooks/usePipeline';
 import { useAgents } from '@/lib/hooks/useAgents';
 import { useFeed } from '@/lib/hooks/useFeed';
 import { useApp } from '@/lib/AppContext';
-import { timeAgo } from '@/lib/supabase';
+import { supabase, timeAgo } from '@/lib/supabase';
+
+// David's call schedule — mirrors jarvis-caller.js cron
+const DAVID_SCHEDULE = [
+  { time: '9:00 AM',  label: '9am',   stages: 'Hot · Warm · New Leads · Cold',          hour: 9  },
+  { time: '11:00 AM', label: '11am',  stages: 'New Leads · Attempt 1 · Attempt 2',       hour: 11 },
+  { time: '1:00 PM',  label: '1pm',   stages: 'New Leads · Attempt 1–5',                 hour: 13 },
+  { time: '3:00 PM',  label: '3pm',   stages: 'New Leads · Attempt 1–5',                 hour: 15 },
+  { time: '5:00 PM',  label: '5pm',   stages: 'Warm · New Leads · Attempt 1',            hour: 17 },
+  { time: '6:00 PM',  label: '6pm',   stages: 'Hot (close) · New Leads · Attempt 1–2',   hour: 18 },
+  { time: '7:00 PM',  label: '7pm',   stages: 'Hot (final) · New Leads · Attempt 1–5',   hour: 19 },
+];
+
+const FREQ_RULES = [
+  { stage: 'New Leads',    color: '#00aaff', rule: 'Every 3h · up to 4x/day · hit until they answer' },
+  { stage: 'No Answer',    color: '#ff8800', rule: 'Every 3h · up to 4x/day · advance attempt ladder' },
+  { stage: 'Hot Follow Up',color: '#ff3366', rule: 'Every 10h · 2x/day · morning qualify + evening close' },
+  { stage: 'Warm Follow Up',color: '#ff8800',rule: 'Every 48h · 1x/day · one quality call every 2 days' },
+  { stage: 'Cold Follow Up',color: '#5a5a80',rule: 'Every 72h · 1x/day · every 3 days only' },
+];
 
 const JarvisOrb = dynamic(() => import('@/components/three/JarvisOrb').then(m => ({ default: m.JarvisOrb })), {
   ssr: false,
@@ -34,11 +53,35 @@ const STAGE_COLOR: Record<string, string> = {
 const FADE_UP = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
 
+interface DavidStats { calls: number; conversations: number; hot: number; voicemails: number; lastCall: string | null; }
+
+function useDavidOps(refreshKey: number) {
+  const [stats, setStats] = useState<DavidStats>({ calls: 0, conversations: 0, hot: 0, voicemails: 0, lastCall: null });
+  useEffect(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    supabase.from('jarvis_calls').select('call_duration,stage_after,tags_applied,called_at,contact_name')
+      .gte('called_at', today.toISOString())
+      .neq('phone', '+13479704969')
+      .order('called_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data) return;
+        const calls = data.length;
+        const conversations = data.filter(c => (c.call_duration || 0) > 30).length;
+        const hot = data.filter(c => c.stage_after === 'Hot Follow Up').length;
+        const voicemails = data.filter(c => (c.tags_applied || []).includes('Voicemail Left')).length;
+        const lastCall = data[0]?.called_at || null;
+        setStats({ calls, conversations, hot, voicemails, lastCall });
+      });
+  }, [refreshKey]);
+  return stats;
+}
+
 export function CommandCenter() {
   const { refreshKey, refresh } = useApp();
   const { data, loading: pLoading } = usePipeline(refreshKey);
   const { agents } = useAgents(refreshKey);
   const { items: feed } = useFeed(refreshKey, 12);
+  const davidOps = useDavidOps(refreshKey);
 
   // Auto-refresh every 60 seconds
   const [lastRefresh, setLastRefresh] = useState(Date.now());
@@ -132,6 +175,67 @@ export function CommandCenter() {
                 </div>
               );
             })}
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      {/* David Operations Panel */}
+      <motion.div variants={FADE_UP}>
+        <GlassCard accent="cyan" padding="p-4">
+          <SectionTitle accent="cyan" badge="VA Leads Only">David Operations</SectionTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            {/* Today's stats */}
+            <div className="flex flex-col gap-2">
+              <div className="text-[9px] font-orbitron text-dimtext tracking-[1px] mb-1">TODAY&apos;S ACTIVITY</div>
+              {[
+                { label: 'Calls Made',     value: davidOps.calls,         color: '#00aaff' },
+                { label: 'Conversations',  value: davidOps.conversations,  color: '#00ff88' },
+                { label: 'Hot Leads Found',value: davidOps.hot,            color: '#ff3366' },
+                { label: 'Voicemails Left',value: davidOps.voicemails,     color: '#ff8800' },
+              ].map(s => (
+                <div key={s.label} className="flex items-center justify-between py-1 border-b border-border last:border-0">
+                  <span className="text-[10px] text-dimtext">{s.label}</span>
+                  <span className="font-orbitron text-[13px] font-bold" style={{ color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+              {davidOps.lastCall && (
+                <div className="text-[8px] text-dimtext mt-1">Last call: {timeAgo(davidOps.lastCall)}</div>
+              )}
+            </div>
+
+            {/* Call schedule */}
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] font-orbitron text-dimtext tracking-[1px] mb-1">CALL SCHEDULE (EST)</div>
+              {DAVID_SCHEDULE.map(slot => {
+                const nowEST = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+                const estHour = nowEST.getHours();
+                const done = estHour > slot.hour;
+                const active = estHour === slot.hour;
+                return (
+                  <div key={slot.time} className="flex items-start gap-2">
+                    <div className="mt-0.5 flex-shrink-0">
+                      {active ? <div className="w-2 h-2 rounded-full bg-ngreen animate-pulse" /> : done ? <CheckCircle size={8} className="text-dimtext opacity-40" /> : <Circle size={8} className="text-dimtext opacity-20" />}
+                    </div>
+                    <div>
+                      <span className="font-orbitron text-[9px]" style={{ color: active ? '#00ff88' : done ? '#5a5a80' : '#8888aa' }}>{slot.time}</span>
+                      <span className="text-[8px] text-dimtext ml-1.5">{slot.stages}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Frequency rules */}
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] font-orbitron text-dimtext tracking-[1px] mb-1">CALL FREQUENCY RULES</div>
+              {FREQ_RULES.map(r => (
+                <div key={r.stage} className="py-1 border-b border-border last:border-0">
+                  <div className="text-[9px] font-medium" style={{ color: r.color }}>{r.stage}</div>
+                  <div className="text-[8px] text-dimtext leading-tight mt-0.5">{r.rule}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </GlassCard>
       </motion.div>
