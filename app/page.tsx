@@ -22,7 +22,8 @@ import { AgentChat }        from '@/components/sections/AgentChat';
 import { DavidTraining }    from '@/components/sections/DavidTraining';
 import { IntelligenceChat } from '@/components/sections/IntelligenceChat';
 import { DavidHQ }          from '@/components/sections/DavidHQ';
-import { KnowledgeBase }    from '@/components/sections/KnowledgeBase';
+import { KnowledgeBase }          from '@/components/sections/KnowledgeBase';
+import { MarketingIntelligence }  from '@/components/sections/MarketingIntelligence';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -44,7 +45,8 @@ const SECTION_TITLES: Record<string, string> = {
   'analytics':         'Analytics',
   'settings':          'Settings',
   'intelligence-chat': 'Intelligence Chat',
-  'knowledge-base':    'Knowledge Base',
+  'knowledge-base':         'Knowledge Base',
+  'marketing-intelligence': 'Marketing Intelligence',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -61,7 +63,8 @@ function SectionContent({ section }: { section: string }) {
     case 'agent-chat':        return <AgentChat />;
     case 'david-training':    return <DavidTraining />;
     case 'intelligence-chat': return <IntelligenceChat />;
-    case 'knowledge-base':    return <KnowledgeBase />;
+    case 'knowledge-base':          return <KnowledgeBase />;
+    case 'marketing-intelligence':  return <MarketingIntelligence />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon

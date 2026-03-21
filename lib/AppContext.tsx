@@ -19,7 +19,8 @@ export type Section =
   | 'prospects-hub'
   | 'david-training'
   | 'analytics'
-  | 'knowledge-base';
+  | 'knowledge-base'
+  | 'marketing-intelligence';
 
 interface AppState {
   activeSection: Section;
