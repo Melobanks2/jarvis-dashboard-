@@ -20,7 +20,8 @@ export type Section =
   | 'david-training'
   | 'analytics'
   | 'knowledge-base'
-  | 'marketing-intelligence';
+  | 'marketing-intelligence'
+  | 'multi-dialer';
 
 interface AppState {
   activeSection: Section;

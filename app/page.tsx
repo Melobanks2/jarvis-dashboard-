@@ -24,6 +24,7 @@ import { IntelligenceChat } from '@/components/sections/IntelligenceChat';
 import { DavidHQ }          from '@/components/sections/DavidHQ';
 import { KnowledgeBase }          from '@/components/sections/KnowledgeBase';
 import { MarketingIntelligence }  from '@/components/sections/MarketingIntelligence';
+import { MultiDialer }            from '@/components/sections/MultiDialer';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -47,6 +48,7 @@ const SECTION_TITLES: Record<string, string> = {
   'intelligence-chat': 'Intelligence Chat',
   'knowledge-base':         'Knowledge Base',
   'marketing-intelligence': 'Marketing Intelligence',
+  'multi-dialer':           'Multi-Line Dialer',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -65,6 +67,7 @@ function SectionContent({ section }: { section: string }) {
     case 'intelligence-chat': return <IntelligenceChat />;
     case 'knowledge-base':          return <KnowledgeBase />;
     case 'marketing-intelligence':  return <MarketingIntelligence />;
+    case 'multi-dialer':            return <MultiDialer />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon

@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Bot, Search, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
@@ -18,6 +18,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#a78bfa', desc: 'Feature backlog' },
   { section: 'knowledge-base',   label: 'Knowledge Base',    Icon: BookOpen,        color: '#fb923c', desc: 'Wholesale research' },
   { section: 'marketing-intelligence', label: 'Marketing Intel', Icon: BarChart2, color: '#00aaff', desc: 'ROI & lead performance' },
+  { section: 'multi-dialer',      label: 'Multi-Dialer',      Icon: PhoneCall,       color: '#ff3366', desc: '3-line power dialer' },
   { section: 'intelligence-chat',label: 'Intelligence Chat', Icon: Sparkles,        color: '#a78bfa', desc: 'Jarvis AI brain' },
   { section: 'agent-chat',       label: 'Agent Chat',        Icon: MessageSquare,   color: '#67e8f9', desc: 'Talk to agents' },
   { section: 'settings',         label: 'Settings',          Icon: Settings,        color: '#52526e', desc: 'System config' },
