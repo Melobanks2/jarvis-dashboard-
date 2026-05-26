@@ -31,9 +31,16 @@ interface PushedPrompt {
   created_at: string;
 }
 
+// ── Strip ```html fences so models that wrap raw HTML in code blocks still render ─
+function stripHtmlFences(raw: string): string {
+  return raw.replace(/```html\s*([\s\S]*?)```/gi, '$1');
+}
+
 // ── Strip MEMORY_UPDATE tags before rendering ─────────────────────────────────
 function cleanContent(raw: string): string {
-  return raw.replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '').trim();
+  return stripHtmlFences(raw)
+    .replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '')
+    .trim();
 }
 
 // ── Memory helpers ────────────────────────────────────────────────────────────
