@@ -15,6 +15,23 @@ interface ChatMessage {
   content: string;
   created_at?: string;
   session_id?: string;
+  // Attached on chat-error messages so the "Push error context" button can
+  // bundle network/proxy diagnostics into a single Claude Code prompt.
+  diagnostics?: ChatDiagnostics;
+}
+
+interface ChatDiagnostics {
+  ts: string;
+  url: string;
+  method: string;
+  status: number | null;
+  statusText: string | null;
+  errorMessage: string;
+  requestBodyExcerpt: string;
+  responseBodyExcerpt: string;
+  responseHeaders: Record<string, string>;
+  proxyStatus: unknown; // result of GET /api/status at time of error
+  userAgent: string;
 }
 
 interface MemoryRow {
@@ -200,6 +217,52 @@ function buildPushPrompt(msg: ChatMessage, memoryRows: MemoryRow[]): string {
   ].join('\n');
 }
 
+// Build a Claude Code prompt that bundles the failing network trace from an
+// Intelligence Chat error so it can be debugged in the terminal in one paste.
+function buildErrorPushPrompt(msg: ChatMessage): string {
+  const d = msg.diagnostics;
+  if (!d) return msg.content;
+  const fmt = (v: unknown) => {
+    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+  };
+  return [
+    `## Jarvis Intelligence Chat — failed request`,
+    `Pushed: ${new Date().toLocaleString()}  (error fired at ${d.ts})`,
+    ``,
+    `### Failure`,
+    d.errorMessage,
+    ``,
+    `### Request`,
+    `\`${d.method} ${d.url}\``,
+    `Request body (first 800 chars):`,
+    '```json',
+    d.requestBodyExcerpt || '(empty)',
+    '```',
+    ``,
+    `### Response`,
+    `HTTP ${d.status ?? '-'} ${d.statusText ?? ''}`,
+    `Headers:`,
+    '```json',
+    fmt(d.responseHeaders),
+    '```',
+    `Body (first 800 chars):`,
+    '```',
+    d.responseBodyExcerpt || '(empty)',
+    '```',
+    ``,
+    `### Proxy /api/status at time of error`,
+    '```json',
+    fmt(d.proxyStatus),
+    '```',
+    ``,
+    `### Client`,
+    `User-Agent: ${d.userAgent}`,
+    ``,
+    `### Ask Claude Code`,
+    `Diagnose why this request to the Thunder chat proxy failed and propose a concrete fix. The proxy lives in /Users/chrislovera/asaparv-agent/thunder-chat-proxy/ (deployed to /opt/thunder-chat-proxy on root@72.62.162.202). The dashboard client is at /Users/chrislovera/jarvis-dashboard/components/sections/IntelligenceChat.tsx. Reference [reference_intel_chat_thunder.md](.claude/projects/-Users-chrislovera/memory/reference_intel_chat_thunder.md) for the full architecture.`,
+  ].join('\n');
+}
+
 // ── Background DB helpers ─────────────────────────────────────────────────────
 
 async function parseMemoryUpdates(
@@ -253,7 +316,7 @@ export function IntelligenceChat() {
   const [loading, setLoading]             = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [tablesError, setTablesError]     = useState<string | null>(null);
-  const [pushModal, setPushModal]         = useState<{ open: boolean; message: ChatMessage | null }>({ open: false, message: null });
+  const [pushModal, setPushModal]         = useState<{ open: boolean; message: ChatMessage | null; mode: 'prompt' | 'error' }>({ open: false, message: null, mode: 'prompt' });
   const [pushQueue, setPushQueue]         = useState<PushedPrompt[]>([]);
   const [queueOpen, setQueueOpen]         = useState(false);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
@@ -364,29 +427,48 @@ export function IntelligenceChat() {
         }
       });
 
+    // Captured progressively so we can attach to the error message if the chat fails.
+    const diag: Partial<ChatDiagnostics> = {
+      ts: new Date().toISOString(),
+      method: 'POST',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
+    };
+
     try {
       const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
       const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
       const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
       if (!chatUrl || !chatSecret) {
+        diag.url = '<unset>';
         throw new Error('Chat backend not configured (NEXT_PUBLIC_THUNDER_CHAT_URL / NEXT_PUBLIC_THUNDER_CHAT_SECRET missing)');
       }
-      const res = await fetch(`${chatUrl}/api/chat`, {
+      diag.url = `${chatUrl}/api/chat`;
+      const reqBody = {
+        model: 'qwen2.5-coder:14b',
+        stream: false,
+        options: { num_gpu: 99, num_ctx: 8192 },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...apiMessages,
+        ],
+      };
+      diag.requestBodyExcerpt = JSON.stringify(reqBody).slice(0, 800);
+      const res = await fetch(diag.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Chat-Secret': chatSecret },
-        body: JSON.stringify({
-          model: 'qwen2.5-coder:14b',
-          stream: false,
-          options: { num_gpu: 99, num_ctx: 8192 },
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...apiMessages,
-          ],
-        }),
+        body: JSON.stringify(reqBody),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ollama API error');
+      diag.status = res.status;
+      diag.statusText = res.statusText;
+      diag.responseHeaders = Object.fromEntries(res.headers);
+      const rawText = await res.text();
+      diag.responseBodyExcerpt = rawText.slice(0, 800);
+      let data: { error?: string; message?: { content?: string } } = {};
+      try { data = JSON.parse(rawText); } catch {
+        throw new Error(`Non-JSON response (status ${res.status}). First 200 chars: ${rawText.slice(0, 200)}`);
+      }
+      if (!res.ok) throw new Error(data.error || `Proxy returned status ${res.status}`);
 
       const content: string = data.message?.content ?? '';
 
@@ -415,13 +497,30 @@ export function IntelligenceChat() {
       parseMemoryUpdates(content, setMemoryRows);
       if (/<svg/i.test(content)) cacheVisual(content);
     } catch (err: unknown) {
+      diag.errorMessage = err instanceof Error ? err.message : String(err);
+      // Fetch current proxy status as part of the diagnostic snapshot (best effort).
+      try {
+        const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
+        const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
+        if (chatUrl && chatSecret) {
+          const statusRes = await fetch(`${chatUrl}/api/status`, {
+            headers: { 'X-Chat-Secret': chatSecret },
+          });
+          diag.proxyStatus = statusRes.ok ? await statusRes.json() : { _http: statusRes.status };
+        } else {
+          diag.proxyStatus = { _note: 'env vars unset' };
+        }
+      } catch (statusErr) {
+        diag.proxyStatus = { _fetchError: String(statusErr) };
+      }
       setMessages(prev => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           role: 'assistant' as const,
-          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong.'}\n\nIf this is the first message after >10 min idle, the GPU is cold-starting (~60-120s). Try again in a moment.`,
+          content: `**Error:** ${diag.errorMessage}\n\nIf this is the first message after >10 min idle, the GPU is cold-starting (~60-120s). Try again in a moment.\n\n_Click "Push error to Claude Code" below to bundle the network trace into a Claude Code prompt._`,
           created_at: new Date().toISOString(),
+          diagnostics: diag as ChatDiagnostics,
         },
       ]);
     } finally {
@@ -443,29 +542,40 @@ export function IntelligenceChat() {
   };
 
   const openPushModal = (msg: ChatMessage) => {
-    setPushModal({ open: true, message: msg });
+    setPushModal({ open: true, message: msg, mode: 'prompt' });
     setModalCopied(false);
   };
 
+  const openErrorPushModal = (msg: ChatMessage) => {
+    setPushModal({ open: true, message: msg, mode: 'error' });
+    setModalCopied(false);
+  };
+
+  // One source of truth for what the modal renders / copies / saves.
+  const currentModalPrompt = pushModal.message
+    ? (pushModal.mode === 'error'
+        ? buildErrorPushPrompt(pushModal.message)
+        : buildPushPrompt(pushModal.message, memoryRows))
+    : '';
+
   const copyModalPrompt = async () => {
     if (!pushModal.message) return;
-    await navigator.clipboard.writeText(buildPushPrompt(pushModal.message, memoryRows));
+    await navigator.clipboard.writeText(currentModalPrompt);
     setModalCopied(true);
     setTimeout(() => setModalCopied(false), 2000);
   };
 
   const saveToQueue = async () => {
     if (!pushModal.message) return;
-    const promptText = buildPushPrompt(pushModal.message, memoryRows);
     const msgId = pushModal.message.id;
-    const sourceId = msgId && !msgId.startsWith('tmp') ? msgId : null;
+    const sourceId = msgId && !msgId.startsWith('tmp') && !msgId.startsWith('err') ? msgId : null;
     const { data } = await supabase
       .from('jarvis_pushed_prompts')
-      .insert({ prompt_text: promptText, source_message_id: sourceId, status: 'pending' })
+      .insert({ prompt_text: currentModalPrompt, source_message_id: sourceId, status: 'pending' })
       .select()
       .single();
     if (data) setPushQueue(prev => [data as PushedPrompt, ...prev]);
-    setPushModal({ open: false, message: null });
+    setPushModal({ open: false, message: null, mode: 'prompt' });
   };
 
   const copyQueueItem = async (item: PushedPrompt) => {
@@ -517,6 +627,7 @@ export function IntelligenceChat() {
               msg={msg}
               onCopy={copyMessage}
               onPush={openPushModal}
+              onErrorPush={openErrorPushModal}
               copiedId={copiedId}
             />
           ))
@@ -659,11 +770,12 @@ export function IntelligenceChat() {
       <AnimatePresence>
         {pushModal.open && pushModal.message && (
           <PushModal
-            prompt={buildPushPrompt(pushModal.message, memoryRows)}
+            mode={pushModal.mode}
+            prompt={currentModalPrompt}
             copied={modalCopied}
             onCopy={copyModalPrompt}
             onSave={saveToQueue}
-            onClose={() => setPushModal({ open: false, message: null })}
+            onClose={() => setPushModal({ open: false, message: null, mode: 'prompt' })}
           />
         )}
       </AnimatePresence>
@@ -677,14 +789,17 @@ function MessageBubble({
   msg,
   onCopy,
   onPush,
+  onErrorPush,
   copiedId,
 }: {
   msg: ChatMessage;
   onCopy: (m: ChatMessage) => void;
   onPush: (m: ChatMessage) => void;
+  onErrorPush: (m: ChatMessage) => void;
   copiedId: string | null;
 }) {
   const isAssistant = msg.role === 'assistant';
+  const hasDiagnostics = !!msg.diagnostics;
 
   return (
     <motion.div
@@ -777,6 +892,20 @@ function MessageBubble({
             <Zap size={10} />
             Push to Claude Code
           </button>
+          {hasDiagnostics && (
+            <button
+              onClick={() => onErrorPush(msg)}
+              title="Bundle URL, status, response body, and proxy state into a Claude Code debugging prompt"
+              style={{
+                fontSize: '11px', padding: '4px 12px', borderRadius: '5px',
+                border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.1)',
+                color: '#fca5a5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              <Zap size={10} />
+              Push error to Claude Code
+            </button>
+          )}
         </div>
       )}
     </motion.div>
@@ -786,18 +915,24 @@ function MessageBubble({
 // ── PushModal ─────────────────────────────────────────────────────────────────
 
 function PushModal({
+  mode,
   prompt,
   copied,
   onCopy,
   onSave,
   onClose,
 }: {
+  mode: 'prompt' | 'error';
   prompt: string;
   copied: boolean;
   onCopy: () => void;
   onSave: () => void;
   onClose: () => void;
 }) {
+  const isError = mode === 'error';
+  const accent = isError ? '248,113,113' : '83,74,183'; // red vs purple rgb
+  const iconColor = isError ? '#fca5a5' : '#a78bfa';
+  const title = isError ? 'Push error to Claude Code' : 'Push to Claude Code';
   return (
     <>
       <motion.div
@@ -818,9 +953,9 @@ function PushModal({
           maxHeight: '70vh',
           background: 'rgba(14,15,24,0.98)',
           backdropFilter: 'blur(24px)',
-          border: '1px solid rgba(83,74,183,0.3)',
+          border: `1px solid rgba(${accent},0.3)`,
           borderRadius: 16,
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(83,74,183,0.1)',
+          boxShadow: `0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(${accent},0.1)`,
         }}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -833,8 +968,8 @@ function PushModal({
           style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex items-center gap-2">
-            <Zap size={14} style={{ color: '#a78bfa' }} />
-            <span className="text-[13px] font-semibold" style={{ color: '#c4c4d6' }}>Push to Claude Code</span>
+            <Zap size={14} style={{ color: iconColor }} />
+            <span className="text-[13px] font-semibold" style={{ color: '#c4c4d6' }}>{title}</span>
           </div>
           <button onClick={onClose} className="p-1 transition-colors" style={{ color: '#52526e' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#c4c4d6'; }}
@@ -870,7 +1005,7 @@ function PushModal({
             onClick={onCopy}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold"
             style={{
-              background: copied ? 'rgba(74,222,128,0.15)' : 'rgba(83,74,183,0.85)',
+              background: copied ? 'rgba(74,222,128,0.15)' : `rgba(${accent},0.85)`,
               color: copied ? '#4ade80' : '#fff',
               border: copied ? '1px solid rgba(74,222,128,0.3)' : 'none',
             }}
@@ -878,7 +1013,7 @@ function PushModal({
             whileTap={{ scale: 0.97 }}
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? 'Copied!' : 'Copy Prompt'}
+            {copied ? 'Copied!' : (isError ? 'Copy Error Context' : 'Copy Prompt')}
           </motion.button>
           <motion.button
             onClick={onSave}
