@@ -352,7 +352,7 @@ export function IntelligenceChat() {
 
     try {
       const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
-      const res = await fetch('http://127.0.0.1:11434/api/chat', {
+      const res = await fetch('http://127.0.0.1:11435/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -400,7 +400,7 @@ export function IntelligenceChat() {
         {
           id: `err-${Date.now()}`,
           role: 'assistant' as const,
-          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong. Is Ollama running at 127.0.0.1:11434 and is this device the one running it?'}`,
+          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong. Is the ollama-pna-proxy running at 127.0.0.1:11435 and is this device the one running it?'}`,
           created_at: new Date().toISOString(),
         },
       ]);
