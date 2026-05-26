@@ -344,19 +344,24 @@ export function IntelligenceChat() {
       });
 
     try {
-      const res = await fetch('/api/jarvis-chat', {
+      const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
+      const res = await fetch('http://127.0.0.1:11434/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: apiMessages,
-          systemPrompt: buildSystemPrompt(buildMemoryContext(memoryRows)),
+          model: 'gemma3:4b',
+          stream: false,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...apiMessages,
+          ],
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API error');
+      if (!res.ok) throw new Error(data.error || 'Ollama API error');
 
-      const content: string = data.content ?? '';
+      const content: string = data.message?.content ?? '';
 
       // Save assistant message
       const { data: savedAssistant } = await supabase
@@ -388,7 +393,7 @@ export function IntelligenceChat() {
         {
           id: `err-${Date.now()}`,
           role: 'assistant' as const,
-          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong. Check ANTHROPIC_API_KEY in Vercel env vars.'}`,
+          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong. Is Ollama running at 127.0.0.1:11434 and is this device the one running it?'}`,
           created_at: new Date().toISOString(),
         },
       ]);
