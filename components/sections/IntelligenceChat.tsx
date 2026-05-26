@@ -268,6 +268,20 @@ export function IntelligenceChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Prewarm the Thunder GPU as soon as the chat panel mounts so the first
+  // user message doesn't pay the full ~60-120s cold-start latency. The proxy
+  // dedupes concurrent starts, so firing this on every mount is safe.
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
+    const secret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
+    if (!url || !secret) return;
+    fetch(`${url}/api/prewarm`, {
+      method: 'POST',
+      headers: { 'X-Chat-Secret': secret, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => { /* fire and forget */ });
+  }, []);
+
   // Load history + memory once on mount
   useEffect(() => {
     async function init() {
@@ -352,12 +366,18 @@ export function IntelligenceChat() {
 
     try {
       const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
-      const res = await fetch('http://127.0.0.1:11435/api/chat', {
+      const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
+      const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
+      if (!chatUrl || !chatSecret) {
+        throw new Error('Chat backend not configured (NEXT_PUBLIC_THUNDER_CHAT_URL / NEXT_PUBLIC_THUNDER_CHAT_SECRET missing)');
+      }
+      const res = await fetch(`${chatUrl}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Chat-Secret': chatSecret },
         body: JSON.stringify({
-          model: 'gemma3:4b',
+          model: 'qwen2.5-coder:14b',
           stream: false,
+          options: { num_gpu: 99, num_ctx: 8192 },
           messages: [
             { role: 'system', content: systemPrompt },
             ...apiMessages,
@@ -400,7 +420,7 @@ export function IntelligenceChat() {
         {
           id: `err-${Date.now()}`,
           role: 'assistant' as const,
-          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong. Is the ollama-pna-proxy running at 127.0.0.1:11435 and is this device the one running it?'}`,
+          content: `**Error:** ${err instanceof Error ? err.message : 'Something went wrong.'}\n\nIf this is the first message after >10 min idle, the GPU is cold-starting (~60-120s). Try again in a moment.`,
           created_at: new Date().toISOString(),
         },
       ]);
