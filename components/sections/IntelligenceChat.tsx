@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import { Highlight, themes as prismThemes } from 'prism-react-renderer';
 import { supabase } from '@/lib/supabase';
 
 interface ChatMessage {
@@ -58,6 +59,71 @@ function cleanContent(raw: string): string {
   return stripHtmlFences(raw)
     .replace(/\[MEMORY_UPDATE:[^\]]+\]/g, '')
     .trim();
+}
+
+// ── Structured payload parsing ────────────────────────────────────────────────
+// The model can emit machine-actionable payloads (currently: type=code_update)
+// as either a bare JSON object or inside a ```json fenced block. When detected,
+// the message renderer swaps the raw text for a typed component (see below),
+// so the user never sees escaped \n or JSON literals.
+
+export interface CodeUpdatePayload {
+  type: 'code_update';
+  file_path?: string;
+  language?: string;
+  updated_code: string;
+  terminal_command?: string[];
+  notes?: string;
+}
+
+type StructuredPayload = CodeUpdatePayload | { type: string; [k: string]: unknown };
+
+interface ParsedMessage {
+  payload: StructuredPayload | null;
+  /** Markdown text shown above the structured card, if any. */
+  before: string;
+  /** Markdown text shown below the structured card, if any. */
+  after: string;
+}
+
+function tryParseJson(s: string): StructuredPayload | null {
+  try {
+    const obj = JSON.parse(s);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj) && typeof obj.type === 'string') {
+      return obj as StructuredPayload;
+    }
+  } catch { /* not JSON */ }
+  return null;
+}
+
+/**
+ * Detect a structured payload either as a ```json fenced block anywhere in the
+ * message, or as a bare JSON object that takes up the entire (cleaned) message.
+ */
+function parseStructuredMessage(raw: string): ParsedMessage {
+  const cleaned = cleanContent(raw);
+
+  // 1) ```json fenced block
+  const fence = cleaned.match(/```json\s*([\s\S]*?)```/i);
+  if (fence) {
+    const payload = tryParseJson(fence[1].trim());
+    if (payload) {
+      const idx = cleaned.indexOf(fence[0]);
+      return {
+        payload,
+        before: cleaned.slice(0, idx).trim(),
+        after: cleaned.slice(idx + fence[0].length).trim(),
+      };
+    }
+  }
+
+  // 2) bare JSON object filling the whole message
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    const payload = tryParseJson(cleaned);
+    if (payload) return { payload, before: '', after: '' };
+  }
+
+  return { payload: null, before: cleaned, after: '' };
 }
 
 // ── Memory helpers ────────────────────────────────────────────────────────────
@@ -157,6 +223,31 @@ CARD TEMPLATES — copy and fill in. Be high-density: short labels, tight paddin
 </div>
 
 Mix and stack these — a typical answer may have one flow + one component card + a recommendation. Keep them tight and information-dense; no spacer divs, no headers like "Here's a diagram of...".
+
+══════════════════════════════════════
+STRUCTURED OUTPUT — code_update payload
+══════════════════════════════════════
+When the user asks for a concrete edit to a specific file ("change X to Y in components/Foo.tsx", "add a button that does Z"), emit a structured JSON payload INSTEAD of pasting code inside prose. The dashboard parses this payload and renders it as a syntax-highlighted code block with click-to-copy terminal-command buttons.
+
+Format — emit this as a single \`\`\`json fenced block (no prose inside the fence):
+
+\`\`\`json
+{
+  "type": "code_update",
+  "file_path": "components/sections/IntelligenceChat.tsx",
+  "language": "tsx",
+  "updated_code": "<the full updated file or the relevant function — actual newlines, not \\\\n>",
+  "terminal_command": ["pnpm install", "pnpm dev"],
+  "notes": "Short note on what changed and why (optional)."
+}
+\`\`\`
+
+Rules:
+- \`updated_code\` MUST be the actual code with real newlines and real indentation — the JSON parser handles escaping. Do NOT double-escape.
+- \`language\` is one of: tsx, ts, jsx, js, python, bash, json, sql, css, markup. If you omit it, the dashboard infers from the file extension.
+- \`terminal_command\` is an array of shell commands the user runs after applying the change (install, build, restart, migrate, etc.). Each becomes a click-to-copy button.
+- Prose ABOVE the fenced block (e.g. one sentence summarizing the change) is fine; the dashboard renders that as markdown. Prose BELOW the block also renders.
+- For pure conceptual/architecture questions where you're not editing a specific file, use the HTML/CSS cards instead. code_update is only for "here is the code that goes in this file."
 
 ══════════════════════════════════════
 CLAUDE CODE PROMPT BLOCK
@@ -791,6 +882,179 @@ export function IntelligenceChat() {
   );
 }
 
+// ── CodeUpdateCard ────────────────────────────────────────────────────────────
+// Renders a code_update payload: syntax-highlighted file + click-to-copy
+// terminal commands. Replaces the raw JSON the model would otherwise dump
+// into the chat bubble.
+
+function CodeUpdateCard({ payload }: { payload: CodeUpdatePayload }) {
+  const [copiedIdx, setCopiedIdx] = useState<number | -1>(-1);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const lang = (payload.language || guessLanguage(payload.file_path)).toLowerCase();
+  const code = (payload.updated_code ?? '').replace(/\s+$/, '');
+
+  const onCopyCode = async () => {
+    await navigator.clipboard.writeText(code);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 1500);
+  };
+
+  const onCopyCommand = async (cmd: string, i: number) => {
+    await navigator.clipboard.writeText(cmd);
+    setCopiedIdx(i);
+    setTimeout(() => setCopiedIdx(-1), 1500);
+  };
+
+  return (
+    <div className="my-3 space-y-3">
+      {/* file path header + copy-all */}
+      <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-t-lg" style={{ background: 'rgba(83,74,183,0.15)', border: '1px solid #534AB7', borderBottom: 'none' }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] uppercase tracking-wide flex-shrink-0" style={{ color: '#a89ef5', opacity: 0.7 }}>Code update</span>
+          {payload.file_path && (
+            <span className="text-[12px] font-mono truncate" style={{ color: '#c4c4d6' }}>{payload.file_path}</span>
+          )}
+          <span className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(95,94,90,0.3)', color: '#c4c4d6' }}>{lang}</span>
+        </div>
+        <button
+          onClick={onCopyCode}
+          className="text-[11px] px-2 py-1 rounded flex items-center gap-1 flex-shrink-0"
+          style={{ background: codeCopied ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.05)', color: codeCopied ? '#4ade80' : '#c4c4d6' }}
+        >
+          {codeCopied ? <Check size={11} /> : <Copy size={11} />}
+          {codeCopied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+
+      {/* highlighted code body */}
+      <div className="rounded-b-lg overflow-hidden" style={{ border: '1px solid #534AB7', borderTop: 'none', marginTop: 0 }}>
+        <Highlight code={code} language={lang as 'typescript' | 'javascript' | 'tsx' | 'jsx' | 'bash' | 'python' | 'json'} theme={prismThemes.vsDark}>
+          {({ className, style, tokens, getLineProps, getTokenProps }) => (
+            <pre className={className} style={{ ...style, margin: 0, padding: '12px 14px', fontSize: '12px', lineHeight: '1.55', overflowX: 'auto', background: 'rgba(14,15,24,0.9)' }}>
+              {tokens.map((line, i) => {
+                const lineProps = getLineProps({ line });
+                return (
+                  <div key={i} {...lineProps} style={{ ...lineProps.style, display: 'table-row' }}>
+                    <span style={{ display: 'table-cell', userSelect: 'none', textAlign: 'right', paddingRight: 12, color: '#52526e', minWidth: 28 }}>{i + 1}</span>
+                    <span style={{ display: 'table-cell' }}>
+                      {line.map((token, key) => {
+                        const tokenProps = getTokenProps({ token });
+                        return <span key={key} {...tokenProps} />;
+                      })}
+                    </span>
+                  </div>
+                );
+              })}
+            </pre>
+          )}
+        </Highlight>
+      </div>
+
+      {/* terminal commands as click-to-copy buttons */}
+      {payload.terminal_command && payload.terminal_command.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: '#a89ef5', opacity: 0.7 }}>Terminal commands</div>
+          <div className="flex flex-wrap gap-2">
+            {payload.terminal_command.map((cmd, i) => (
+              <button
+                key={i}
+                onClick={() => onCopyCommand(cmd, i)}
+                title="Click to copy"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-mono"
+                style={{
+                  background: copiedIdx === i ? 'rgba(74,222,128,0.15)' : 'rgba(15,110,86,0.15)',
+                  border: `1px solid ${copiedIdx === i ? '#4ade80' : '#0F6E56'}`,
+                  color: copiedIdx === i ? '#4ade80' : '#a7f3d0',
+                  cursor: 'pointer',
+                  maxWidth: '100%',
+                }}
+              >
+                {copiedIdx === i ? <Check size={11} /> : <Terminal size={11} />}
+                <span className="truncate">{cmd}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* optional notes */}
+      {payload.notes && (
+        <div className="text-[12px] px-3 py-2 rounded-lg" style={{ background: 'rgba(95,94,90,0.12)', border: '1px solid rgba(95,94,90,0.3)', color: '#c4c4d6' }}>
+          {payload.notes}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function guessLanguage(filePath?: string): string {
+  if (!filePath) return 'tsx';
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+    py: 'python', sh: 'bash', bash: 'bash', json: 'json',
+    md: 'markdown', sql: 'sql', yml: 'yaml', yaml: 'yaml',
+    css: 'css', html: 'markup', svg: 'markup',
+  };
+  return map[ext] ?? 'tsx';
+}
+
+// ── AssistantContent ─────────────────────────────────────────────────────────
+// Routes a raw assistant message to either a structured-payload renderer (for
+// type=code_update etc.) or the markdown/HTML renderer. Prevents the raw
+// escaped JSON from ever reaching the user.
+
+function AssistantContent({ raw }: { raw: string }) {
+  const { payload, before, after } = parseStructuredMessage(raw);
+
+  if (payload && payload.type === 'code_update') {
+    return (
+      <>
+        {before && (
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+            {before}
+          </ReactMarkdown>
+        )}
+        <CodeUpdateCard payload={payload as CodeUpdatePayload} />
+        {after && (
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+            {after}
+          </ReactMarkdown>
+        )}
+      </>
+    );
+  }
+
+  // Unknown structured payload — pretty-print as JSON so it's still readable,
+  // but the user at least sees something better than escaped \n.
+  if (payload) {
+    return (
+      <>
+        {before && (
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+            {before}
+          </ReactMarkdown>
+        )}
+        <pre style={{ background: 'rgba(95,94,90,0.12)', border: '1px solid rgba(95,94,90,0.3)', borderRadius: 8, padding: 12, fontSize: 12, color: '#c4c4d6', overflowX: 'auto', margin: '12px 0' }}>
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+        {after && (
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+            {after}
+          </ReactMarkdown>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+      {before}
+    </ReactMarkdown>
+  );
+}
+
 // ── MessageBubble ─────────────────────────────────────────────────────────────
 
 function MessageBubble({
@@ -860,12 +1124,7 @@ function MessageBubble({
             overflowWrap: 'anywhere',
             whiteSpace: 'normal',
           }}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkBreaks]}
-              rehypePlugins={[rehypeRaw]}
-            >
-              {cleanContent(msg.content)}
-            </ReactMarkdown>
+            <AssistantContent raw={msg.content} />
           </div>
         ) : (
           <div style={{ fontSize: '14px', color: '#e0e0e0', lineHeight: '1.65', wordBreak: 'break-word' }}>
