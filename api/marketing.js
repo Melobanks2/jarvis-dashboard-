@@ -158,6 +158,11 @@ module.exports = async function handler(req, res) {
 
     res.json({ month, week, prev, trends, sources, counties, ageBuckets, updatedAt: new Date().toISOString() });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    // Never 500 the dashboard section — return a valid zeroed payload so the
+    // UI renders an empty state instead of an error screen. (marketing_metrics
+    // may be empty, or the Supabase key may be unset on this environment.)
+    const zero = { totalLeads: 0, totalSpend: 0, contacted: 0, qualified: 0, appointments: 0, dealsClosed: 0, revenue: 0, roi: 0, costPerContact: 0, costPerQual: 0, costPerAppt: 0, costPerDeal: 0 };
+    const flatTrends = ['totalLeads','totalSpend','contacted','qualified','appointments','dealsClosed','revenue','roi','costPerContact','costPerQual','costPerAppt','costPerDeal'].reduce((a,k)=>(a[k]='flat',a),{});
+    res.status(200).json({ month: zero, week: zero, prev: zero, trends: flatTrends, sources: [], counties: [], ageBuckets: [], updatedAt: new Date().toISOString(), warning: e.message });
   }
 };
