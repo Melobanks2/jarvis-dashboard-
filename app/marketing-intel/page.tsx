@@ -1,506 +1,361 @@
 'use client';
 
 /**
- * /marketing-intel — Marketing Intel dashboard (dedicated route).
+ * /marketing-intel — Marketing Intelligence (redesigned).
  *
  * Data comes from the VPS service (marketing-intel.js on :3008, exposed at
  * api.jarviscommandcenter.space/marketing-intel/api/*), NOT a Vercel function —
- * the Vercel project is at its 12 serverless-function cap, and the GHL note
- * parsing is too heavy for a serverless cold start. Mirrors the existing
- * "leads served from VPS dialer-server" pattern.
+ * the Vercel project is at its 12 serverless-function cap and the GHL note
+ * parsing is too heavy for a serverless cold start.
+ *
+ * Sources: 🤖 Sarah Leads (cold/dialer) + ⚡ iSpeed (purchased CRM leads).
+ * 📍 Property Leads PPC is locked (not launched). Alpha Leads is fully retired —
+ * the cold channel is Sarah only.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, CartesianGrid,
-  XAxis, YAxis, Tooltip, Legend, LineChart, Line, ComposedChart,
+  XAxis, YAxis, Tooltip, Legend, LineChart, Line,
 } from 'recharts';
 
 const API_BASE = 'https://api.jarviscommandcenter.space/marketing-intel';
+const REVENUE_GOAL = 100000;
 
 const fmt$ = (n: number) => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const fmt$0 = (n: number) => '$' + Math.round(Number(n) || 0).toLocaleString();
 const pct = (n: number) => ((Number(n) || 0) * 100).toFixed(1) + '%';
 const num = (n: number) => (Number(n) || 0).toLocaleString();
-const COLORS = { hot: '#ff4d5e', warm: '#ffb020', cold: '#3ba1ff', good: '#28d17c', accent: '#00e5ff', accent2: '#7c5cff' };
-const tip = { background: '#111826', border: '1px solid #1d2942', borderRadius: 8 };
+
+const C = {
+  accent: '#00e5a0', accent2: '#7c5cff',
+  hot: '#ff5470', warm: '#ffb020', cold: '#3ba1ff', dead: '#5a6378',
+  sarah: '#00e5a0', ispeed: '#7c5cff', ppc: '#3ba1ff',
+};
+const tip = { background: '#12121f', border: '1px solid #232338', borderRadius: 10, fontFamily: 'DM Mono, monospace', fontSize: 12 };
+
+const PERIODS = [
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: '7D' },
+  { key: 'mtd', label: 'MTD' },
+  { key: 'month', label: '30D' },
+  { key: 'all', label: 'All Time' },
+];
+const SOURCES = [
+  { key: 'all', label: 'All Sources', icon: '◎', locked: false },
+  { key: 'sarah', label: 'Sarah Leads', icon: '🤖', locked: false },
+  { key: 'ispeed', label: 'iSpeed', icon: '⚡', locked: false },
+  { key: 'ppc', label: 'Property Leads PPC', icon: '📍', locked: true },
+];
 
 const CSS = `
-:root{--bg:#0a0e17;--panel:#111826;--panel2:#0d1422;--border:#1d2942;--text:#e6edf7;--muted:#7c8db5;--accent:#00e5ff;--accent2:#7c5cff;--hot:#ff4d5e;--warm:#ffb020;--cold:#3ba1ff;--good:#28d17c;--bad:#ff4d5e;}
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#080810;--panel:#0f0f1a;--panel2:#12121f;--border:#1e1e2e;--border2:#232338;
+  --text:#e8ecf5;--muted:#7a82a0;--accent:#00e5a0;--accent2:#7c5cff;
+  --hot:#ff5470;--warm:#ffb020;--cold:#3ba1ff;--dead:#5a6378;
+}
 .mi *{box-sizing:border-box;}
-.mi{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;}
-.mi a{color:var(--accent);}
-.mi .wrap{max-width:1400px;margin:0 auto;padding:18px 16px 80px;}
-.mi .topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
-.mi .brand{display:flex;align-items:center;gap:12px;}
-.mi .brand h1{font-size:20px;margin:0;letter-spacing:.5px;}
-.mi .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--good);box-shadow:0 0 12px var(--good);}
-.mi .sub{color:var(--muted);font-size:12px;}
-.mi .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.mi .seg{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-.mi .seg button{background:transparent;color:var(--muted);border:0;padding:8px 14px;cursor:pointer;font-size:13px;}
-.mi .seg button.active{background:var(--accent);color:#021018;font-weight:600;}
-.mi .refresh{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;}
-.mi .pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:mipulse 1s infinite;}
-@keyframes mipulse{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
-.mi .section{margin:26px 0 8px;}
-.mi .section h2{font-size:14px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);border-left:3px solid var(--accent);padding-left:10px;margin:0 0 14px;}
-.mi .section h2 .tag{font-size:10px;color:var(--muted);letter-spacing:.5px;margin-left:8px;text-transform:none;}
+.mi{
+  min-height:100vh;color:var(--text);
+  font-family:'Syne',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;
+  background-color:var(--bg);
+  background-image:
+    linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px),
+    radial-gradient(900px 500px at 80% -10%,rgba(0,229,160,.07),transparent 60%);
+  background-size:42px 42px,42px 42px,100% 100%;
+}
+.mi .mono{font-family:'DM Mono',ui-monospace,monospace;}
+.mi .wrap{max-width:1440px;margin:0 auto;padding:22px 18px 90px;}
+.mi .topbar{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px;}
+.mi .brand{display:flex;align-items:center;gap:13px;}
+.mi .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent);}
+.mi .brand h1{font-size:23px;margin:0;font-weight:800;letter-spacing:.5px;}
+.mi .brand .accent{color:var(--accent);}
+.mi .sub{color:var(--muted);font-size:12px;font-weight:500;}
+.mi .refresh{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;}
+.mi .pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:mipulse 1.4s infinite;}
+@keyframes mipulse{0%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1)}100%{opacity:.25;transform:scale(.8)}}
+
+.mi .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.mi .seg{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.mi .seg button{background:transparent;color:var(--muted);border:0;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;transition:.15s;}
+.mi .seg button:hover{color:var(--text);}
+.mi .seg button.active{background:var(--accent);color:#021410;}
+.mi .src{display:flex;gap:8px;flex-wrap:wrap;}
+.mi .src button{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--border);color:var(--muted);padding:9px 14px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:600;font-family:'Syne',sans-serif;transition:.15s;}
+.mi .src button:hover:not(.locked){color:var(--text);border-color:var(--border2);}
+.mi .src button.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,160,.08);box-shadow:0 0 0 1px var(--accent) inset;}
+.mi .src button.locked{opacity:.4;cursor:not-allowed;}
+.mi .src button .soon{font-size:9px;background:var(--border2);color:var(--muted);padding:2px 6px;border-radius:6px;font-family:'DM Mono',monospace;}
+
+.mi .section{margin:30px 0 6px;}
+.mi .section h2{display:flex;align-items:center;gap:10px;font-size:13px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:700;margin:0 0 15px;}
+.mi .section h2:before{content:'';width:18px;height:2px;background:var(--accent);border-radius:2px;}
+.mi .section h2 .tag{font-size:10px;color:var(--muted);letter-spacing:.5px;text-transform:none;font-weight:500;}
+
 .mi .grid{display:grid;gap:14px;}
 .mi .g2{grid-template-columns:repeat(2,1fr);}
 .mi .g3{grid-template-columns:repeat(3,1fr);}
 .mi .g4{grid-template-columns:repeat(4,1fr);}
-@media(max-width:900px){.mi .g3,.mi .g4{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:560px){.mi .g2,.mi .g3,.mi .g4{grid-template-columns:1fr;}}
-.mi .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:14px;padding:16px;}
-.mi .card.click{cursor:pointer;transition:transform .12s,border-color .12s;}
-.mi .card.click:hover{transform:translateY(-2px);border-color:var(--accent);}
-.mi .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
-.mi .kpi .val{font-size:28px;font-weight:700;margin-top:6px;}
-.mi .kpi .delta{font-size:11px;margin-top:4px;color:var(--muted);}
-.mi .v-hot{color:var(--hot)}.mi .v-warm{color:var(--warm)}.mi .v-cold{color:var(--cold)}
-.mi .v-good{color:var(--good)}.mi .v-bad{color:var(--bad)}.mi .v-accent{color:var(--accent)}
+@media(max-width:1000px){.mi .g4{grid-template-columns:repeat(2,1fr);}.mi .g3{grid-template-columns:1fr;}}
+@media(max-width:640px){.mi .g2,.mi .g4{grid-template-columns:1fr;}}
+
+.mi .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:16px;padding:17px;}
+.mi .card h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin:0 0 14px;font-weight:600;}
+.mi .kpi .label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.mi .kpi .val{font-family:'DM Mono',monospace;font-size:30px;font-weight:500;margin-top:9px;line-height:1;letter-spacing:-1px;}
+.mi .kpi .delta{font-size:11px;margin-top:7px;color:var(--muted);font-family:'DM Mono',monospace;}
+.mi .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;background:rgba(0,229,160,.1);}
+.mi .v-accent{color:var(--accent)}.mi .v-hot{color:var(--hot)}.mi .v-warm{color:var(--warm)}
+.mi .v-cold{color:var(--cold)}.mi .v-dead{color:var(--dead)}.mi .v-purple{color:var(--accent2)}
+
 .mi table{width:100%;border-collapse:collapse;font-size:13px;}
-.mi th,.mi td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);}
-.mi th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
-.mi tr.click{cursor:pointer;}
-.mi tr.click:hover td{background:rgba(0,229,255,.06);}
-.mi .chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
-.mi .chip.hot{background:rgba(255,77,94,.15);color:var(--hot)}
-.mi .chip.warm{background:rgba(255,176,32,.15);color:var(--warm)}
-.mi .chip.cold{background:rgba(59,161,255,.15);color:var(--cold)}
-.mi .chip.deal{background:rgba(40,209,124,.15);color:var(--good)}
-.mi .chip.alert{background:rgba(255,77,94,.2);color:var(--hot)}
-.mi .chip.soon{background:rgba(255,176,32,.2);color:var(--warm)}
-.mi input[type=number],.mi input[type=text]{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:14px;width:100%;}
-.mi label.fld{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
-.mi button.act{background:var(--accent);color:#021018;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;}
-.mi .barwrap{background:var(--panel2);border-radius:20px;height:14px;overflow:hidden;border:1px solid var(--border);}
-.mi .barwrap>div{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));}
-.mi .heat td.cell{text-align:center;font-weight:600;color:#021018;border:1px solid var(--bg);}
-.mi .modal-bg{position:fixed;inset:0;background:rgba(2,6,14,.75);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow:auto;}
-.mi .modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:1050px;width:100%;padding:20px;}
-.mi .modal h3{margin:0 0 4px;}
-.mi .x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1;}
-.mi .empty{color:var(--muted);font-size:14px;text-align:center;padding:40px;}
-.mi .loading{text-align:center;padding:80px;color:var(--muted);}
-.mi .err{background:rgba(255,77,94,.1);border:1px solid var(--hot);color:#ffb3bb;padding:14px;border-radius:10px;margin:14px 0;}
-.mi .footnote{font-size:10px;color:var(--muted);margin-top:6px;}
-.mi .placeholder{border:1px dashed var(--border);border-radius:14px;padding:30px;text-align:center;color:var(--muted);}
+.mi th,.mi td{text-align:left;padding:10px 11px;border-bottom:1px solid var(--border);}
+.mi th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;}
+.mi td{font-family:'DM Mono',monospace;}
+.mi td.src-name{font-family:'Syne',sans-serif;font-weight:600;}
+.mi tbody tr:last-child td{border-bottom:0;}
+
+.mi .funnel{display:flex;flex-direction:column;gap:9px;}
+.mi .frow{display:flex;align-items:center;gap:12px;}
+.mi .frow .flabel{width:96px;font-size:12px;color:var(--muted);font-weight:600;flex-shrink:0;}
+.mi .ftrack{flex:1;height:34px;background:var(--panel2);border-radius:9px;overflow:hidden;border:1px solid var(--border);}
+.mi .ffill{height:100%;display:flex;align-items:center;padding:0 12px;font-family:'DM Mono',monospace;font-size:13px;color:#021410;font-weight:500;border-radius:9px;min-width:fit-content;transition:width .5s;}
+.mi .fconv{width:54px;text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);flex-shrink:0;}
+
+.mi .tier{border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--panel2);}
+.mi .tier.exclusive{border-left:3px solid var(--accent);}
+.mi .tier.nonexclusive{border-left:3px solid var(--accent2);}
+.mi .tier.leadpack{border-left:3px solid var(--warm);}
+.mi .tier .th{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
+.mi .tier .th .nm{font-size:13px;font-weight:700;letter-spacing:.5px;}
+.mi .tier .th .ct{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;}
+.mi .tier .stat{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--border);}
+.mi .tier .stat:last-child{border-bottom:0;}
+.mi .tier .stat .k{color:var(--muted);}
+.mi .tier .stat .vv{font-family:'DM Mono',monospace;font-weight:500;}
+
+.mi .tempcard{border-radius:14px;padding:16px;border:1px solid var(--border);position:relative;overflow:hidden;}
+.mi .tempcard .tlabel{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;}
+.mi .tempcard .tval{font-family:'DM Mono',monospace;font-size:34px;font-weight:500;margin-top:8px;line-height:1;}
+.mi .tempcard .tpct{font-size:11px;color:var(--muted);margin-top:6px;font-family:'DM Mono',monospace;}
+
+.mi .barwrap{background:var(--panel2);border-radius:30px;height:16px;overflow:hidden;border:1px solid var(--border);}
+.mi .barwrap>div{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:30px;transition:width .6s;}
+.mi .qbar{display:flex;flex-direction:column;gap:11px;}
+.mi .qrow{display:flex;align-items:center;gap:12px;}
+.mi .qrow .ql{width:130px;font-size:12px;font-weight:600;flex-shrink:0;}
+.mi .qrow .qtrack{flex:1;height:22px;background:var(--panel2);border-radius:7px;overflow:hidden;border:1px solid var(--border);}
+.mi .qrow .qfill{height:100%;border-radius:7px;transition:width .5s;}
+.mi .qrow .qv{width:60px;text-align:right;font-family:'DM Mono',monospace;font-size:12px;flex-shrink:0;}
+
+.mi .err{background:rgba(255,84,112,.1);border:1px solid var(--hot);color:#ffb3c0;padding:14px;border-radius:12px;margin:14px 0;font-family:'DM Mono',monospace;font-size:13px;}
+.mi .loading{text-align:center;padding:90px;color:var(--muted);font-family:'DM Mono',monospace;}
+.mi .empty{color:var(--muted);font-size:13px;text-align:center;padding:30px;}
+.mi .footnote{font-size:10px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace;}
+.mi .placeholder{border:1px dashed var(--border2);border-radius:16px;padding:40px;text-align:center;color:var(--muted);}
+.mi .lockbadge{display:inline-block;font-size:10px;background:var(--warm);color:#1a1200;padding:3px 9px;border-radius:7px;font-family:'DM Mono',monospace;font-weight:500;margin-bottom:10px;}
 `;
 
-const GRADE_ORDER = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'Ungraded'];
-function gradeColor(g: string) {
-  if (g.startsWith('A')) return COLORS.good;
-  if (g.startsWith('B')) return COLORS.accent;
-  if (g.startsWith('C')) return COLORS.warm;
-  if (g.startsWith('D')) return COLORS.hot;
-  return '#5a6b8c';
+// ── Per-source metric model derived from the API payload ────────────────────
+function buildSources(data: any) {
+  const cold = data.cold || {};
+  const isp = data.ispeed || {};
+  const rev = (data.master && data.master.revenueByChannel) || {};
+  const sarah = {
+    key: 'sarah', label: 'Sarah Leads', icon: '🤖', color: C.sarah,
+    leadsPurchased: cold.answered || 0,
+    spend: cold.totalCost || 0,
+    contacted: cold.contacted ?? cold.answered ?? 0,
+    hot: cold.hot || 0, warm: cold.warm || 0, cold: cold.cold || 0, dead: 0,
+    qualified: cold.qualified ?? ((cold.hot || 0) + (cold.warm || 0)),
+    appts: cold.appts || 0,
+    deals: cold.deals || 0,
+    revenue: rev.cold || 0,
+    weekly: (cold.timeline || []).map((d: any) => ({ date: d.date, leads: d.leads || 0 })),
+  };
+  const ispeed = {
+    key: 'ispeed', label: 'iSpeed', icon: '⚡', color: C.ispeed,
+    leadsPurchased: isp.totalLeads || 0,
+    spend: isp.totalSpent || 0,
+    contacted: isp.contacted || 0,
+    hot: isp.hot || 0, warm: isp.warm || 0, cold: isp.cold || 0, dead: isp.dead || 0,
+    qualified: isp.qualified || 0,
+    appts: isp.appts || 0,
+    deals: isp.deals || 0,
+    revenue: rev.ispeed || 0,
+    weekly: (isp.timeline || []).map((d: any) => ({ date: d.date, leads: d.leads || 0 })),
+  };
+  return { sarah, ispeed };
 }
 
-function Kpi({ label, val, cls, delta, onClick }: any) {
+function aggregate(srcs: any[]) {
+  const sum = (k: string) => srcs.reduce((a, s) => a + (s[k] || 0), 0);
+  const contacted = sum('contacted');
+  const spend = sum('spend');
+  return {
+    leadsPurchased: sum('leadsPurchased'), spend, contacted,
+    hot: sum('hot'), warm: sum('warm'), cold: sum('cold'), dead: sum('dead'),
+    qualified: sum('qualified'), appts: sum('appts'), deals: sum('deals'),
+    revenue: sum('revenue'),
+    costPerContact: contacted ? spend / contacted : 0,
+  };
+}
+
+function Kpi({ icon, label, val, cls, delta }: any) {
   return (
-    <div className={'card kpi' + (onClick ? ' click' : '')} onClick={onClick}>
-      <div className="label">{label}</div>
+    <div className="card kpi">
+      <div className="label">{icon && <span className="ic">{icon}</span>}{label}</div>
       <div className={'val ' + (cls || '')}>{val}</div>
       {delta != null && <div className="delta">{delta}</div>}
     </div>
   );
 }
 
-function Gauge({ value, goal }: any) {
-  const p = Math.max(0, Math.min(1, goal ? value / goal : 0));
-  const data = [{ name: 'v', value: p * 100 }, { name: 'r', value: 100 - p * 100 }];
+function Funnel({ stages }: any) {
+  const max = Math.max(1, ...stages.map((s: any) => s.value));
+  const colors = [C.accent, '#28d17c', C.warm, C.accent2, C.ispeed];
+  return (
+    <div className="funnel">
+      {stages.map((s: any, i: number) => {
+        const w = Math.max(8, (s.value / max) * 100);
+        const conv = i === 0 ? 100 : stages[0].value ? (s.value / stages[0].value) * 100 : 0;
+        return (
+          <div className="frow" key={s.label}>
+            <div className="flabel">{s.label}</div>
+            <div className="ftrack">
+              <div className="ffill" style={{ width: w + '%', background: colors[i % colors.length] }}>{num(s.value)}</div>
+            </div>
+            <div className="fconv">{conv.toFixed(0)}%</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TempDonut({ t }: any) {
+  const data = [
+    { name: 'Hot', value: t.hot, fill: C.hot },
+    { name: 'Warm', value: t.warm, fill: C.warm },
+    { name: 'Cold', value: t.cold, fill: C.cold },
+    { name: 'Dead', value: t.dead, fill: C.dead },
+  ].filter((d) => d.value > 0);
+  const total = data.reduce((a, d) => a + d.value, 0);
   return (
     <div className="card">
-      <div className="kpi"><div className="label">Revenue vs $100k/mo Goal</div></div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-        <ResponsiveContainer width={180} height={120}>
+      <h3>Lead Temperature</h3>
+      {total === 0 ? <div className="empty">No temperature data in range.</div> : (
+        <ResponsiveContainer width="100%" height={210}>
           <PieChart>
-            <Pie data={data} startAngle={180} endAngle={0} innerRadius={55} outerRadius={80} dataKey="value" stroke="none">
-              <Cell fill={COLORS.good} /><Cell fill="#1d2942" />
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={56} outerRadius={88} paddingAngle={3} stroke="none">
+              {data.map((d, i) => <Cell key={i} fill={d.fill} />)}
             </Pie>
+            <Tooltip contentStyle={tip} />
+            <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'DM Mono, monospace' }} />
           </PieChart>
         </ResponsiveContainer>
-        <div>
-          <div style={{ fontSize: 30, fontWeight: 700 }}>{fmt$0(value)}</div>
-          <div className="sub">{pct(p)} of {fmt$0(goal)} this month</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function MasterROI({ m, onDrill }: any) {
-  const roiData = [
-    { name: 'Cold Calling', ROI: +(m.roiByChannel.cold || 0).toFixed(2), spend: m.spendByChannel.cold, rev: m.revenueByChannel.cold },
-    { name: 'iSpeed', ROI: +(m.roiByChannel.ispeed || 0).toFixed(2), spend: m.spendByChannel.ispeed, rev: m.revenueByChannel.ispeed },
-    { name: 'PPC', ROI: +(m.roiByChannel.ppc || 0).toFixed(2), spend: m.spendByChannel.ppc, rev: m.revenueByChannel.ppc },
+function ISpeedTiers({ tiers }: any) {
+  const defs = [
+    { key: 'exclusive', cls: 'exclusive', sym: '◆', name: 'EXCLUSIVE', color: C.accent, note: 'Purchased exclusive leads · refund eligible' },
+    { key: 'nonexclusive', cls: 'nonexclusive', sym: '◇', name: 'NON-EXCLUSIVE', color: C.accent2, note: 'Shared leads · refund eligible' },
+    { key: 'leadpack', cls: 'leadpack', sym: '📋', name: 'LEAD PACK', color: C.warm, note: 'Received free · bonus balance' },
   ];
+  const qmax = Math.max(0.0001, ...defs.map((d) => (tiers[d.key] || {}).qualifyRate || 0));
   return (
-    <div className="section">
-      <h2>Master ROI <span className="tag">all channels combined</span></h2>
-      <div className="grid g4">
-        <Kpi label="Total Marketing Spend" val={fmt$0(m.totalSpend)} cls="v-warm" />
-        <Kpi label="Total Revenue (closed)" val={fmt$0(m.totalRevenue)} cls="v-good" onClick={() => onDrill('revenue')} />
-        <Kpi label="Overall ROI" val={(m.roiMultiplier || 0).toFixed(2) + '×'} cls={m.roiMultiplier >= 1 ? 'v-good' : 'v-bad'} />
-        <Kpi label="Revenue This Month" val={fmt$0(m.revenueThisMonth)} cls="v-accent" />
-      </div>
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <Gauge value={m.revenueThisMonth} goal={m.revenueGoal} />
-        <div className="card">
-          <div className="kpi"><div className="label">ROI by Channel</div></div>
-          <ResponsiveContainer width="100%" height={170}>
-            <BarChart data={roiData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
-              <XAxis dataKey="name" stroke="#7c8db5" fontSize={11} />
-              <YAxis stroke="#7c8db5" fontSize={11} />
-              <Tooltip contentStyle={tip} formatter={(v: any, k: any) => (k === 'ROI' ? [v + '×', 'ROI'] : [fmt$0(v), k])} />
-              <Bar dataKey="ROI" radius={[6, 6, 0, 0]}>
-                {roiData.map((d, i) => <Cell key={i} fill={d.ROI >= 1 ? COLORS.good : COLORS.accent2} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ColdCalling({ c, onDrill }: any) {
-  const tl = (c.timeline || []).map((d: any) => ({ ...d }));
-  return (
-    <div className="section">
-      <h2>Channel 1 · Cold Calling <span className="tag">David/Sarah multi-dialer · Telnyx + Thunder</span></h2>
-      <div className="grid g4">
-        <Kpi label="Total Dials" val={num(c.totalDials)} />
-        <Kpi label="Answer Rate" val={pct(c.answerRate)} cls="v-accent" />
-        <Kpi label="HOT" val={num(c.hot)} cls="v-hot" onClick={() => onDrill('cold', 'temp', 'hot')} />
-        <Kpi label="WARM / COLD" val={num(c.warm) + ' / ' + num(c.cold)} cls="v-warm" />
-      </div>
-      <div className="grid g4" style={{ marginTop: 14 }}>
-        <Kpi label="Telnyx Cost ($0.002/min)" val={fmt$(c.telnyxCost)} />
-        <Kpi label="Thunder Cost ($0.50/hr)" val={fmt$(c.thunderCost)} />
-        <Kpi label="Cost / HOT Lead" val={c.hot ? fmt$(c.costPerHot) : '—'} />
-        <Kpi label="Cost / Deal" val={c.deals ? fmt$(c.costPerDeal) : '—'} delta={(c.deals || 0) + ' deals'} />
-      </div>
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <div className="card">
-          <div className="kpi"><div className="label">Leads Over Time</div></div>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={tl}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
-              <XAxis dataKey="date" stroke="#7c8db5" fontSize={10} />
-              <YAxis stroke="#7c8db5" fontSize={11} allowDecimals={false} />
-              <Tooltip contentStyle={tip} />
-              <Line type="monotone" dataKey="leads" stroke={COLORS.accent} strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="card">
-          <div className="kpi"><div className="label">HOT / WARM / COLD by Day</div></div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={tl}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
-              <XAxis dataKey="date" stroke="#7c8db5" fontSize={10} />
-              <YAxis stroke="#7c8db5" fontSize={11} allowDecimals={false} />
-              <Tooltip contentStyle={tip} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="hot" stackId="a" fill={COLORS.hot} />
-              <Bar dataKey="warm" stackId="a" fill={COLORS.warm} />
-              <Bar dataKey="cold" stackId="a" fill={COLORS.cold} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ISpeed({ s, onDrill }: any) {
-  const grades = GRADE_ORDER.filter((g) => s.byGrade[g] && s.byGrade[g].leads > 0);
-  const gradeData = grades.map((g) => ({ name: g, leads: s.byGrade[g].leads, conv: +(s.byGrade[g].convRate * 100).toFixed(1) }));
-  const types = Object.keys(s.byType).filter((t) => s.byType[t].leads > 0);
-  const typeData = types.map((t) => ({ name: t, value: s.byType[t].leads }));
-  const typePalette = [COLORS.accent, COLORS.accent2, COLORS.warm, COLORS.good, '#5a6b8c'];
-  return (
-    <div className="section">
-      <h2>Channel 2 · iSpeed To Lead <span className="tag">purchased CRM leads · {num(s.totalLeads)} leads</span></h2>
-      <div className="grid g4">
-        <Kpi label="Leads Purchased" val={num(s.totalLeads)} onClick={() => onDrill('ispeed')} />
-        <Kpi label="Total Spent" val={fmt$0(s.totalSpent)} cls="v-warm" />
-        <Kpi label="Avg Cost / Lead" val={fmt$(s.avgCostPerLead)} />
-        <Kpi label="Conversion → Deal" val={pct(s.conversionRate)} cls="v-good" delta={num(s.deals) + ' deals · ' + (s.deals ? fmt$(s.costPerDeal) + '/deal' : '—')} onClick={() => onDrill('ispeed', 'deals', 'true')} />
-      </div>
-
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <div className="card">
-          <div className="kpi"><div className="label">Leads & Conversion by Predictor Grade</div></div>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={gradeData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
-              <XAxis dataKey="name" stroke="#7c8db5" fontSize={11} />
-              <YAxis yAxisId="l" stroke="#7c8db5" fontSize={11} allowDecimals={false} />
-              <YAxis yAxisId="r" orientation="right" stroke="#28d17c" fontSize={11} unit="%" />
-              <Tooltip contentStyle={tip} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="l" dataKey="leads" radius={[6, 6, 0, 0]}>
-                {gradeData.map((d, i) => <Cell key={i} fill={gradeColor(d.name)} />)}
-              </Bar>
-              <Line yAxisId="r" type="monotone" dataKey="conv" name="conv %" stroke={COLORS.good} strokeWidth={2} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="card">
-          <div className="kpi"><div className="label">Lead Type Breakdown</div></div>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie data={typeData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
-                {typeData.map((d, i) => <Cell key={i} fill={typePalette[i % typePalette.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={tip} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="footnote">Lead type inferred from note keywords + price (paid→exclusive, $0→free).</div>
-        </div>
-      </div>
-
-      <div className="grid g2" style={{ marginTop: 14 }}>
-        <div className="card">
-          <div className="kpi"><div className="label">By Grade — conversion & cost per deal</div></div>
-          <table>
-            <thead><tr><th>Grade</th><th>Leads</th><th>Deals</th><th>Conv</th><th>Avg Cost</th><th>$/Deal</th></tr></thead>
-            <tbody>{grades.map((g) => { const b = s.byGrade[g]; return (
-              <tr key={g} className="click" onClick={() => onDrill('ispeed', 'grade', g)}>
-                <td><span className="chip" style={{ background: gradeColor(g) + '22', color: gradeColor(g) }}>{g}</span></td>
-                <td>{b.leads}</td><td>{b.deals}</td><td>{pct(b.convRate)}</td><td>{fmt$(b.avgCost)}</td><td>{b.deals ? fmt$(b.costPerDeal) : '—'}</td>
-              </tr>); })}</tbody>
-          </table>
-        </div>
-        <div className="card">
-          <div className="kpi"><div className="label">By Type — conversion & cost per deal</div></div>
-          <table>
-            <thead><tr><th>Type</th><th>Leads</th><th>Deals</th><th>Conv</th><th>Avg Cost</th><th>$/Deal</th></tr></thead>
-            <tbody>{types.map((t) => { const b = s.byType[t]; return (
-              <tr key={t} className="click" onClick={() => onDrill('ispeed', 'type', t)}>
-                <td style={{ textTransform: 'capitalize' }}>{t}</td>
-                <td>{b.leads}</td><td>{b.deals}</td><td>{pct(b.convRate)}</td><td>{fmt$(b.avgCost)}</td><td>{b.deals ? fmt$(b.costPerDeal) : '—'}</td>
-              </tr>); })}</tbody>
-          </table>
-        </div>
-      </div>
-
-      <RefundTracking s={s} />
-      <BudgetROI s={s} />
-    </div>
-  );
-}
-
-function RefundTracking({ s }: any) {
-  const r = s.refund;
-  const alerts = s.deadlineAlerts || [];
-  return (
-    <div style={{ marginTop: 14 }}>
-      <div className="grid g4">
-        <Kpi label="Refunds Requested" val={num(r.requested)} cls="v-warm" />
-        <Kpi label="Approved / Denied" val={num(r.approved) + ' / ' + num(r.denied)} cls="v-good" />
-        <Kpi label="Pending" val={num(r.pending)} />
-        <Kpi label="Money Recovered" val={fmt$0(r.moneyRecovered)} cls="v-good" />
+    <>
+      <div className="grid g3">
+        {defs.map((d) => {
+          const t = tiers[d.key] || {};
+          return (
+            <div className={'tier ' + d.cls} key={d.key}>
+              <div className="th">
+                <div className="nm" style={{ color: d.color }}>{d.sym} {d.name}</div>
+                <div className="ct mono">{num(t.purchased || 0)}</div>
+              </div>
+              <div className="stat"><span className="k">Purchased</span><span className="vv">{num(t.purchased || 0)}</span></div>
+              <div className="stat"><span className="k">Contacted</span><span className="vv">{num(t.contacted || 0)}</span></div>
+              <div className="stat"><span className="k">Hot</span><span className="vv v-hot">{num(t.hot || 0)}</span></div>
+              <div className="stat"><span className="k">Deals</span><span className="vv v-accent">{num(t.deals || 0)}</span></div>
+              {d.key === 'leadpack' ? (
+                <div className="stat"><span className="k">Bonus balance</span><span className="vv v-warm">{fmt$0(t.spent || 0)} value</span></div>
+              ) : (
+                <>
+                  <div className="stat"><span className="k">Refund eligible</span><span className="vv">{num(t.refundEligible || 0)}</span></div>
+                  <div className="stat"><span className="k">Refunds pending</span><span className="vv v-warm">{num(t.refundsPending || 0)}</span></div>
+                  <div className="stat"><span className="k">Recovered</span><span className="vv v-accent">{num(t.refundsRecovered || 0)} · {fmt$0(t.moneyRecovered || 0)}</span></div>
+                </>
+              )}
+              <div className="footnote">{d.note}</div>
+            </div>
+          );
+        })}
       </div>
       <div className="card" style={{ marginTop: 14 }}>
-        <div className="kpi"><div className="label">⚠️ Refund Deadline Alerts (≤ 7 days)</div></div>
-        {alerts.length === 0 ? <div className="empty">No leads with refund deadlines inside 7 days.</div> : (
-          <table>
-            <thead><tr><th>Lead</th><th>Provider</th><th>Grade</th><th>Paid</th><th>Deadline</th><th>Days Left</th></tr></thead>
-            <tbody>{alerts.map((a: any) => {
-              const danger = a.daysLeft <= 2;
-              return (
-                <tr key={a.id}>
-                  <td>{a.name}<div className="sub">{a.address || ''}</div></td>
-                  <td>{a.provider || '—'}</td><td>{a.grade || '—'}</td><td>{a.pricePaid != null ? fmt$(a.pricePaid) : '—'}</td>
-                  <td>{new Date(a.refundDeadline).toLocaleDateString()}</td>
-                  <td><span className={'chip ' + (danger ? 'alert' : 'soon')}>{a.daysLeft < 0 ? Math.abs(a.daysLeft) + 'd overdue' : a.daysLeft + 'd'}</span></td>
-                </tr>);
-            })}</tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BudgetROI({ s }: any) {
-  const [budget, setBudget] = useState<number | string>(0);
-  const [saved, setSaved] = useState(false);
-  const [invest, setInvest] = useState(1000);
-  useEffect(() => { fetch(API_BASE + '/api/settings').then((r) => r.json()).then((d) => setBudget(d.ispeedBudget || 0)).catch(() => {}); }, []);
-  const save = () => {
-    fetch(API_BASE + '/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ispeedBudget: Number(budget) }) })
-      .then(() => { setSaved(true); setTimeout(() => setSaved(false), 1500); }).catch(() => {});
-  };
-  const remaining = Number(budget) - s.totalSpent;
-  const convRate = s.conversionRate || 0;
-  const avgCost = s.avgCostPerLead || 1;
-  const projLeads = avgCost ? Math.floor(invest / avgCost) : 0;
-  const projDeals = projLeads * convRate;
-  const avgDealValue = 10000;
-  const projReturn = projDeals * avgDealValue;
-  return (
-    <div className="grid g2" style={{ marginTop: 14 }}>
-      <div className="card">
-        <div className="kpi"><div className="label">Marketing Budget (iSpeed)</div></div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginTop: 6 }}>
-          <div style={{ flex: 1 }}><label className="fld">Monthly budget ($)</label>
-            <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
-          <button className="act" onClick={save}>{saved ? 'Saved ✓' : 'Save'}</button>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <div className="sub">Spent {fmt$0(s.totalSpent)} of {fmt$0(Number(budget))} · <span className={remaining >= 0 ? 'v-good' : 'v-bad'}>{remaining >= 0 ? fmt$0(remaining) + ' remaining' : fmt$0(-remaining) + ' over'}</span></div>
-          <div className="barwrap" style={{ marginTop: 8 }}><div style={{ width: Math.min(100, Number(budget) ? s.totalSpent / Number(budget) * 100 : 0) + '%' }} /></div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="kpi"><div className="label">ROI Calculator</div></div>
-        <label className="fld">Planned investment ($)</label>
-        <input type="number" value={invest} onChange={(e) => setInvest(Number(e.target.value) || 0)} />
-        <div className="grid g3" style={{ marginTop: 12 }}>
-          <div><div className="sub">Proj. leads</div><div style={{ fontSize: 20, fontWeight: 700 }}>{num(projLeads)}</div></div>
-          <div><div className="sub">Proj. deals</div><div className="v-good" style={{ fontSize: 20, fontWeight: 700 }}>{projDeals.toFixed(1)}</div></div>
-          <div><div className="sub">Proj. return*</div><div className="v-good" style={{ fontSize: 20, fontWeight: 700 }}>{fmt$0(projReturn)}</div></div>
-        </div>
-        <div className="footnote">*Based on historical conversion {pct(convRate)} &amp; avg cost/lead {fmt$(avgCost)}; assumes ${num(avgDealValue)} avg profit/deal.</div>
-      </div>
-    </div>
-  );
-}
-
-function PPC() {
-  return (
-    <div className="section">
-      <h2>Channel 3 · Property Leads PPC <span className="tag">not launched</span></h2>
-      <div className="placeholder">
-        <div style={{ fontSize: 34, marginBottom: 8 }}>🚧</div>
-        <div style={{ fontSize: 16, color: 'var(--text)', marginBottom: 6 }}>PPC campaign not live yet</div>
-        <div>This channel is wired and ready. Once PPC launches, plug in the fields below.</div>
-        <div className="grid g4" style={{ marginTop: 18, opacity: .6, maxWidth: 760, marginLeft: 'auto', marginRight: 'auto' }}>
-          <div><label className="fld">Ad Spend</label><input type="number" placeholder="$0" disabled /></div>
-          <div><label className="fld">Clicks</label><input type="number" placeholder="0" disabled /></div>
-          <div><label className="fld">Leads</label><input type="number" placeholder="0" disabled /></div>
-          <div><label className="fld">Cost / Lead</label><input type="text" placeholder="—" disabled /></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GradeIntel({ gradeMarket }: any) {
-  const grades = GRADE_ORDER.filter((g) => gradeMarket[g]);
-  const marketSet = new Set<string>();
-  grades.forEach((g) => Object.keys(gradeMarket[g]).forEach((m) => marketSet.add(m)));
-  const vol = (m: string) => grades.reduce((a, g) => a + ((gradeMarket[g][m] || {}).leads || 0), 0);
-  const markets = Array.from(marketSet).sort((a, b) => vol(b) - vol(a)).slice(0, 12);
-  const heatColor = (rate: number, leads: number) => {
-    if (!leads) return '#0d1422';
-    const t = Math.min(1, rate * 4);
-    return `rgba(40,209,124,${0.12 + t * 0.85})`;
-  };
-  if (grades.length === 0) return null;
-  return (
-    <div className="section">
-      <h2>Predictor Grade Intelligence <span className="tag">conversion by grade × market</span></h2>
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <table className="heat">
-          <thead><tr><th>Grade \ Market</th>{markets.map((m) => <th key={m} style={{ textAlign: 'center' }}>{m}</th>)}<th style={{ textAlign: 'center' }}>All</th></tr></thead>
-          <tbody>{grades.map((g) => {
-            const allLeads = Object.values(gradeMarket[g]).reduce((a: number, c: any) => a + c.leads, 0) as number;
-            const allDeals = Object.values(gradeMarket[g]).reduce((a: number, c: any) => a + c.deals, 0) as number;
+        <h3>Qualify Rate — 3-Way Compare</h3>
+        <div className="qbar">
+          {defs.map((d) => {
+            const t = tiers[d.key] || {};
+            const r = t.qualifyRate || 0;
             return (
-              <tr key={g}>
-                <td><span className="chip" style={{ background: gradeColor(g) + '22', color: gradeColor(g) }}>{g}</span></td>
-                {markets.map((m) => {
-                  const c = gradeMarket[g][m];
-                  const rate = c && c.leads ? c.deals / c.leads : 0;
-                  return (
-                    <td key={m} className="cell" style={{ background: heatColor(rate, c && c.leads) }} title={c ? `${c.deals}/${c.leads} deals` : 'no leads'}>
-                      {c && c.leads ? (c.deals > 0 ? pct(rate) : c.leads) : '·'}
-                    </td>);
-                })}
-                <td className="cell" style={{ background: heatColor(allLeads ? allDeals / allLeads : 0, allLeads) }}>{allLeads ? (allDeals > 0 ? pct(allDeals / allLeads) : allLeads) : '·'}</td>
-              </tr>);
-          })}</tbody>
-        </table>
-        <div className="footnote">Cell shows conversion % when ≥1 deal, else lead count. Greener = higher conversion. Hover for deals/leads.</div>
+              <div className="qrow" key={d.key}>
+                <div className="ql" style={{ color: d.color }}>{d.sym} {d.name}</div>
+                <div className="qtrack"><div className="qfill" style={{ width: (r / qmax) * 100 + '%', background: d.color }} /></div>
+                <div className="qv">{pct(r)}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="footnote">Qualify rate = hot leads ÷ purchased, per tier.</div>
       </div>
-    </div>
-  );
-}
-
-function Drill({ q, range, onClose }: any) {
-  const [leads, setLeads] = useState<any[] | null>(null);
-  useEffect(() => {
-    const u = new URL(API_BASE + '/api/leads');
-    u.searchParams.set('range', range);
-    Object.entries(q.params || {}).forEach(([k, v]) => u.searchParams.set(k, String(v)));
-    u.searchParams.set('channel', q.channel);
-    fetch(u.toString()).then((r) => r.json()).then((d) => setLeads(d.leads || [])).catch(() => setLeads([]));
-  }, []);
-  return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <span className="x" onClick={onClose}>×</span>
-        <h3>{q.title}</h3>
-        <div className="sub" style={{ marginBottom: 12 }}>{leads ? leads.length + ' records' : 'loading…'}</div>
-        {!leads ? <div className="loading">Loading…</div> :
-          leads.length === 0 ? <div className="empty">No matching leads.</div> :
-            q.channel === 'revenue' ? (
-              <table>
-                <thead><tr><th>Deal</th><th>Channel</th><th>Stage</th><th>Value</th></tr></thead>
-                <tbody>{leads.map((l: any) => <tr key={l.id}><td>{l.name}</td><td style={{ textTransform: 'capitalize' }}>{l.channel}</td><td>{l.stage}</td><td className="v-good">{fmt$0(l.value)}</td></tr>)}</tbody>
-              </table>
-            ) : (
-              <table>
-                <thead><tr><th>Lead</th><th>Grade</th><th>Type</th><th>Stage</th><th>Paid</th><th>Motivation</th><th>Timeline</th></tr></thead>
-                <tbody>{leads.map((l: any) => (
-                  <tr key={l.id}>
-                    <td>{l.name}<div className="sub">{l.address || l.phone || ''}</div></td>
-                    <td>{l.grade || '—'}</td><td style={{ textTransform: 'capitalize' }}>{l.leadType || '—'}</td>
-                    <td><span className={'chip ' + (l.isDeal ? 'deal' : l.temp || '')}>{l.stage}</span></td>
-                    <td>{l.pricePaid != null ? fmt$(l.pricePaid) : '—'}</td>
-                    <td style={{ maxWidth: 200 }}>{l.motivation || '—'}</td><td>{l.timeline || '—'}</td>
-                  </tr>))}</tbody>
-              </table>
-            )}
-      </div>
-    </div>
+    </>
   );
 }
 
 export default function MarketingIntelPage() {
-  const [range, setRange] = useState('all');
+  const [period, setPeriod] = useState('all');
+  const [source, setSource] = useState('all');
   const [data, setData] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [drill, setDrill] = useState<any>(null);
   const [last, setLast] = useState<Date | null>(null);
   const timer = useRef<any>(null);
 
   const load = useCallback(() => {
-    fetch(API_BASE + '/api/metrics?range=' + range)
+    fetch(API_BASE + '/api/metrics?range=' + period)
       .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then((d) => { if (d.error) throw new Error(d.detail || d.error); setData(d); setErr(null); setLast(new Date()); })
       .catch((e) => setErr(e.message));
-  }, [range]);
+  }, [period]);
 
   useEffect(() => { load(); timer.current = setInterval(load, 30000); return () => clearInterval(timer.current); }, [load]);
 
-  const onDrill = (channel: string, key?: string, val?: string) => {
-    if (channel === 'cold') return; // cold per-lead drill not backed by /api/leads
-    const titles: any = { revenue: 'Closed Deals — Revenue', ispeed: 'iSpeed Leads' };
-    let title = titles[channel] || 'Leads';
-    const params: any = {};
-    if (key) { params[key] = val; title += ` · ${key}=${val}`; }
-    setDrill({ channel, params, title });
-  };
+  const model = useMemo(() => {
+    if (!data) return null;
+    const { sarah, ispeed } = buildSources(data);
+    const active = source === 'sarah' ? [sarah] : source === 'ispeed' ? [ispeed] : [sarah, ispeed];
+    const agg = aggregate(active);
+    // merged weekly timeline
+    const wk: Record<string, any> = {};
+    if (source !== 'ppc') {
+      for (const s of active) for (const p of s.weekly) {
+        wk[p.date] = wk[p.date] || { date: p.date, sarah: 0, ispeed: 0, total: 0 };
+        wk[p.date][s.key] += p.leads; wk[p.date].total += p.leads;
+      }
+    }
+    const weekly = Object.values(wk).sort((a: any, b: any) => a.date.localeCompare(b.date));
+    const volume = active.map((s) => ({ name: s.label, leads: s.leadsPurchased, fill: s.color }));
+    return { sarah, ispeed, active, agg, weekly, volume };
+  }, [data, source]);
+
+  const showISpeed = source === 'all' || source === 'ispeed';
+  const showSarah = source === 'all' || source === 'sarah';
 
   return (
     <div className="mi">
@@ -508,31 +363,204 @@ export default function MarketingIntelPage() {
       <div className="wrap">
         <div className="topbar">
           <div className="brand"><span className="dot" />
-            <div><h1>MARKETING INTEL</h1><div className="sub">Jarvis Command Center · ROI across all channels</div></div>
-          </div>
-          <div className="controls">
-            <div className="seg">
-              {['today', 'week', 'month', 'all'].map((r) =>
-                <button key={r} className={range === r ? 'active' : ''} onClick={() => setRange(r)}>{r[0].toUpperCase() + r.slice(1)}</button>)}
+            <div>
+              <h1>MARKETING <span className="accent">INTELLIGENCE</span></h1>
+              <div className="sub">Jarvis Command Center · ROI across all lead channels</div>
             </div>
-            <div className="refresh"><span className="pulse" />{last ? 'updated ' + last.toLocaleTimeString() : 'live'} · 30s</div>
+          </div>
+          <div className="refresh"><span className="pulse" />{last ? 'updated ' + last.toLocaleTimeString() : 'connecting…'} · auto 30s</div>
+        </div>
+
+        <div className="bar">
+          <div className="seg">
+            {PERIODS.map((p) => (
+              <button key={p.key} className={period === p.key ? 'active' : ''} onClick={() => setPeriod(p.key)}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="bar">
+          <div className="src">
+            {SOURCES.map((s) => (
+              <button key={s.key}
+                className={(source === s.key ? 'active ' : '') + (s.locked ? 'locked' : '')}
+                onClick={() => { if (!s.locked) setSource(s.key); }}>
+                <span>{s.icon}</span>{s.label}
+                {s.locked && <span className="soon">SOON</span>}
+              </button>
+            ))}
           </div>
         </div>
 
         {err && <div className="err">⚠️ {err} — retrying every 30s.</div>}
         {!data && !err && <div className="loading">Aggregating GHL + Supabase data…</div>}
 
-        {data && (
+        {source === 'ppc' ? (
+          <div className="section">
+            <h2>Property Leads PPC <span className="tag">not launched</span></h2>
+            <div className="placeholder">
+              <div className="lockbadge">🔒 COMING SOON</div>
+              <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 6, fontWeight: 700 }}>PPC channel is wired & ready</div>
+              <div>Once the pay-per-click campaign goes live, ad spend, clicks, and cost-per-lead will populate here automatically.</div>
+            </div>
+          </div>
+        ) : model && (
           <>
-            <MasterROI m={data.master} onDrill={onDrill} />
-            <ColdCalling c={data.cold} onDrill={onDrill} />
-            <ISpeed s={data.ispeed} onDrill={onDrill} />
-            <GradeIntel gradeMarket={data.ispeed.gradeMarket} />
-            <PPC />
+            {/* KPI cards */}
+            <div className="section">
+              <h2>Performance KPIs <span className="tag">{SOURCES.find((s) => s.key === source)?.label}</span></h2>
+              <div className="grid g4">
+                <Kpi icon="🎯" label="Leads Purchased" val={num(model.agg.leadsPurchased)} cls="v-accent" />
+                <Kpi icon="💸" label="Total Spend" val={fmt$0(model.agg.spend)} cls="v-warm" />
+                <Kpi icon="📞" label="Leads Contacted" val={num(model.agg.contacted)} />
+                <Kpi icon="🔥" label="Hot Leads" val={num(model.agg.hot)} cls="v-hot" />
+              </div>
+              <div className="grid g4" style={{ marginTop: 14 }}>
+                <Kpi icon="📅" label="Appointments Set" val={num(model.agg.appts)} cls="v-cold" />
+                <Kpi icon="🤝" label="Deals Closed" val={num(model.agg.deals)} cls="v-accent" />
+                <Kpi icon="🧮" label="Cost / Contact" val={model.agg.contacted ? fmt$(model.agg.costPerContact) : '—'} />
+                <Kpi icon="💰" label="Revenue Generated" val={fmt$0(model.agg.revenue)} cls="v-accent" />
+              </div>
+            </div>
+
+            {/* Volume + Temperature */}
+            <div className="section">
+              <h2>Lead Volume & Temperature</h2>
+              <div className="grid g2">
+                <div className="card">
+                  <h3>Lead Volume by Source</h3>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <BarChart data={model.volume}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false} />
+                      <XAxis dataKey="name" stroke="#7a82a0" fontSize={11} />
+                      <YAxis stroke="#7a82a0" fontSize={11} allowDecimals={false} />
+                      <Tooltip contentStyle={tip} cursor={{ fill: 'rgba(255,255,255,.03)' }} />
+                      <Bar dataKey="leads" radius={[8, 8, 0, 0]}>
+                        {model.volume.map((d: any, i: number) => <Cell key={i} fill={d.fill} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <TempDonut t={model.agg} />
+              </div>
+            </div>
+
+            {/* Funnel + Weekly trend */}
+            <div className="section">
+              <h2>Conversion Funnel & Trend</h2>
+              <div className="grid g2">
+                <div className="card">
+                  <h3>Conversion Funnel</h3>
+                  <Funnel stages={[
+                    { label: 'Purchased', value: model.agg.leadsPurchased },
+                    { label: 'Contacted', value: model.agg.contacted },
+                    { label: 'Qualified', value: model.agg.qualified },
+                    { label: 'Appt Set', value: model.agg.appts },
+                    { label: 'Closed', value: model.agg.deals },
+                  ]} />
+                  <div className="footnote">% relative to purchased volume.</div>
+                </div>
+                <div className="card">
+                  <h3>Weekly Lead Volume</h3>
+                  {model.weekly.length === 0 ? <div className="empty">No dated lead activity in range.</div> : (
+                    <ResponsiveContainer width="100%" height={210}>
+                      <LineChart data={model.weekly}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+                        <XAxis dataKey="date" stroke="#7a82a0" fontSize={10} />
+                        <YAxis stroke="#7a82a0" fontSize={11} allowDecimals={false} />
+                        <Tooltip contentStyle={tip} />
+                        {source === 'all' && <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'DM Mono, monospace' }} />}
+                        {showSarah && <Line type="monotone" dataKey="sarah" name="Sarah" stroke={C.sarah} strokeWidth={2} dot={{ r: 2 }} />}
+                        {showISpeed && <Line type="monotone" dataKey="ispeed" name="iSpeed" stroke={C.ispeed} strokeWidth={2} dot={{ r: 2 }} />}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Cost efficiency table */}
+            <div className="section">
+              <h2>Cost Efficiency by Source</h2>
+              <div className="card">
+                <table>
+                  <thead><tr><th>Source</th><th>Leads</th><th>Spend</th><th>Cost/Lead</th><th>Contacted</th><th>Cost/Contact</th><th>Deals</th><th>Revenue</th><th>ROI</th></tr></thead>
+                  <tbody>
+                    {model.active.map((s: any) => {
+                      const cpl = s.leadsPurchased ? s.spend / s.leadsPurchased : 0;
+                      const cpc = s.contacted ? s.spend / s.contacted : 0;
+                      const roi = s.spend ? s.revenue / s.spend : 0;
+                      return (
+                        <tr key={s.key}>
+                          <td className="src-name" style={{ color: s.color }}>{s.icon} {s.label}</td>
+                          <td>{num(s.leadsPurchased)}</td>
+                          <td>{fmt$0(s.spend)}</td>
+                          <td>{s.leadsPurchased ? fmt$(cpl) : '—'}</td>
+                          <td>{num(s.contacted)}</td>
+                          <td>{s.contacted ? fmt$(cpc) : '—'}</td>
+                          <td>{num(s.deals)}</td>
+                          <td className="v-accent">{fmt$0(s.revenue)}</td>
+                          <td className={roi >= 1 ? 'v-accent' : 'v-warm'}>{s.spend ? roi.toFixed(1) + '×' : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                    {source === 'all' && (
+                      <tr style={{ borderTop: '2px solid var(--border2)' }}>
+                        <td className="src-name">◎ All Sources</td>
+                        <td>{num(model.agg.leadsPurchased)}</td>
+                        <td>{fmt$0(model.agg.spend)}</td>
+                        <td>{model.agg.leadsPurchased ? fmt$(model.agg.spend / model.agg.leadsPurchased) : '—'}</td>
+                        <td>{num(model.agg.contacted)}</td>
+                        <td>{model.agg.contacted ? fmt$(model.agg.costPerContact) : '—'}</td>
+                        <td>{num(model.agg.deals)}</td>
+                        <td className="v-accent">{fmt$0(model.agg.revenue)}</td>
+                        <td className={model.agg.spend && model.agg.revenue / model.agg.spend >= 1 ? 'v-accent' : 'v-warm'}>{model.agg.spend ? (model.agg.revenue / model.agg.spend).toFixed(1) + '×' : '—'}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* iSpeed 3-tier breakdown */}
+            {showISpeed && data.ispeed && data.ispeed.tiers && (
+              <div className="section">
+                <h2>iSpeed Tier Breakdown <span className="tag">exclusive · non-exclusive · lead pack</span></h2>
+                <ISpeedTiers tiers={data.ispeed.tiers} />
+              </div>
+            )}
+
+            {/* Pipeline status */}
+            <div className="section">
+              <h2>Pipeline Status</h2>
+              <div className="grid g4">
+                {[
+                  { k: 'hot', label: 'HOT', color: C.hot, v: model.agg.hot },
+                  { k: 'warm', label: 'WARM', color: C.warm, v: model.agg.warm },
+                  { k: 'cold', label: 'COLD', color: C.cold, v: model.agg.cold },
+                  { k: 'dead', label: 'DEAD', color: C.dead, v: model.agg.dead },
+                ].map((t) => {
+                  const tot = model.agg.hot + model.agg.warm + model.agg.cold + model.agg.dead;
+                  return (
+                    <div className="tempcard" key={t.k} style={{ background: 'linear-gradient(180deg,' + t.color + '14, transparent)', borderColor: t.color + '44' }}>
+                      <div className="tlabel" style={{ color: t.color }}>{t.label}</div>
+                      <div className="tval" style={{ color: t.color }}>{num(t.v)}</div>
+                      <div className="tpct">{tot ? pct(t.v / tot) : '0%'} of pipeline</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="card" style={{ marginTop: 14 }}>
+                <h3>Revenue vs $100K Monthly Target</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                  <div className="mono" style={{ fontSize: 28, fontWeight: 500, color: C.accent }}>{fmt$0((data.master && data.master.revenueThisMonth) || 0)}</div>
+                  <div className="sub mono">{pct(((data.master && data.master.revenueThisMonth) || 0) / REVENUE_GOAL)} of {fmt$0(REVENUE_GOAL)}</div>
+                </div>
+                <div className="barwrap"><div style={{ width: Math.min(100, (((data.master && data.master.revenueThisMonth) || 0) / REVENUE_GOAL) * 100) + '%' }} /></div>
+                <div className="footnote">Company-wide closed revenue this month across all channels.</div>
+              </div>
+            </div>
           </>
         )}
-
-        {drill && <Drill q={drill} range={range} onClose={() => setDrill(null)} />}
       </div>
     </div>
   );
