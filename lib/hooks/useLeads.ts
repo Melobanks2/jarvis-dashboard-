@@ -59,6 +59,8 @@ interface CallRow {
 
 const TEST_PHONE = '+13479704969';
 const LIVE_WINDOW_MS = 3 * 60 * 1000; // calls within 3 min are shown as "live/just landed"
+// Leads are served by the VPS backend (Vercel Hobby is at its 12-function cap)
+export const LEADS_API = 'https://api.jarviscommandcenter.space/dialer';
 
 export function useLeads(refreshKey: number) {
   const [leads, setLeads]   = useState<Lead[]>([]);
@@ -72,7 +74,7 @@ export function useLeads(refreshKey: number) {
     setLoading(true);
 
     Promise.all([
-      fetch('/api/leads').then(r => r.json()).catch(e => ({ error: e.message })),
+      fetch(`${LEADS_API}/leads`).then(r => r.json()).catch(e => ({ error: e.message })),
       supabase
         .from('jarvis_calls')
         .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,transcript_full,called_at')

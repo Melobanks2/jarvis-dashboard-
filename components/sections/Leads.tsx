@@ -8,7 +8,7 @@ import {
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { useApp } from '@/lib/AppContext';
-import { useLeads, Lead, Temp } from '@/lib/hooks/useLeads';
+import { useLeads, Lead, Temp, LEADS_API } from '@/lib/hooks/useLeads';
 import { fmtTime, fmtDate } from '@/lib/supabase';
 
 const TEMP_COLOR: Record<Temp, string> = {
@@ -171,7 +171,7 @@ function LeadCard({ lead }: { lead: Lead }) {
     if (!note.trim() || !lead.contactId) return;
     setNoteState('saving');
     try {
-      const r = await fetch('/api/leads?action=note', {
+      const r = await fetch(`${LEADS_API}/lead-action?action=note`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId: lead.contactId, note, name: lead.name, address: lead.address }),
@@ -186,7 +186,7 @@ function LeadCard({ lead }: { lead: Lead }) {
     if (!lead.contactId) return;
     setCbState('saving');
     try {
-      const r = await fetch('/api/leads?action=callback', {
+      const r = await fetch(`${LEADS_API}/lead-action?action=callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId: lead.contactId, name: lead.name, address: lead.address, note: note.trim() || undefined }),
