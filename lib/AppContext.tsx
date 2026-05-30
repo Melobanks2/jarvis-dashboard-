@@ -13,6 +13,7 @@ export type Section =
   | 'ideas-lab'
   | 'intelligence-chat'
   | 'agent-chat'
+  | 'leads'
   | 'settings'
   // Legacy sections (kept in type but removed from sidebar nav)
   | 'call-center'

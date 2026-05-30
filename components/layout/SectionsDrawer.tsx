@@ -3,12 +3,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Bot, Search, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
 const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: string; desc: string }[] = [
   { section: 'command-center',    label: 'Command Center',    Icon: LayoutDashboard, color: '#4ade80', desc: 'AI brain overview' },
+  { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#4ade80', desc: 'Live calls & lead cards' },
   { section: 'david-hq',         label: 'David HQ',          Icon: Shield,          color: '#fbbf24', desc: 'Deals & training' },
   { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#fbbf24', desc: 'Agent management' },
   { section: 'lead-intelligence',label: 'Lead Intelligence', Icon: Search,          color: '#60a5fa', desc: 'Lead database' },

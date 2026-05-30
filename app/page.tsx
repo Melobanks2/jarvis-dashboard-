@@ -25,6 +25,7 @@ import { DavidHQ }          from '@/components/sections/DavidHQ';
 import { KnowledgeBase }          from '@/components/sections/KnowledgeBase';
 import { MarketingIntelligence }  from '@/components/sections/MarketingIntelligence';
 import { MultiDialer }            from '@/components/sections/MultiDialer';
+import { Leads }                  from '@/components/sections/Leads';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -49,6 +50,7 @@ const SECTION_TITLES: Record<string, string> = {
   'knowledge-base':         'Knowledge Base',
   'marketing-intelligence': 'Marketing Intelligence',
   'multi-dialer':           'Multi-Line Dialer',
+  'leads':                  'Leads',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -68,6 +70,7 @@ function SectionContent({ section }: { section: string }) {
     case 'knowledge-base':          return <KnowledgeBase />;
     case 'marketing-intelligence':  return <MarketingIntelligence />;
     case 'multi-dialer':            return <MultiDialer />;
+    case 'leads':                   return <Leads />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon
