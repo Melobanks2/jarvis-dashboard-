@@ -4,10 +4,14 @@ import { useEffect, useState } from 'react';
 import { supabase, todayStart } from '../supabase';
 
 export type Temp = 'hot' | 'warm' | 'cold' | 'dead' | 'new';
+export type Source = 'cold' | 'ispeed';
 
 export interface Lead {
   id: string;
   contactId: string | null;
+  source: Source;
+  pipelineId: string | null;
+  stageId: string | null;
   name: string;
   phone: string | null;
   address: string | null;
@@ -29,11 +33,17 @@ export interface Lead {
   calledAt?: string | null;
   summary?: string | null;
   transcript?: string | null;
+  recordingUrl?: string | null;
 }
 
 export interface LeadStats {
   total: number; hot: number; warm: number; cold: number; dead: number; newLeads: number;
 }
+export interface StatsBySource {
+  cold: LeadStats; ispeed: LeadStats;
+}
+// pipelineId -> { hot,warm,cold,dead: stageId }
+export type TempStages = Record<string, Partial<Record<Exclude<Temp, 'new'>, string | null>>>;
 
 export interface LiveCall {
   id: string;
@@ -55,19 +65,33 @@ interface CallRow {
   id: string; phone: string | null; contact_name: string | null; address: string | null;
   call_duration: number | null; called_at: string; stage_after: string | null;
   stage_before: string | null; summary: string | null; transcript_full: string | null;
+  recording_url: string | null; telnyx_recording_url: string | null; elevenlabs_recording_url: string | null;
 }
 
 const TEST_PHONE = '+13479704969';
 const LIVE_WINDOW_MS = 3 * 60 * 1000; // calls within 3 min are shown as "live/just landed"
+const AUTO_REFRESH_MS = 30 * 1000;    // real-time: re-pull leads + calls every 30s
 // Leads are served by the VPS backend (Vercel Hobby is at its 12-function cap)
 export const LEADS_API = 'https://api.jarviscommandcenter.space/dialer';
 
+const EMPTY_STATS: LeadStats = { total: 0, hot: 0, warm: 0, cold: 0, dead: 0, newLeads: 0 };
+
 export function useLeads(refreshKey: number) {
   const [leads, setLeads]   = useState<Lead[]>([]);
-  const [stats, setStats]   = useState<LeadStats>({ total: 0, hot: 0, warm: 0, cold: 0, dead: 0, newLeads: 0 });
+  const [stats, setStats]   = useState<LeadStats>({ ...EMPTY_STATS });
+  const [statsBySource, setStatsBySource] = useState<StatsBySource>({ cold: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
+  const [tempStages, setTempStages] = useState<TempStages>({});
   const [live, setLive]     = useState<LiveCall[]>([]);
+  const [callsToday, setCallsToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
+  const [tick, setTick]     = useState(0);
+
+  // 30-second auto-refresh tick (real-time updates as David qualifies leads)
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), AUTO_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -77,7 +101,7 @@ export function useLeads(refreshKey: number) {
       fetch(`${LEADS_API}/leads`).then(r => r.json()).catch(e => ({ error: e.message })),
       supabase
         .from('jarvis_calls')
-        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,transcript_full,called_at')
+        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,transcript_full,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at')
         .order('called_at', { ascending: false })
         .limit(120),
     ]).then(([leadResp, callResp]) => {
@@ -104,16 +128,20 @@ export function useLeads(refreshKey: number) {
             calledAt:     c?.called_at ?? null,
             summary:      c?.summary ?? null,
             transcript:   c?.transcript_full ?? null,
+            recordingUrl: c?.telnyx_recording_url || c?.recording_url || c?.elevenlabs_recording_url || null,
           };
         });
         setLeads(merged);
-        setStats(leadResp.stats || { total: merged.length, hot: 0, warm: 0, cold: 0, dead: 0, newLeads: 0 });
+        setStats(leadResp.stats || { ...EMPTY_STATS, total: merged.length });
+        setStatsBySource(leadResp.statsBySource || { cold: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
+        setTempStages(leadResp.tempStages || {});
         setError(null);
       }
 
       // Live / recent call feed from today's jarvis_calls
       const now = Date.now();
       const todays = calls.filter(c => c.called_at >= todayStart());
+      setCallsToday(todays.length);
       const liveCalls: LiveCall[] = todays.slice(0, 8).map(c => ({
         id: c.id,
         name: c.contact_name || 'Unknown',
@@ -129,7 +157,7 @@ export function useLeads(refreshKey: number) {
     });
 
     return () => { active = false; };
-  }, [refreshKey]);
+  }, [refreshKey, tick]);
 
-  return { leads, stats, live, loading, error };
+  return { leads, stats, statsBySource, tempStages, live, callsToday, loading, error };
 }
