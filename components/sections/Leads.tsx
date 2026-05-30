@@ -24,8 +24,9 @@ const TEMP_LABEL: Record<Temp, string> = {
 };
 
 const SOURCE_META: Record<Source, { label: string; color: string }> = {
-  cold:   { label: 'Cold Outbound', color: '#00aaff' },
-  ispeed: { label: 'iSpeed',        color: '#ffd700' },
+  alpha:  { label: '♦️ Alpha Leads', color: '#00d4ff' },
+  sarah:  { label: '🤖 Sarah',       color: '#aa44ff' },
+  ispeed: { label: 'iSpeed',         color: '#ffd700' },
 };
 
 function fmtDuration(sec?: number | null) {
@@ -98,9 +99,10 @@ export function Leads() {
   }
 
   const SOURCE_TABS: { key: SourceFilter; label: string; count: number; color: string }[] = [
-    { key: 'all',    label: 'All',           count: stats.total,            color: '#00e5ff' },
-    { key: 'cold',   label: 'Cold Outbound', count: statsBySource.cold.total,   color: SOURCE_META.cold.color },
-    { key: 'ispeed', label: 'iSpeed',        count: statsBySource.ispeed.total, color: SOURCE_META.ispeed.color },
+    { key: 'all',    label: 'All',            count: stats.total,                color: '#00e5ff' },
+    { key: 'alpha',  label: '♦️ Alpha Leads', count: statsBySource.alpha.total,  color: SOURCE_META.alpha.color },
+    { key: 'sarah',  label: '🤖 Sarah',       count: statsBySource.sarah.total,  color: SOURCE_META.sarah.color },
+    { key: 'ispeed', label: 'iSpeed',         count: statsBySource.ispeed.total, color: SOURCE_META.ispeed.color },
   ];
 
   const STATUS_TABS: { key: StatusFilter; label: string; count: number }[] = [

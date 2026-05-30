@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, todayStart } from '../supabase';
 
 export type Temp = 'hot' | 'warm' | 'cold' | 'dead' | 'new';
-export type Source = 'cold' | 'ispeed';
+export type Source = 'alpha' | 'sarah' | 'ispeed';
 
 export interface Lead {
   id: string;
@@ -40,7 +40,7 @@ export interface LeadStats {
   total: number; hot: number; warm: number; cold: number; dead: number; newLeads: number;
 }
 export interface StatsBySource {
-  cold: LeadStats; ispeed: LeadStats;
+  alpha: LeadStats; sarah: LeadStats; ispeed: LeadStats;
 }
 // pipelineId -> { hot,warm,cold,dead: stageId }
 export type TempStages = Record<string, Partial<Record<Exclude<Temp, 'new'>, string | null>>>;
@@ -79,7 +79,7 @@ const EMPTY_STATS: LeadStats = { total: 0, hot: 0, warm: 0, cold: 0, dead: 0, ne
 export function useLeads(refreshKey: number) {
   const [leads, setLeads]   = useState<Lead[]>([]);
   const [stats, setStats]   = useState<LeadStats>({ ...EMPTY_STATS });
-  const [statsBySource, setStatsBySource] = useState<StatsBySource>({ cold: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
+  const [statsBySource, setStatsBySource] = useState<StatsBySource>({ alpha: { ...EMPTY_STATS }, sarah: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
   const [tempStages, setTempStages] = useState<TempStages>({});
   const [live, setLive]     = useState<LiveCall[]>([]);
   const [callsToday, setCallsToday] = useState(0);
@@ -133,7 +133,7 @@ export function useLeads(refreshKey: number) {
         });
         setLeads(merged);
         setStats(leadResp.stats || { ...EMPTY_STATS, total: merged.length });
-        setStatsBySource(leadResp.statsBySource || { cold: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
+        setStatsBySource(leadResp.statsBySource || { alpha: { ...EMPTY_STATS }, sarah: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
         setTempStages(leadResp.tempStages || {});
         setError(null);
       }
