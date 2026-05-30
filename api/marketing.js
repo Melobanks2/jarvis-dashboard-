@@ -11,12 +11,15 @@ module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
 
-  const sb = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://afwdfyofjcpbyydbxntr.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY
-  );
-
   try {
+    // createClient throws "supabaseKey is required" when the anon key env var
+    // is unset on this environment — keep it inside the try so we fall through
+    // to the zeroed payload instead of an uncaught 500.
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://afwdfyofjcpbyydbxntr.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY
+    );
+
     const now       = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const weekStart  = new Date(Date.now() - 7 * 86400000).toISOString();
