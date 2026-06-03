@@ -6,7 +6,7 @@ import {
   Phone, PhoneOff, Upload, Play, Pause, Square,
   Flame, Snowflake, AlertCircle, RotateCcw,
   MapPin, FileText, Clock, TrendingUp,
-  Bot, Radio, Target, X,
+  Bot, Radio, Target, X, CheckCircle,
 } from 'lucide-react';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -34,6 +34,17 @@ interface Lane {
   started_at: string | null;
   ended_at: string | null;
   amd_result: string | null;
+  attempt_count?: number;
+  max_attempts?: number;
+}
+
+interface Progress {
+  cursor: number;
+  total_leads: number;
+  completed: number;
+  remaining: number;
+  batch_index?: number;
+  lanes_done?: number;
 }
 
 interface Stats { callsMade: number; contacted: number; hot: number; totalSeconds: number }
@@ -116,6 +127,11 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
     : 0;
   const pulsing = lane.state === 'ringing' || lane.state === 'connected';
 
+  // Show retry indicator if applicable
+  const retryInfo = lane.state === 'no_answer' && lane.attempt_count && lane.max_attempts
+    ? `${lane.attempt_count}/${lane.max_attempts}`
+    : null;
+
   return (
     <motion.div
       layout
@@ -142,6 +158,11 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
           <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color }}>
             Line {lane.idx + 1}
           </span>
+          {retryInfo && (
+            <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: `${color}22`, color }}>
+              {retryInfo}
+            </span>
+          )}
         </div>
         <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#8888aa' }}>
           {LANE_LABEL[lane.state]}
@@ -302,6 +323,43 @@ function GoalBar({ value, target }: { value: number; target: number }) {
   );
 }
 
+// Progress bar for dialer progress
+function DialerProgress({ progress }: { progress: Progress }) {
+  const { cursor, total_leads, completed, remaining } = progress;
+  const pct = total_leads > 0 ? (completed / total_leads) * 100 : 0;
+
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-2"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CheckCircle size={12} style={{ color: '#00e5ff' }} />
+          <span className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
+            Progress
+          </span>
+        </div>
+        <span className="font-orbitron text-[11px]" style={{ color: '#e8e8f0' }}>
+          {completed} / {total_leads} completed
+        </span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: 'linear-gradient(90deg, #00e5ff, #00f0ff)' }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-[9px]" style={{ color: '#52526e' }}>
+        <span>{remaining} remaining</span>
+        <span>Batch {Math.floor(cursor / LANE_COUNT) + 1}</span>
+      </div>
+    </div>
+  );
+}
+
 function SummaryModal({
   open, onClose, summary,
 }: { open: boolean; onClose: () => void; summary: { calls: number; contacted: number; hot: number; talk: number; session: number } | null }) {
@@ -365,6 +423,9 @@ export function MultiDialer() {
   const [winnerLane,  setWinnerLane]  = useState<number | null>(null);
   const [activeLead,  setActiveLead]  = useState<Lead | null>(null);
 
+  // Progress tracking from backend
+  const [progress, setProgress] = useState<Progress>({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
+
   // Clock (drives lane timers without re-polling)
   const [now, setNow] = useState(Date.now());
 
@@ -379,12 +440,18 @@ export function MultiDialer() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Mirrors of cursor + dialNextBatch so the memoized status poll (deps: [])
+  // can advance batches with fresh values instead of stale-closure ones.
+  const cursorRef = useRef(0);
+  const dialNextBatchRef = useRef<(fromCursor: number) => void>(() => {});
 
   // ── Wall clock for live timers ──────────────────────────────────────────────
   useEffect(() => {
     clockRef.current = setInterval(() => setNow(Date.now()), 500);
     return () => { if (clockRef.current) clearInterval(clockRef.current); };
   }, []);
+
+  useEffect(() => { cursorRef.current = cursor; }, [cursor]);
 
   // ── Poll backend status ────────────────────────────────────────────────────
   const startPolling = useCallback((sid: string) => {
@@ -398,6 +465,7 @@ export function MultiDialer() {
         if (Array.isArray(data.lanes) && data.lanes.length === LANE_COUNT) setLanes(data.lanes);
         if (data.david) { setDavidStatus(data.david.state); setDavidLane(data.david.lane ?? null); }
         setWinnerLane(data.winner_lane ?? null);
+        if (data.progress) setProgress(data.progress);
 
         if (data.status === 'connecting' && data.answered_lead) {
           setActiveLead(data.answered_lead);
@@ -408,12 +476,23 @@ export function MultiDialer() {
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
         if (data.status === 'ended') {
-          setDialerState('disposition');
-          setStats(s => ({
-            ...s,
-            contacted: data.totals?.contacted_count ?? s.contacted,
-          }));
           clearInterval(pollRef.current!); pollRef.current = null;
+          if (data.answered_lead) {
+            // A human was reached — collect a disposition before advancing.
+            setDialerState('disposition');
+            setStats(s => ({
+              ...s,
+              contacted: data.totals?.contacted_count ?? s.contacted,
+            }));
+          } else {
+            // No human answered this batch — nothing to disposition. Advance
+            // straight to the next batch. dialNextBatch guards end-of-list and
+            // flips to 'idle' when the cursor runs past the last lead.
+            const nextCursor = cursorRef.current + LANE_COUNT;
+            setCursor(nextCursor);
+            setActiveLead(null);
+            setTimeout(() => dialNextBatchRef.current(nextCursor), 600);
+          }
         }
       } catch { /* swallow */ }
     }, 1500);
@@ -423,14 +502,41 @@ export function MultiDialer() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
+  // ── Load progress from last session on mount ───────────────────────────────
+  useEffect(() => {
+    // Try to restore progress from any active session
+    if (sessionId) {
+      fetch(`${API_BASE}/dialer/progress?sessionId=${sessionId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.cursor != null) {
+            setProgress({
+              cursor: data.cursor,
+              total_leads: data.total_leads || 0,
+              completed: data.completed || 0,
+              remaining: data.remaining || 0,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [sessionId]);
+
   // ── CSV upload ─────────────────────────────────────────────────────────────
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      setLeads(parseCSV(ev.target?.result as string));
+      const newLeads = parseCSV(ev.target?.result as string);
+      setLeads(newLeads);
       setCursor(0);
+      setProgress({
+        cursor: 0,
+        total_leads: newLeads.length,
+        completed: 0,
+        remaining: newLeads.length,
+      });
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -452,11 +558,20 @@ export function MultiDialer() {
     setDialerState('dialing');
     setStats(s => ({ ...s, callsMade: s.callsMade + batch.length }));
 
+    // Update progress state for new batch
+    setProgress({
+      cursor: fromCursor,
+      total_leads: leads.length,
+      completed: fromCursor,
+      remaining: leads.length - fromCursor,
+      batch_index: Math.floor(fromCursor / LANE_COUNT),
+    });
+
     try {
       const r = await fetch(`${API_BASE}/dialer/call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sid, leads: batch }),
+        body: JSON.stringify({ sessionId: sid, leads: batch, cursor: fromCursor, totalLeads: leads.length }),
       });
       if (!r.ok) {
         console.error('dial failed', await r.text());
@@ -469,6 +584,9 @@ export function MultiDialer() {
       setDialerState('idle');
     }
   }, [leads, startPolling]);
+
+  // Keep the ref pointed at the latest dialNextBatch for the status poll.
+  useEffect(() => { dialNextBatchRef.current = dialNextBatch; }, [dialNextBatch]);
 
   // ── Controls ───────────────────────────────────────────────────────────────
   const handleStart = useCallback(() => {
@@ -513,6 +631,7 @@ export function MultiDialer() {
 
     setCursor(0);
     setActiveLead(null);
+    setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
   }, [stopPolling, sessionId, stats]);
 
   // ── Disposition ────────────────────────────────────────────────────────────
@@ -541,6 +660,15 @@ export function MultiDialer() {
     const nextCursor = cursor + LANE_COUNT;
     setCursor(nextCursor);
     setActiveLead(null);
+
+    // Update progress
+    setProgress({
+      cursor: nextCursor,
+      total_leads: leads.length,
+      completed: nextCursor,
+      remaining: leads.length - nextCursor,
+      batch_index: Math.floor(nextCursor / LANE_COUNT),
+    });
 
     if (nextCursor < leads.length) {
       setTimeout(() => dialNextBatch(nextCursor), 400);
@@ -597,6 +725,11 @@ export function MultiDialer() {
         <StatCard label="Conv. Rate" value={`${conv}%`}      color="#a78bfa"
           sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
       </div>
+
+      {/* Dialer progress bar */}
+      {progress.total_leads > 0 && (
+        <DialerProgress progress={progress} />
+      )}
 
       {/* Goal bar */}
       <GoalBar value={stats.callsMade} target={DAILY_GOAL} />
@@ -724,32 +857,33 @@ export function MultiDialer() {
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
         >
           <div className="text-[9px] font-orbitron tracking-[1.5px] uppercase mb-3" style={{ color: '#52526e' }}>
-            Queue — {remaining} remaining
+            Queue — {progress.remaining} remaining
           </div>
           <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
             {leads.slice(cursor, cursor + 20).map((lead, i) => {
               const absIdx = cursor + i;
               const isCurrentBatch = dialerState !== 'idle' && i < LANE_COUNT;
+              const isCompleted = absIdx < progress.completed;
               return (
                 <div
                   key={absIdx}
                   className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
                   style={{
                     background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
-                    borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : '2px solid transparent',
+                    borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
                   }}
                 >
-                  <div className="text-[9px] w-4" style={{ color: '#3a3a52' }}>{absIdx + 1}</div>
-                  <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : '#52526e' }}>
+                  <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
+                  <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : isCompleted ? '#52526e' : '#52526e' }}>
                     {lead.name}
                   </div>
                   <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
                 </div>
               );
             })}
-            {remaining > 20 && (
+            {progress.remaining > 20 && (
               <div className="text-[9px] text-center pt-1" style={{ color: '#3a3a52' }}>
-                +{remaining - 20} more
+                +{progress.remaining - 20} more
               </div>
             )}
           </div>
