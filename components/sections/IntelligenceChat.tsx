@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -406,6 +406,32 @@ async function cacheVisual(text: string) {
     );
 }
 
+// ── Model selector + context limits ───────────────────────────────────────────
+
+const MODEL_OPTIONS = [
+  { label: 'Gemini 2.5 Flash', value: 'gemini-flash' },
+  { label: 'Gemini 2.5 Pro', value: 'gemini-pro' },
+  { label: 'DeepSeek', value: 'deepseek' },
+  { label: 'Groq Llama', value: 'groq' },
+  { label: 'OpenRouter', value: 'openrouter' },
+] as const;
+
+type ModelValue = (typeof MODEL_OPTIONS)[number]['value'];
+
+const MODEL_MAX_CONTEXT: Record<ModelValue, number> = {
+  'gemini-flash': 1_000_000,
+  'gemini-pro': 1_000_000,
+  deepseek: 128_000,
+  groq: 128_000,
+  openrouter: 128_000,
+};
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return String(n);
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function IntelligenceChat() {
@@ -420,10 +446,20 @@ export function IntelligenceChat() {
   const [queueOpen, setQueueOpen]         = useState(false);
   const [copiedId, setCopiedId]           = useState<string | null>(null);
   const [modalCopied, setModalCopied]     = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelValue>('gemini-flash');
 
   const sessionId      = useRef(Math.random().toString(36).slice(2));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
+
+  const estimatedTokens = useMemo(() => {
+    const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
+    return Math.ceil(totalChars / 4);
+  }, [messages]);
+
+  const maxContext = MODEL_MAX_CONTEXT[selectedModel];
+  const contextPercent = Math.min(100, (estimatedTokens / maxContext) * 100);
+  const contextBarColor = contextPercent >= 90 ? '#f87171' : contextPercent >= 70 ? '#fcd34d' : '#a78bfa';
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -543,7 +579,7 @@ export function IntelligenceChat() {
       }
       diag.url = `${chatUrl}/api/chat`;
       const reqBody = {
-        model: 'qwen2.5-coder:14b',
+        model: selectedModel,
         stream: false,
         options: { num_gpu: 99, num_ctx: 8192 },
         messages: [
@@ -625,7 +661,7 @@ export function IntelligenceChat() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, memoryRows]);
+  }, [input, loading, messages, memoryRows, selectedModel]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -826,9 +862,60 @@ export function IntelligenceChat() {
 
       {/* Input bar */}
       <div
-        className="flex-shrink-0 flex items-end gap-3 px-4 py-3"
+        className="flex-shrink-0 px-4 py-3"
         style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.6)' }}
       >
+        {/* Context meter */}
+        <div className="mb-2.5">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-[10px]" style={{ color: '#52526e' }}>
+              Context
+            </span>
+            <span className="text-[10px] tabular-nums" style={{ color: '#8e8ea0' }}>
+              {contextPercent < 0.1 && estimatedTokens === 0
+                ? '0% full — ~0 tokens / ' + formatTokenCount(maxContext)
+                : `${contextPercent < 1 ? '<1' : Math.round(contextPercent)}% full — ~${formatTokenCount(estimatedTokens)} / ${formatTokenCount(maxContext)}`}
+            </span>
+          </div>
+          <div
+            className="h-1 rounded-full overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.max(contextPercent > 0 ? 1 : 0, contextPercent)}%`,
+                background: contextBarColor,
+                opacity: estimatedTokens === 0 ? 0.35 : 1,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-end gap-3">
+          <select
+            value={selectedModel}
+            onChange={e => setSelectedModel(e.target.value as ModelValue)}
+            className="flex-shrink-0 rounded-xl px-3 py-3 text-[11px] font-medium outline-none cursor-pointer appearance-none"
+            style={{
+              background: 'rgba(83,74,183,0.12)',
+              border: '1px solid rgba(83,74,183,0.25)',
+              color: '#a89ef5',
+              minHeight: 44,
+              maxWidth: 148,
+              paddingRight: 28,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a89ef5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 10px center',
+            }}
+            title="Select model"
+          >
+            {MODEL_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value} style={{ background: '#0e0f18', color: '#c4c4d6' }}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         <textarea
           ref={textareaRef}
           value={input}
@@ -863,6 +950,7 @@ export function IntelligenceChat() {
         >
           <Send size={15} />
         </motion.button>
+        </div>
       </div>
 
       {/* Push Modal */}
