@@ -1,0 +1,32 @@
+{
+  "name": "asaparv-agent",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "form-data": "^4.0.5",
+    "googleapis": "^171.4.0",
+    "imapflow": "^1.2.13",
+    "localtunnel": "^2.0.2",
+    "multer": "^2.1.1",
+    "ngrok": "^5.0.0-beta.2",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "playwright": "^1.58.2",
+    "playwright-extra": "^4.3.6",
+    "playwright-stealth": "^0.0.1",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "telnyx": "^6.15.0",
+    "twilio": "^5.12.2"
+  }
+}

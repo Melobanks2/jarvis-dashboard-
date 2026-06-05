@@ -1,0 +1,11 @@
+.env
+node_modules/
+*.mp3
+# Exclude generated audio except the pre-built phrase library
+*.wav
+!audio/*.wav
+data/
+config/
+dealmachine-cookies.json
+__pycache__/
+*.pyc
