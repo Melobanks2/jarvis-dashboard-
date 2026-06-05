@@ -1227,88 +1227,125 @@ export function IntelligenceChat() {
         </button>
       </div>
 
-      {/* ── Settings Panel ──────────────────────────────────────── */}
+      {/* ── Settings Overlay ──────────────────────────────────────── */}
       <AnimatePresence>
         {settingsOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="overflow-hidden flex-shrink-0"
-          >
-            <div
-              className="px-4 py-3 space-y-3"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.4)' }}
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="settings-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSettingsOpen(false)}
+              className="fixed inset-0 z-40"
+              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+            />
+            {/* Slide-in panel */}
+            <motion.div
+              key="settings-panel"
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed top-0 right-0 h-full z-50 flex flex-col"
+              style={{
+                width: 380,
+                maxWidth: '90vw',
+                background: 'rgba(14,15,24,0.98)',
+                borderLeft: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
+              }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <SlidersHorizontal size={12} style={{ color: '#a89ef5' }} />
-                <span className="text-[11px] font-semibold" style={{ color: '#c4c4d6' }}>Settings</span>
-              </div>
-
-              {/* API Key */}
-              <div>
-                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>API Key (optional, for private endpoints)</label>
-                <input
-                  type="password"
-                  value={settings.apiKey}
-                  onChange={e => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                  placeholder="sk-..."
-                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#c4c4d6',
-                  }}
-                />
-              </div>
-
-              {/* System Prompt */}
-              <div>
-                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>Custom System Prompt (append to default)</label>
-                <textarea
-                  value={settings.systemPrompt}
-                  onChange={e => setSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                  placeholder="Add custom instructions, persona tweaks, or parameters..."
-                  rows={3}
-                  className="w-full resize-none rounded-lg px-3 py-2 text-[11px] outline-none"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#c4c4d6',
-                    lineHeight: '1.5',
-                  }}
-                />
-              </div>
-
-              {/* Voice Selection */}
-              <div>
-                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>TTS Voice</label>
-                <select
-                  value={settings.selectedVoice ?? ''}
-                  onChange={e => setSettings(prev => ({ ...prev, selectedVoice: e.target.value || null }))}
-                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none cursor-pointer"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#c4c4d6',
-                  }}
+              {/* Panel header */}
+              <div
+                className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} style={{ color: '#a89ef5' }} />
+                  <span className="text-[12px] font-semibold" style={{ color: '#c4c4d6' }}>Chat Settings</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(false)}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: '#8e8ea0' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#8e8ea0'; }}
+                  title="Close settings"
                 >
-                  <option value="" style={{ background: '#0e0f18' }}>Auto (premium/enhanced preferred)</option>
-                  {availableVoices
-                    .filter(v => v.lang.startsWith('en'))
-                    .map(v => (
-                      <option key={v.name} value={v.name} style={{ background: '#0e0f18' }}>
-                        {v.name} ({v.lang}){v.localService ? ' [local]' : ''}
-                      </option>
-                    ))}
-                </select>
-                {availableVoices.length === 0 && (
-                  <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>No voices loaded yet — try speaking once to trigger voice detection.</div>
-                )}
+                  <X size={14} />
+                </button>
               </div>
-            </div>
-          </motion.div>
+
+              {/* Scrollable settings body */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+                {/* API Key */}
+                <div>
+                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>API Key (optional, for private endpoints)</label>
+                  <input
+                    type="password"
+                    value={settings.apiKey}
+                    onChange={e => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="sk-..."
+                    className="w-full rounded-lg px-3 py-2.5 text-[11px] outline-none"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#c4c4d6',
+                    }}
+                  />
+                </div>
+
+                {/* System Prompt */}
+                <div>
+                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>Custom System Prompt (append to default)</label>
+                  <textarea
+                    value={settings.systemPrompt}
+                    onChange={e => setSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                    placeholder="Add custom instructions, persona tweaks, or parameters..."
+                    rows={4}
+                    className="w-full resize-none rounded-lg px-3 py-2.5 text-[11px] outline-none"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#c4c4d6',
+                      lineHeight: '1.5',
+                    }}
+                  />
+                </div>
+
+                {/* Voice Selection */}
+                <div>
+                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>TTS Voice</label>
+                  <select
+                    value={settings.selectedVoice ?? ''}
+                    onChange={e => setSettings(prev => ({ ...prev, selectedVoice: e.target.value || null }))}
+                    className="w-full rounded-lg px-3 py-2.5 text-[11px] outline-none cursor-pointer"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#c4c4d6',
+                    }}
+                  >
+                    <option value="" style={{ background: '#0e0f18' }}>Auto (premium/enhanced preferred)</option>
+                    {availableVoices
+                      .filter(v => v.lang.startsWith('en'))
+                      .map(v => (
+                        <option key={v.name} value={v.name} style={{ background: '#0e0f18' }}>
+                          {v.name} ({v.lang}){v.localService ? ' [local]' : ''}
+                        </option>
+                      ))}
+                  </select>
+                  {availableVoices.length === 0 && (
+                    <div className="text-[9px] mt-1.5" style={{ color: '#52526e' }}>No voices loaded yet — try speaking once to trigger voice detection.</div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
