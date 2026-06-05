@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2 } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2, Settings, SlidersHorizontal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
@@ -390,7 +390,25 @@ interface ChatSession {
 
 const LS_SESSIONS = 'jarvis_chat_sessions';
 const LS_CURRENT_SESSION = 'jarvis_current_session';
+const LS_SETTINGS = 'jarvis_chat_settings';
 const MESSAGE_KEY = (sid: string) => `jarvis_chat_messages_${sid}`;
+
+interface ChatSettings {
+  apiKey: string;
+  systemPrompt: string;
+  selectedVoice: string | null;
+}
+
+function loadSettingsFromLS(): ChatSettings {
+  if (typeof window === 'undefined') return { apiKey: '', systemPrompt: '', selectedVoice: null };
+  try { return JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}'); }
+  catch { return { apiKey: '', systemPrompt: '', selectedVoice: null }; }
+}
+function saveSettingsToLS(s: ChatSettings) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); }
+  catch { /* quota / private mode — ignore */ }
+}
 
 function loadSessionsFromLS(): ChatSession[] {
   if (typeof window === 'undefined') return [];
@@ -539,6 +557,14 @@ export function IntelligenceChat() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
+  // ── Settings state ──────────────────────────────────────────
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<ChatSettings>(() => {
+    const loaded = loadSettingsFromLS();
+    return { apiKey: loaded.apiKey ?? '', systemPrompt: loaded.systemPrompt ?? '', selectedVoice: loaded.selectedVoice ?? null };
+  });
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
   const sessionIdRef    = useRef(activeSessionId);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
   const textareaRef     = useRef<HTMLTextAreaElement>(null);
@@ -551,6 +577,25 @@ export function IntelligenceChat() {
   useEffect(() => {
     return () => { stopSpeaking(); };
   }, []);
+
+  // ── Load available TTS voices ────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const loadVoices = () => {
+      try {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) setAvailableVoices(voices);
+      } catch { /* ignore */ }
+    };
+    loadVoices();
+    try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch { /* ignore */ }
+    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch { /* ignore */ } };
+  }, []);
+
+  // ── Persist settings to localStorage ─────────────────────────────────
+  useEffect(() => {
+    saveSettingsToLS(settings);
+  }, [settings]);
 
   const estimatedTokens = useMemo(() => {
     const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
@@ -953,9 +998,26 @@ export function IntelligenceChat() {
       rec.lang = 'en-US';
       rec.onresult = (event: any) => {
         try {
-          const transcript: string = event?.results?.[0]?.[0]?.transcript ?? '';
-          if (transcript) {
-            setInput(prev => (prev ? prev + ' ' : '') + transcript.trim());
+          // Handle all result entries (both interim and final)
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript: string = event.results[i]?.[0]?.transcript ?? '';
+            if (transcript) {
+              const isFinal = event.results[i].isFinal;
+              if (isFinal) {
+                // Final result: append to input
+                setInput(prev => (prev ? prev + ' ' : '') + transcript.trim());
+              } else {
+                // Interim result: show in input with visual cue
+                const interimText = transcript.trim();
+                if (interimText) {
+                  setInput(prev => {
+                    // Remove any previous interim text (denoted by trailing ⌘)
+                    const base = prev.endsWith(' ⌘') ? prev.slice(0, -2) : prev;
+                    return base + (base ? ' ' : '') + interimText + ' ⌘';
+                  });
+                }
+              }
+            }
           }
         } catch { /* ignore */ }
       };
@@ -978,6 +1040,29 @@ export function IntelligenceChat() {
       setIsListening(false);
     }
   }, [isListening]);
+
+  // ── Pick best voice: user-selected > premium/enhanced > system default ──
+  const pickBestVoice = useCallback(() => {
+    const voices = availableVoices.length > 0 ? availableVoices : ('speechSynthesis' in window ? window.speechSynthesis.getVoices() : []);
+    if (voices.length === 0) return null;
+    // 1) If user selected a specific voice, use it
+    if (settings.selectedVoice) {
+      const found = voices.find(v => v.name === settings.selectedVoice || v.voiceURI === settings.selectedVoice);
+      if (found) return found;
+    }
+    // 2) Look for premium / enhanced English voices
+    const premium = voices.find(v =>
+      v.lang.startsWith('en') && (
+        v.name.toLowerCase().includes('premium') ||
+        v.name.toLowerCase().includes('enhanced') ||
+        v.name.toLowerCase().includes('natural')
+      )
+    );
+    if (premium) return premium;
+    // 3) Prefer English voices
+    const en = voices.find(v => v.lang.startsWith('en'));
+    return en || voices[0] || null;
+  }, [availableVoices, settings.selectedVoice]);
 
   const speakMessage = useCallback((msg: ChatMessage) => {
     if (!msg || msg.role !== 'assistant') return;
@@ -1006,6 +1091,11 @@ export function IntelligenceChat() {
       const utt = new SpeechSynthesisUtterance(plain);
       utt.rate = 1.0;
       utt.pitch = 1.0;
+      // Use best available voice
+      try {
+        const voice = pickBestVoice();
+        if (voice) utt.voice = voice;
+      } catch { /* ignore — use default */ }
       utt.onend = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
       utt.onerror = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
       setSpeakingMsgId(msg.id || null);
@@ -1018,11 +1108,11 @@ export function IntelligenceChat() {
       setSpeakingMsgId(null);
       setVoiceError('Text-to-speech not available.');
     }
-  }, [speakingMsgId]);
+  }, [speakingMsgId, pickBestVoice]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Session header — New Chat + saved-sessions dropdown */}
+      {/* Session header — New Chat + saved-sessions dropdown + Settings */}
       <div
         className="flex-shrink-0 flex items-center gap-2 px-3 py-2"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.6)' }}
@@ -1121,7 +1211,106 @@ export function IntelligenceChat() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Settings gear icon */}
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(v => !v)}
+          className="flex-shrink-0 p-1.5 rounded-lg transition-colors"
+          style={{
+            color: settingsOpen ? '#a89ef5' : '#52526e',
+            background: settingsOpen ? 'rgba(83,74,183,0.15)' : 'transparent',
+          }}
+          title="Settings"
+        >
+          <Settings size={14} />
+        </button>
       </div>
+
+      {/* ── Settings Panel ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {settingsOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden flex-shrink-0"
+          >
+            <div
+              className="px-4 py-3 space-y-3"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.4)' }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <SlidersHorizontal size={12} style={{ color: '#a89ef5' }} />
+                <span className="text-[11px] font-semibold" style={{ color: '#c4c4d6' }}>Settings</span>
+              </div>
+
+              {/* API Key */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>API Key (optional, for private endpoints)</label>
+                <input
+                  type="password"
+                  value={settings.apiKey}
+                  onChange={e => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                  }}
+                />
+              </div>
+
+              {/* System Prompt */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>Custom System Prompt (append to default)</label>
+                <textarea
+                  value={settings.systemPrompt}
+                  onChange={e => setSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                  placeholder="Add custom instructions, persona tweaks, or parameters..."
+                  rows={3}
+                  className="w-full resize-none rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                    lineHeight: '1.5',
+                  }}
+                />
+              </div>
+
+              {/* Voice Selection */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>TTS Voice</label>
+                <select
+                  value={settings.selectedVoice ?? ''}
+                  onChange={e => setSettings(prev => ({ ...prev, selectedVoice: e.target.value || null }))}
+                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none cursor-pointer"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                  }}
+                >
+                  <option value="" style={{ background: '#0e0f18' }}>Auto (premium/enhanced preferred)</option>
+                  {availableVoices
+                    .filter(v => v.lang.startsWith('en'))
+                    .map(v => (
+                      <option key={v.name} value={v.name} style={{ background: '#0e0f18' }}>
+                        {v.name} ({v.lang}){v.localService ? ' [local]' : ''}
+                      </option>
+                    ))}
+                </select>
+                {availableVoices.length === 0 && (
+                  <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>No voices loaded yet — try speaking once to trigger voice detection.</div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Voice error toast */}
       {voiceError && (
