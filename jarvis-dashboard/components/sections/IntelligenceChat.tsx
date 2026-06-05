@@ -1008,7 +1008,7 @@ export function IntelligenceChat() {
       utt.pitch = 1.0;
       utt.onend = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
       utt.onerror = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
-      setSpeakingMsgId(msg.id);
+      setSpeakingMsgId(msg.id || null);
       try { window.speechSynthesis.speak(utt); }
       catch (e) {
         setSpeakingMsgId(null);
