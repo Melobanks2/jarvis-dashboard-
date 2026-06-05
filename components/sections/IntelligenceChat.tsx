@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Settings, Eye, EyeOff } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
@@ -406,30 +406,231 @@ async function cacheVisual(text: string) {
     );
 }
 
+// ── Provider + model constants ─────────────────────────────────────────────────
+
+type Provider = 'openrouter' | 'gemini' | 'anthropic' | 'groq' | 'deepseek';
+
+const PROVIDER_LABELS: Record<Provider, string> = {
+  openrouter: 'OpenRouter — All Models',
+  gemini: 'Gemini',
+  anthropic: 'Anthropic / Claude',
+  groq: 'Groq',
+  deepseek: 'DeepSeek',
+};
+
+const PROVIDER_MODELS: Record<Provider, string[]> = {
+  openrouter: ['openrouter/auto', 'anthropic/claude-sonnet-4-5', 'google/gemini-2.5-flash', 'deepseek/deepseek-chat', 'meta-llama/llama-3.3-70b-instruct', 'mistralai/mistral-large'],
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-6'],
+  groq: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+};
+
+const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  'openrouter/auto':                      128_000,
+  'anthropic/claude-sonnet-4-5':          200_000,
+  'google/gemini-2.5-flash':            1_000_000,
+  'deepseek/deepseek-chat':               64_000,
+  'meta-llama/llama-3.3-70b-instruct':   128_000,
+  'mistralai/mistral-large':             128_000,
+  'gemini-2.5-flash':                  1_000_000,
+  'gemini-2.5-pro':                    2_000_000,
+  'claude-sonnet-4-6':                   200_000,
+  'claude-opus-4-6':                     200_000,
+  'llama-3.3-70b-versatile':             128_000,
+  'mixtral-8x7b-32768':                   32_000,
+  'deepseek-chat':                        64_000,
+  'deepseek-reasoner':                    64_000,
+};
+
 // ── Model selector + context limits ───────────────────────────────────────────
 
 const MODEL_OPTIONS = [
   { label: 'Gemini 2.5 Flash', value: 'gemini-flash' },
-  { label: 'Gemini 2.5 Pro', value: 'gemini-pro' },
-  { label: 'DeepSeek', value: 'deepseek' },
-  { label: 'Groq Llama', value: 'groq' },
-  { label: 'OpenRouter', value: 'openrouter' },
+  { label: 'Gemini 2.5 Pro',   value: 'gemini-pro' },
+  { label: 'DeepSeek',          value: 'deepseek' },
+  { label: 'Groq Llama',        value: 'groq' },
+  { label: 'OpenRouter',        value: 'openrouter' },
+  { label: 'Anthropic',         value: 'anthropic' },
 ] as const;
 
 type ModelValue = (typeof MODEL_OPTIONS)[number]['value'];
 
+// Maps the quick-select dropdown value → { provider, default model ID }
+const MODEL_VALUE_MAP: Record<ModelValue, { provider: Provider; defaultModel: string }> = {
+  'gemini-flash': { provider: 'gemini',     defaultModel: 'gemini-2.5-flash' },
+  'gemini-pro':   { provider: 'gemini',     defaultModel: 'gemini-2.5-pro' },
+  deepseek:       { provider: 'deepseek',   defaultModel: 'deepseek-chat' },
+  groq:           { provider: 'groq',       defaultModel: 'llama-3.3-70b-versatile' },
+  openrouter:     { provider: 'openrouter', defaultModel: 'openrouter/auto' },
+  anthropic:      { provider: 'anthropic',  defaultModel: 'claude-sonnet-4-6' },
+};
+
 const MODEL_MAX_CONTEXT: Record<ModelValue, number> = {
   'gemini-flash': 1_000_000,
-  'gemini-pro': 1_000_000,
-  deepseek: 128_000,
-  groq: 128_000,
-  openrouter: 128_000,
+  'gemini-pro':   2_000_000,
+  deepseek:         64_000,
+  groq:            128_000,
+  openrouter:      128_000,
+  anthropic:       200_000,
 };
 
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
   return String(n);
+}
+
+// ── Settings localStorage helpers ────────────────────────────────────────────
+
+interface ApiKeys { openrouter: string; gemini: string; anthropic: string; groq: string; deepseek: string; }
+interface ChatSettings {
+  selectedModels: Partial<Record<Provider, string>>;
+  temperature: number;
+  responseStyle: 'concise' | 'balanced' | 'detailed';
+}
+
+const EMPTY_KEYS: ApiKeys = { openrouter: '', gemini: '', anthropic: '', groq: '', deepseek: '' };
+const DEFAULT_CHAT_SETTINGS: ChatSettings = { selectedModels: {}, temperature: 0.7, responseStyle: 'balanced' };
+
+function getStoredApiKeys(): ApiKeys {
+  if (typeof window === 'undefined') return EMPTY_KEYS;
+  try { return { ...EMPTY_KEYS, ...JSON.parse(localStorage.getItem('jarvis_api_keys') || '{}') }; }
+  catch { return EMPTY_KEYS; }
+}
+
+function getStoredChatSettings(): ChatSettings {
+  if (typeof window === 'undefined') return DEFAULT_CHAT_SETTINGS;
+  try { return { ...DEFAULT_CHAT_SETTINGS, ...JSON.parse(localStorage.getItem('jarvis_chat_settings') || '{}') }; }
+  catch { return DEFAULT_CHAT_SETTINGS; }
+}
+
+// ── Streaming helpers ─────────────────────────────────────────────────────────
+
+async function* streamOpenAICompat(
+  url: string,
+  headers: Record<string, string>,
+  body: object,
+): AsyncGenerator<string> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') return;
+      try {
+        const parsed = JSON.parse(data);
+        const token: string | undefined = parsed.choices?.[0]?.delta?.content;
+        if (token) yield token;
+      } catch { /* partial chunk */ }
+    }
+  }
+}
+
+async function* streamGemini(
+  model: string,
+  apiKey: string,
+  messages: { role: string; content: string }[],
+  systemPrompt: string,
+  temperature: number,
+): AsyncGenerator<string> {
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { temperature },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gemini ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (!data) continue;
+      try {
+        const parsed = JSON.parse(data);
+        const token: string | undefined = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (token) yield token;
+      } catch { /* partial */ }
+    }
+  }
+}
+
+async function* streamAnthropic(
+  model: string,
+  apiKey: string,
+  messages: { role: string; content: string }[],
+  systemPrompt: string,
+  temperature: number,
+): AsyncGenerator<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+      'x-api-key': apiKey,
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({ model, max_tokens: 8096, system: systemPrompt, messages, temperature, stream: true }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Anthropic ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+          yield parsed.delta.text as string;
+        }
+      } catch { /* partial */ }
+    }
+  }
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -447,6 +648,7 @@ export function IntelligenceChat() {
   const [copiedId, setCopiedId]           = useState<string | null>(null);
   const [modalCopied, setModalCopied]     = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelValue>('gemini-flash');
+  const [settingsOpen, setSettingsOpen]   = useState(false);
 
   const sessionId      = useRef(Math.random().toString(36).slice(2));
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -459,7 +661,7 @@ export function IntelligenceChat() {
 
   const maxContext = MODEL_MAX_CONTEXT[selectedModel];
   const contextPercent = Math.min(100, (estimatedTokens / maxContext) * 100);
-  const contextBarColor = contextPercent >= 90 ? '#f87171' : contextPercent >= 70 ? '#fcd34d' : '#a78bfa';
+  const contextBarColor = contextPercent >= 80 ? '#f87171' : contextPercent >= 50 ? '#fcd34d' : '#4ade80';
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -562,102 +764,97 @@ export function IntelligenceChat() {
         }
       });
 
-    // Captured progressively so we can attach to the error message if the chat fails.
-    const diag: Partial<ChatDiagnostics> = {
-      ts: new Date().toISOString(),
-      method: 'POST',
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
-    };
-
     try {
       const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
-      const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
-      const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
-      if (!chatUrl || !chatSecret) {
-        diag.url = '<unset>';
-        throw new Error('Chat backend not configured (NEXT_PUBLIC_THUNDER_CHAT_URL / NEXT_PUBLIC_THUNDER_CHAT_SECRET missing)');
+
+      // Resolve provider + model + key from localStorage
+      const { provider, defaultModel } = MODEL_VALUE_MAP[selectedModel];
+      const keys = getStoredApiKeys();
+      const settings = getStoredChatSettings();
+      const apiKey = keys[provider];
+      const modelId = settings.selectedModels[provider] ?? defaultModel;
+
+      if (!apiKey) {
+        setMessages(prev => [...prev, {
+          id: `err-${Date.now()}`,
+          role: 'assistant' as const,
+          content: `**No API key set** — open Settings (⚙ gear icon above) to add a key for **${PROVIDER_LABELS[provider]}**.`,
+          created_at: new Date().toISOString(),
+        }]);
+        return;
       }
-      diag.url = `${chatUrl}/api/chat`;
-      const reqBody = {
-        model: selectedModel,
-        stream: false,
-        options: { num_gpu: 99, num_ctx: 8192 },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...apiMessages,
-        ],
-      };
-      diag.requestBodyExcerpt = JSON.stringify(reqBody).slice(0, 800);
-      const res = await fetch(diag.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Chat-Secret': chatSecret },
-        body: JSON.stringify(reqBody),
-      });
 
-      diag.status = res.status;
-      diag.statusText = res.statusText;
-      diag.responseHeaders = Object.fromEntries(res.headers);
-      const rawText = await res.text();
-      diag.responseBodyExcerpt = rawText.slice(0, 800);
-      let data: { error?: string; message?: { content?: string } } = {};
-      try { data = JSON.parse(rawText); } catch {
-        throw new Error(`Non-JSON response (status ${res.status}). First 200 chars: ${rawText.slice(0, 200)}`);
+      // Add streaming placeholder bubble
+      const streamId = `streaming-${Date.now()}`;
+      setMessages(prev => [...prev, {
+        id: streamId,
+        role: 'assistant' as const,
+        content: '',
+        created_at: new Date().toISOString(),
+      }]);
+
+      let fullContent = '';
+      const temperature = settings.temperature;
+
+      // Route to the correct streaming function
+      let gen: AsyncGenerator<string>;
+      if (provider === 'gemini') {
+        gen = streamGemini(modelId, apiKey, apiMessages, systemPrompt, temperature);
+      } else if (provider === 'anthropic') {
+        gen = streamAnthropic(modelId, apiKey, apiMessages, systemPrompt, temperature);
+      } else {
+        const urlMap: Record<string, string> = {
+          openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+          groq:       'https://api.groq.com/openai/v1/chat/completions',
+          deepseek:   'https://api.deepseek.com/v1/chat/completions',
+        };
+        gen = streamOpenAICompat(
+          urlMap[provider],
+          { Authorization: `Bearer ${apiKey}` },
+          {
+            model: modelId,
+            messages: [{ role: 'system', content: systemPrompt }, ...apiMessages],
+            temperature,
+            stream: true,
+          },
+        );
       }
-      if (!res.ok) throw new Error(data.error || `Proxy returned status ${res.status}`);
 
-      const content: string = data.message?.content ?? '';
+      // Stream tokens into the bubble in real time
+      for await (const token of gen) {
+        fullContent += token;
+        setMessages(prev => prev.map(m =>
+          m.id === streamId ? { ...m, content: fullContent } : m,
+        ));
+      }
 
-      // Save assistant message
+      // Persist final message to Supabase
       const { data: savedAssistant } = await supabase
         .from('jarvis_chat_messages')
         .insert({
           role: 'assistant',
-          content,
+          content: fullContent,
           session_id: sessionId.current,
-          has_visual: /<svg/i.test(content),
+          has_visual: /<svg/i.test(fullContent),
         })
         .select()
         .single();
 
-      const assistantMsg = (savedAssistant ?? {
-        id: `tmp-a-${Date.now()}`,
-        role: 'assistant' as const,
-        content,
-        created_at: new Date().toISOString(),
-      }) as ChatMessage;
-
-      setMessages(prev => [...prev, assistantMsg]);
-
-      // Background: parse memory + cache visuals
-      parseMemoryUpdates(content, setMemoryRows);
-      if (/<svg/i.test(content)) cacheVisual(content);
-    } catch (err: unknown) {
-      diag.errorMessage = err instanceof Error ? err.message : String(err);
-      // Fetch current proxy status as part of the diagnostic snapshot (best effort).
-      try {
-        const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
-        const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
-        if (chatUrl && chatSecret) {
-          const statusRes = await fetch(`${chatUrl}/api/status`, {
-            headers: { 'X-Chat-Secret': chatSecret },
-          });
-          diag.proxyStatus = statusRes.ok ? await statusRes.json() : { _http: statusRes.status };
-        } else {
-          diag.proxyStatus = { _note: 'env vars unset' };
-        }
-      } catch (statusErr) {
-        diag.proxyStatus = { _fetchError: String(statusErr) };
+      if (savedAssistant) {
+        setMessages(prev => prev.map(m =>
+          m.id === streamId ? (savedAssistant as ChatMessage) : m,
+        ));
       }
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          role: 'assistant' as const,
-          content: `**Error:** ${diag.errorMessage}\n\nIf this is the first message after >10 min idle, the GPU is cold-starting (~60-120s). Try again in a moment.\n\n_Click "Push error to Claude Code" below to bundle the network trace into a Claude Code prompt._`,
-          created_at: new Date().toISOString(),
-          diagnostics: diag as ChatDiagnostics,
-        },
-      ]);
+
+      parseMemoryUpdates(fullContent, setMemoryRows);
+      if (/<svg/i.test(fullContent)) cacheVisual(fullContent);
+    } catch (err: unknown) {
+      setMessages(prev => [...prev, {
+        id: `err-${Date.now()}`,
+        role: 'assistant' as const,
+        content: `**Error:** ${err instanceof Error ? err.message : String(err)}`,
+        created_at: new Date().toISOString(),
+      }]);
     } finally {
       setLoading(false);
     }
@@ -735,6 +932,27 @@ export function IntelligenceChat() {
           ⚠️ {tablesError}
         </div>
       )}
+
+      {/* Chat header */}
+      <div
+        className="flex-shrink-0 flex items-center justify-between px-4 py-2"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(11,12,19,0.4)' }}
+      >
+        <div className="flex items-center gap-2">
+          <Brain size={12} style={{ color: '#a78bfa' }} />
+          <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#52526e' }}>Intelligence Chat</span>
+        </div>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-1.5 rounded-lg"
+          title="Settings"
+          style={{ color: '#52526e', background: 'transparent' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#a78bfa'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#52526e'; }}
+        >
+          <Settings size={14} />
+        </button>
+      </div>
 
       {/* Messages area */}
       <div className="flex-1 min-h-0" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '24px 20px', gap: '4px', background: 'transparent' }}>
@@ -965,6 +1183,11 @@ export function IntelligenceChat() {
             onClose={() => setPushModal({ open: false, message: null, mode: 'prompt' })}
           />
         )}
+      </AnimatePresence>
+
+      {/* Settings Panel */}
+      <AnimatePresence>
+        {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       </AnimatePresence>
     </div>
   );
@@ -1264,6 +1487,231 @@ function MessageBubble({
         </div>
       )}
     </motion.div>
+  );
+}
+
+// ── SettingsPanel ─────────────────────────────────────────────────────────────
+
+function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const [keys, setKeys]             = useState<ApiKeys>(() => getStoredApiKeys());
+  const [savedKeys, setSavedKeys]   = useState<Partial<Record<Provider, boolean>>>({});
+  const [showKey, setShowKey]       = useState<Partial<Record<Provider, boolean>>>({});
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => getStoredChatSettings());
+
+  const ALL_PROVIDERS: Provider[] = ['openrouter', 'gemini', 'anthropic', 'groq', 'deepseek'];
+
+  const saveKey = (p: Provider) => {
+    localStorage.setItem('jarvis_api_keys', JSON.stringify(keys));
+    setSavedKeys(prev => ({ ...prev, [p]: true }));
+    setTimeout(() => setSavedKeys(prev => ({ ...prev, [p]: false })), 2000);
+  };
+
+  const updateSettings = (patch: Partial<ChatSettings>) => {
+    const next = { ...chatSettings, ...patch };
+    setChatSettings(next);
+    localStorage.setItem('jarvis_chat_settings', JSON.stringify(next));
+  };
+
+  const updateModel = (p: Provider, model: string) => {
+    const next = { ...chatSettings, selectedModels: { ...chatSettings.selectedModels, [p]: model } };
+    setChatSettings(next);
+    localStorage.setItem('jarvis_chat_settings', JSON.stringify(next));
+  };
+
+  const providersWithKeys = ALL_PROVIDERS.filter(p => keys[p]);
+
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 z-[70]"
+        style={{ background: 'rgba(0,0,0,0.45)' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="fixed top-0 right-0 bottom-0 z-[80] flex flex-col"
+        style={{
+          width: 'min(420px, 100vw)',
+          background: 'rgba(11,12,19,0.98)',
+          backdropFilter: 'blur(24px)',
+          borderLeft: '1px solid rgba(83,74,183,0.25)',
+          boxShadow: '-24px 0 80px rgba(0,0,0,0.6)',
+        }}
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 40 }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Settings size={14} style={{ color: '#a78bfa' }} />
+            <span className="text-[13px] font-semibold" style={{ color: '#c4c4d6' }}>Chat Settings</span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ color: '#52526e' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#c4c4d6'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#52526e'; }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-7">
+
+          {/* ── API Keys ── */}
+          <section>
+            <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#534AB7' }}>
+              API Keys
+            </div>
+            <div className="space-y-3">
+              {ALL_PROVIDERS.map(p => (
+                <div key={p}>
+                  <div className="text-[11px] mb-1.5" style={{ color: '#8e8ea0' }}>{PROVIDER_LABELS[p]}</div>
+                  <div className="flex gap-2">
+                    <div
+                      className="flex-1 flex items-center rounded-lg overflow-hidden"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
+                    >
+                      <input
+                        type={showKey[p] ? 'text' : 'password'}
+                        value={keys[p] || ''}
+                        onChange={e => setKeys(prev => ({ ...prev, [p]: e.target.value }))}
+                        placeholder="sk-..."
+                        className="flex-1 px-3 py-2 text-[12px] font-mono bg-transparent outline-none"
+                        style={{ color: '#c4c4d6' }}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        onClick={() => setShowKey(prev => ({ ...prev, [p]: !prev[p] }))}
+                        className="px-2.5 flex-shrink-0"
+                        style={{ color: '#52526e' }}
+                      >
+                        {showKey[p] ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => saveKey(p)}
+                      className="flex-shrink-0 px-3 py-2 rounded-lg text-[11px] font-medium flex items-center gap-1.5"
+                      style={{
+                        background: savedKeys[p] ? 'rgba(74,222,128,0.15)' : 'rgba(83,74,183,0.2)',
+                        border: `1px solid ${savedKeys[p] ? 'rgba(74,222,128,0.4)' : 'rgba(83,74,183,0.35)'}`,
+                        color: savedKeys[p] ? '#4ade80' : '#a89ef5',
+                      }}
+                    >
+                      {savedKeys[p] ? <Check size={11} /> : null}
+                      {savedKeys[p] ? 'Saved' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Model Selectors ── */}
+          <section>
+            <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#534AB7' }}>
+              Models
+            </div>
+            {providersWithKeys.length === 0 ? (
+              <div className="text-[11px] py-3 text-center" style={{ color: '#52526e' }}>
+                Save an API key above to see model options.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {providersWithKeys.map(p => (
+                  <div key={p}>
+                    <div className="text-[11px] mb-1.5" style={{ color: '#8e8ea0' }}>{PROVIDER_LABELS[p]}</div>
+                    <select
+                      value={chatSettings.selectedModels[p] ?? PROVIDER_MODELS[p][0]}
+                      onChange={e => updateModel(p, e.target.value)}
+                      className="w-full rounded-lg px-3 py-2 text-[12px] outline-none appearance-none"
+                      style={{
+                        background: 'rgba(83,74,183,0.1)',
+                        border: '1px solid rgba(83,74,183,0.25)',
+                        color: '#a89ef5',
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a89ef5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 10px center',
+                        paddingRight: 28,
+                      }}
+                    >
+                      {PROVIDER_MODELS[p].map(m => (
+                        <option key={m} value={m} style={{ background: '#0e0f18', color: '#c4c4d6' }}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Chat Behavior ── */}
+          <section>
+            <div className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: '#534AB7' }}>
+              Chat Behavior
+            </div>
+            <div className="space-y-5">
+              {/* Temperature */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px]" style={{ color: '#8e8ea0' }}>Creativity</span>
+                  <span className="text-[11px] tabular-nums font-medium" style={{ color: '#a89ef5' }}>
+                    {chatSettings.temperature.toFixed(1)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={chatSettings.temperature}
+                  onChange={e => updateSettings({ temperature: parseFloat(e.target.value) })}
+                  className="w-full"
+                  style={{ accentColor: '#a78bfa' }}
+                />
+                <div className="flex justify-between text-[10px] mt-1" style={{ color: '#52526e' }}>
+                  <span>0.0 — Precise</span>
+                  <span>1.0 — Creative</span>
+                </div>
+              </div>
+
+              {/* Response Style */}
+              <div>
+                <div className="text-[11px] mb-2" style={{ color: '#8e8ea0' }}>Response Style</div>
+                <div className="flex gap-2">
+                  {(['concise', 'balanced', 'detailed'] as const).map(style => (
+                    <button
+                      key={style}
+                      onClick={() => updateSettings({ responseStyle: style })}
+                      className="flex-1 py-2 rounded-lg text-[11px] font-medium capitalize"
+                      style={{
+                        background: chatSettings.responseStyle === style
+                          ? 'rgba(83,74,183,0.3)'
+                          : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${chatSettings.responseStyle === style
+                          ? 'rgba(83,74,183,0.55)'
+                          : 'rgba(255,255,255,0.09)'}`,
+                        color: chatSettings.responseStyle === style ? '#a89ef5' : '#52526e',
+                      }}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
