@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Settings, Eye, EyeOff, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2 } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
@@ -689,7 +689,7 @@ export function IntelligenceChat() {
     // Save user message (fire and forget)
     supabase
       .from('jarvis_chat_messages')
-      .insert({ role: 'user', content: text, session_id: sessionId.current })
+      .insert({ role: 'user', content: text, session_id: sessionIdRef.current })
       .select()
       .single()
       .then(({ data }) => {
