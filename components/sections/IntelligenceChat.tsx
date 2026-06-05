@@ -2,13 +2,25 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Settings, Eye, EyeOff, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Highlight, themes as prismThemes } from 'prism-react-renderer';
 import { supabase } from '@/lib/supabase';
+
+// ── Browser-native voice type shims (no external deps) ─────────────────
+// SpeechRecognition is non-standard and missing from lib.dom. We feature-
+// detect at runtime, so we only need a loose 'any' here for TS.
+type AnyRecognition = any;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: AnyRecognition;
+    webkitSpeechRecognition?: AnyRecognition;
+  }
+}
 
 interface ChatMessage {
   id?: string;
@@ -364,6 +376,68 @@ function buildErrorPushPrompt(msg: ChatMessage): string {
 
 // ── Background DB helpers ─────────────────────────────────────────────────────
 
+// ── Session management (localStorage) ─────────────────────────────────
+// Spec: jarvis_chat_sessions holds the list of saved chats, and each chat's
+// messages live in jarvis_chat_messages_{sessionId}. localStorage only — no
+// Supabase / no credits. The component layer mirrors DB writes here.
+
+interface ChatSession {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const LS_SESSIONS = 'jarvis_chat_sessions';
+const LS_CURRENT_SESSION = 'jarvis_current_session';
+const MESSAGE_KEY = (sid: string) => `jarvis_chat_messages_${sid}`;
+
+function loadSessionsFromLS(): ChatSession[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(LS_SESSIONS) || '[]'); }
+  catch { return []; }
+}
+function saveSessionsToLS(s: ChatSession[]) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(LS_SESSIONS, JSON.stringify(s)); }
+  catch { /* quota / private mode — ignore */ }
+}
+function loadSessionMessagesFromLS(sid: string): ChatMessage[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(MESSAGE_KEY(sid)) || '[]'); }
+  catch { return []; }
+}
+function saveSessionMessagesToLS(sid: string, msgs: ChatMessage[]) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(MESSAGE_KEY(sid), JSON.stringify(msgs)); }
+  catch { /* quota — ignore */ }
+}
+function createSessionId(): string {
+  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function autoNameSession(msgs: ChatMessage[]): string {
+  const f = msgs.find(m => m.role === 'user');
+  if (!f) return 'New Chat';
+  const trimmed = f.content.trim();
+  return trimmed.slice(0, 40) + (trimmed.length > 40 ? '...' : '');
+}
+function upsertSession(sessions: ChatSession[], session: ChatSession): ChatSession[] {
+  const idx = sessions.findIndex(s => s.id === session.id);
+  const next = [...sessions];
+  if (idx >= 0) next[idx] = session;
+  else next.unshift(session);
+  return next.sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1));
+}
+
+// Stop any in-flight speechSynthesis utterance. Safe to call from a try/catch.
+function stopSpeaking() {
+  try {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch { /* ignore */ }
+}
+
 async function parseMemoryUpdates(
   text: string,
   setMemoryRows: React.Dispatch<React.SetStateAction<MemoryRow[]>>
@@ -448,9 +522,35 @@ export function IntelligenceChat() {
   const [modalCopied, setModalCopied]     = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelValue>('gemini-flash');
 
-  const sessionId      = useRef(Math.random().toString(36).slice(2));
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  // ── Session state (replaces the old useRef sessionId) ──────────────
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    if (typeof window === 'undefined') return createSessionId();
+    try {
+      const stored = localStorage.getItem(LS_CURRENT_SESSION);
+      if (stored) return stored;
+    } catch { /* private mode — fall through */ }
+    return createSessionId();
+  });
+  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+
+  // ── Browser-native voice state ────────────────────────────────
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const sessionIdRef    = useRef(activeSessionId);
+  const messagesEndRef  = useRef<HTMLDivElement>(null);
+  const textareaRef     = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef  = useRef<any>(null);
+
+  // Keep the ref pointing at the latest session id so async handlers see it.
+  useEffect(() => { sessionIdRef.current = activeSessionId; }, [activeSessionId]);
+
+  // Stop any in-flight TTS when the active message changes / component unmounts.
+  useEffect(() => {
+    return () => { stopSpeaking(); };
+  }, []);
 
   const estimatedTokens = useMemo(() => {
     const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
@@ -480,37 +580,74 @@ export function IntelligenceChat() {
     }).catch(() => { /* fire and forget */ });
   }, []);
 
-  // Load history + memory once on mount
+  // Load sessions, messages, memory, and prompt queue once on mount.
+  // localStorage is the source of truth for sessions & per-session messages.
+  // Supabase is best-effort fallback / cloud sync.
   useEffect(() => {
     async function init() {
       try {
-        const [msgRes, memRes, queueRes] = await Promise.all([
-          supabase
-            .from('jarvis_chat_messages')
-            .select('*')
-            .order('created_at', { ascending: true })
-            .limit(50),
-          supabase.from('jarvis_memory').select('*'),
-          supabase
-            .from('jarvis_pushed_prompts')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(20),
-        ]);
-
-        if (msgRes.error) {
-          if (msgRes.error.code === '42P01') {
-            setTablesError('Supabase tables not created yet. Run the SQL from the setup instructions in your Supabase dashboard.');
-          } else {
-            console.error('jarvis_chat_messages load error:', msgRes.error);
-          }
+        // 1) Sessions list (localStorage only)
+        const lsSessions = loadSessionsFromLS();
+        let activeId = activeSessionId;
+        if (lsSessions.length === 0) {
+          const seed: ChatSession = {
+            id: activeId,
+            name: 'New Chat',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const next = upsertSession([], seed);
+          setSessions(next);
+          saveSessionsToLS(next);
+        } else if (!lsSessions.find(s => s.id === activeId)) {
+          activeId = lsSessions[0].id;
+          setActiveSessionId(activeId);
+          try { localStorage.setItem(LS_CURRENT_SESSION, activeId); } catch { /* ignore */ }
         } else {
-          setMessages((msgRes.data ?? []) as ChatMessage[]);
+          setSessions(lsSessions);
         }
 
-        if (!memRes.error)   setMemoryRows((memRes.data ?? []) as MemoryRow[]);
-        if (!queueRes.error) setPushQueue((queueRes.data ?? []) as PushedPrompt[]);
+        // 2) Messages for the active session: localStorage first.
+        const local = loadSessionMessagesFromLS(activeId);
+        if (local.length > 0) {
+          setMessages(local);
+        } else {
+          // Cloud sync (best-effort) — only if Supabase is reachable.
+          try {
+            const msgRes = await supabase
+              .from('jarvis_chat_messages')
+              .select('*')
+              .eq('session_id', activeId)
+              .order('created_at', { ascending: true })
+              .limit(50);
+            if (msgRes.error) {
+              if (msgRes.error.code === '42P01') {
+                setTablesError('Supabase tables not created yet. Run the SQL from the setup instructions in your Supabase dashboard.');
+              } else {
+                console.error('jarvis_chat_messages load error:', msgRes.error);
+              }
+            } else {
+              const data = (msgRes.data ?? []) as ChatMessage[];
+              setMessages(data);
+              saveSessionMessagesToLS(activeId, data);
+            }
+          } catch { /* offline / no supabase — local-only mode */ }
+        }
+
+        // 3) Memory + queue (best-effort cloud)
+        try {
+          const [memRes, queueRes] = await Promise.all([
+            supabase.from('jarvis_memory').select('*'),
+            supabase
+              .from('jarvis_pushed_prompts')
+              .select('*')
+              .eq('status', 'pending')
+              .order('created_at', { ascending: false })
+              .limit(20),
+          ]);
+          if (!memRes.error)   setMemoryRows((memRes.data ?? []) as MemoryRow[]);
+          if (!queueRes.error) setPushQueue((queueRes.data ?? []) as PushedPrompt[]);
+        } catch { /* offline / no supabase — local-only mode */ }
       } catch (e) {
         console.error('IntelligenceChat init error:', e);
       } finally {
@@ -518,6 +655,7 @@ export function IntelligenceChat() {
       }
     }
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -613,7 +751,7 @@ export function IntelligenceChat() {
         .insert({
           role: 'assistant',
           content,
-          session_id: sessionId.current,
+          session_id: sessionIdRef.current,
           has_visual: /<svg/i.test(content),
         })
         .select()
@@ -724,8 +862,277 @@ export function IntelligenceChat() {
     setPushQueue(prev => prev.filter(p => p.id !== id));
   };
 
+  // ── Auto-persist the active session's messages to localStorage ──────
+  // Also renames the session from the first user message so the dropdown
+  // shows something useful instead of "New Chat" once the user has typed.
+  useEffect(() => {
+    if (loadingHistory) return; // don't clobber on first load
+    if (!activeSessionId) return;
+    try { saveSessionMessagesToLS(activeSessionId, messages); } catch { /* ignore */ }
+    setSessions(prev => {
+      const existing = prev.find(s => s.id === activeSessionId);
+      if (!existing) return prev;
+      const updated: ChatSession = {
+        ...existing,
+        name: existing.name === 'New Chat' ? autoNameSession(messages) : existing.name,
+        updated_at: new Date().toISOString(),
+      };
+      const next = upsertSession(prev, updated);
+      try { saveSessionsToLS(next); } catch { /* ignore */ }
+      return next;
+    });
+  }, [messages, activeSessionId, loadingHistory]);
+
+  // ── Session handlers ────────────────────────────────────────
+  const startNewChat = useCallback(() => {
+    const id = createSessionId();
+    const seed: ChatSession = {
+      id,
+      name: 'New Chat',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setMessages([]);
+    setActiveSessionId(id);
+    sessionIdRef.current = id;
+    setSessionMenuOpen(false);
+    setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    try { localStorage.setItem(LS_CURRENT_SESSION, id); } catch { /* ignore */ }
+    setSessions(prev => {
+      const next = upsertSession(prev, seed);
+      try { saveSessionsToLS(next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const loadSession = useCallback((sid: string) => {
+    if (sid === activeSessionId) { setSessionMenuOpen(false); return; }
+    let msgs: ChatMessage[] = [];
+    try { msgs = loadSessionMessagesFromLS(sid); } catch { msgs = []; }
+    setMessages(msgs);
+    setActiveSessionId(sid);
+    sessionIdRef.current = sid;
+    setSessionMenuOpen(false);
+    try { localStorage.setItem(LS_CURRENT_SESSION, sid); } catch { /* ignore */ }
+  }, [activeSessionId]);
+
+  const deleteSession = useCallback((sid: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (typeof window === 'undefined') return;
+    try { localStorage.removeItem(MESSAGE_KEY(sid)); } catch { /* ignore */ }
+    setSessions(prev => {
+      const next = prev.filter(s => s.id !== sid);
+      try { saveSessionsToLS(next); } catch { /* ignore */ }
+      return next;
+    });
+    if (sid === activeSessionId) startNewChat();
+  }, [activeSessionId, startNewChat]);
+
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+
+  // ── Voice handlers (browser-native, wrapped in try/catch) ──────────
+  const toggleListening = useCallback(() => {
+    setVoiceError(null);
+    try {
+      if (typeof window === 'undefined') return;
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SR) {
+        setVoiceError('Voice input not supported in this browser.');
+        return;
+      }
+      if (isListening) {
+        try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+        recognitionRef.current = null;
+        setIsListening(false);
+        return;
+      }
+      const rec = new SR();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onresult = (event: any) => {
+        try {
+          const transcript: string = event?.results?.[0]?.[0]?.transcript ?? '';
+          if (transcript) {
+            setInput(prev => (prev ? prev + ' ' : '') + transcript.trim());
+          }
+        } catch { /* ignore */ }
+      };
+      rec.onerror = (event: any) => {
+        try {
+          setVoiceError(`Mic error: ${event?.error ?? 'unknown'}`);
+        } catch { /* ignore */ }
+        setIsListening(false);
+      };
+      rec.onend = () => { setIsListening(false); };
+      recognitionRef.current = rec;
+      setIsListening(true);
+      try { rec.start(); }
+      catch (e) {
+        setVoiceError('Could not start microphone.');
+        setIsListening(false);
+      }
+    } catch (e) {
+      setVoiceError('Voice input not available.');
+      setIsListening(false);
+    }
+  }, [isListening]);
+
+  const speakMessage = useCallback((msg: ChatMessage) => {
+    if (!msg || msg.role !== 'assistant') return;
+    setVoiceError(null);
+    try {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        setVoiceError('Text-to-speech not supported in this browser.');
+        return;
+      }
+      // Toggle: if the same message is already speaking, stop it.
+      if (speakingMsgId === msg.id) {
+        try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+        setSpeakingMsgId(null);
+        return;
+      }
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      // Strip markdown / HTML so TTS reads the actual prose, not the markup.
+      const plain = (msg.content ?? '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/```[\s\S]*?```/g, ' code block ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/[#*_>~|-]+/g, ' ')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/[ 	]+/g, ' ')
+        .trim();
+      const utt = new SpeechSynthesisUtterance(plain);
+      utt.rate = 1.0;
+      utt.pitch = 1.0;
+      utt.onend = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
+      utt.onerror = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
+      setSpeakingMsgId(msg.id);
+      try { window.speechSynthesis.speak(utt); }
+      catch (e) {
+        setSpeakingMsgId(null);
+        setVoiceError('Could not start speech.');
+      }
+    } catch (e) {
+      setSpeakingMsgId(null);
+      setVoiceError('Text-to-speech not available.');
+    }
+  }, [speakingMsgId]);
+
   return (
     <div className="h-full flex flex-col">
+      {/* Session header — New Chat + saved-sessions dropdown */}
+      <div
+        className="flex-shrink-0 flex items-center gap-2 px-3 py-2"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.6)' }}
+      >
+        <button
+          type="button"
+          onClick={startNewChat}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
+          style={{
+            background: 'rgba(83,74,183,0.18)',
+            border: '1px solid rgba(83,74,183,0.3)',
+            color: '#a89ef5',
+          }}
+          title="Start a new chat"
+        >
+          <Plus size={12} />
+          New Chat
+        </button>
+
+        <div className="relative flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setSessionMenuOpen(v => !v)}
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px]"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: '#c4c4d6',
+            }}
+            title="Saved sessions"
+          >
+            <MessageSquare size={11} style={{ color: '#8e8ea0' }} />
+            <span className="truncate flex-1 text-left">
+              {activeSession?.name ?? 'New Chat'}
+            </span>
+            <ChevronDown
+              size={11}
+              style={{
+                color: '#8e8ea0',
+                transform: sessionMenuOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.15s',
+              }}
+            />
+          </button>
+          <AnimatePresence>
+            {sessionMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.12 }}
+                className="absolute left-0 right-0 mt-1 z-30 rounded-lg overflow-hidden"
+                style={{
+                  background: 'rgba(14,15,24,0.98)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                }}
+              >
+                {sessions.length === 0 ? (
+                  <div className="px-3 py-3 text-[11px]" style={{ color: '#52526e' }}>
+                    No saved sessions yet.
+                  </div>
+                ) : (
+                  sessions.map(s => {
+                    const isActive = s.id === activeSessionId;
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => loadSession(s.id)}
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                        style={{
+                          background: isActive ? 'rgba(83,74,183,0.18)' : 'transparent',
+                          borderLeft: isActive ? '2px solid #534AB7' : '2px solid transparent',
+                          color: isActive ? '#fff' : '#c4c4d6',
+                        }}
+                      >
+                        <span className="flex-1 truncate text-[11px]">{s.name}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => deleteSession(s.id, e)}
+                          className="p-1 rounded"
+                          style={{ color: '#52526e' }}
+                          title="Delete session"
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#fca5a5'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#52526e'; }}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Voice error toast */}
+      {voiceError && (
+        <div
+          className="px-4 py-1.5 text-[10px] flex-shrink-0"
+          style={{ background: 'rgba(248,113,113,0.12)', color: '#fca5a5' }}
+        >
+          {voiceError}
+        </div>
+      )}
+
       {/* Tables error banner */}
       {tablesError && (
         <div
@@ -763,7 +1170,9 @@ export function IntelligenceChat() {
               onCopy={copyMessage}
               onPush={openPushModal}
               onErrorPush={openErrorPushModal}
+              onSpeak={speakMessage}
               copiedId={copiedId}
+              speakingMsgId={speakingMsgId}
             />
           ))
         )}
@@ -936,6 +1345,22 @@ export function IntelligenceChat() {
           onFocus={e => { e.target.style.borderColor = 'rgba(83,74,183,0.45)'; }}
           onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.08)'; }}
         />
+        <motion.button
+          type="button"
+          onClick={toggleListening}
+          title={isListening ? 'Stop listening' : 'Dictate with microphone'}
+          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{
+            background: isListening ? 'rgba(248,113,113,0.85)' : 'rgba(255,255,255,0.06)',
+            color: isListening ? '#fff' : '#a89ef5',
+            border: isListening ? '1px solid rgba(248,113,113,0.6)' : '1px solid rgba(255,255,255,0.1)',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.94 }}
+        >
+          {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+        </motion.button>
         <motion.button
           onClick={sendMessage}
           disabled={loading || !input.trim()}
@@ -1150,13 +1575,17 @@ function MessageBubble({
   onCopy,
   onPush,
   onErrorPush,
+  onSpeak,
   copiedId,
+  speakingMsgId,
 }: {
   msg: ChatMessage;
   onCopy: (m: ChatMessage) => void;
   onPush: (m: ChatMessage) => void;
   onErrorPush: (m: ChatMessage) => void;
+  onSpeak: (m: ChatMessage) => void;
   copiedId: string | null;
+  speakingMsgId: string | null;
 }) {
   const isAssistant = msg.role === 'assistant';
   const hasDiagnostics = !!msg.diagnostics;
@@ -1235,6 +1664,20 @@ function MessageBubble({
           >
             {copiedId === msg.id ? <Check size={10} /> : <Copy size={10} />}
             {copiedId === msg.id ? 'Copied!' : 'Copy'}
+          </button>
+          <button
+            onClick={() => onSpeak(msg)}
+            title={speakingMsgId === msg.id ? 'Stop speaking' : 'Read aloud'}
+            style={{
+              fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
+              border: `1px solid ${speakingMsgId === msg.id ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              background: speakingMsgId === msg.id ? 'rgba(74,222,128,0.12)' : 'transparent',
+              color: speakingMsgId === msg.id ? '#4ade80' : 'rgba(255,255,255,0.45)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+            }}
+          >
+            {speakingMsgId === msg.id ? <VolumeX size={10} /> : <Volume2 size={10} />}
+            {speakingMsgId === msg.id ? 'Stop' : 'Speak'}
           </button>
           <button
             onClick={() => onPush(msg)}
