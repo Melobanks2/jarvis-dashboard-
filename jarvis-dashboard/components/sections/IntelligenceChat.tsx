@@ -8,7 +8,6 @@ import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Highlight, themes as prismThemes } from 'prism-react-renderer';
-import { supabase } from '@/lib/supabase';
 
 interface ChatMessage {
   id?: string;
@@ -371,7 +370,43 @@ function buildErrorPushPrompt(msg: ChatMessage): string {
   ].join('\n');
 }
 
-// ── Background DB helpers ─────────────────────────────────────────────────────
+// ── Session management (localStorage) ──────────────────────────────────
+const LS_SESSIONS = 'jarvis_chat_sessions';
+const LS_MEMORY = 'jarvis_memory';
+
+interface ChatSession {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+let _currentSessionId = createSessionId();
+
+function loadSessions(): ChatSession[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(LS_SESSIONS) || '[]'); } catch { return []; }
+}
+function saveSessions(s: ChatSession[]) { localStorage.setItem(LS_SESSIONS, JSON.stringify(s)); }
+function createSessionId(): string { return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
+function loadSessionMessages(sid: string): ChatMessage[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(`jarvis_chat_messages_${sid}`) || '[]'); } catch { return []; }
+}
+function saveSessionMessages(sid: string, msgs: ChatMessage[]) {
+  localStorage.setItem(`jarvis_chat_messages_${sid}`, JSON.stringify(msgs));
+}
+function autoNameSession(msgs: ChatMessage[]): string {
+  const f = msgs.find(m => m.role === 'user');
+  if (!f) return 'New Chat';
+  return f.content.slice(0, 40) + (f.content.length > 40 ? '...' : '');
+}
+
+function loadMemory(): MemoryRow[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(LS_MEMORY) || '[]'); } catch { return []; }
+}
+function saveMemory(rows: MemoryRow[]) { localStorage.setItem(LS_MEMORY, JSON.stringify(rows)); }
 
 async function parseMemoryUpdates(
   text: string,
@@ -379,41 +414,20 @@ async function parseMemoryUpdates(
 ) {
   const regex = /\[MEMORY_UPDATE:\s*category="([^"]+)"\s+key="([^"]+)"\s+value="([^"]+)"\]/g;
   let match;
+  const existing = loadMemory();
+  let changed = false;
   while ((match = regex.exec(text)) !== null) {
     const [, category, key, value] = match;
-    const { data } = await supabase
-      .from('jarvis_memory')
-      .upsert({ category, key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
-      .select()
-      .single();
-    if (data) {
-      setMemoryRows(prev => {
-        const idx = prev.findIndex(r => r.key === key);
-        if (idx >= 0) {
-          const updated = [...prev];
-          updated[idx] = data as MemoryRow;
-          return updated;
-        }
-        return [...prev, data as MemoryRow];
-      });
-    }
+    const idx = existing.findIndex(r => r.key === key);
+    const row: MemoryRow = { id: `mem-${Date.now()}-${key}`, category, key, value };
+    if (idx >= 0) existing[idx] = row;
+    else existing.push(row);
+    changed = true;
   }
+  if (changed) { saveMemory(existing); setMemoryRows([...existing]); }
 }
 
-async function cacheVisual(text: string) {
-  const svgMatch = text.match(/<svg[\s\S]*?<\/svg>/i);
-  if (!svgMatch) return;
-  const topicMatch = text.match(/#{1,3}\s+(.+)/);
-  const topic = topicMatch
-    ? topicMatch[1].toLowerCase().replace(/\s+/g, '_').slice(0, 80)
-    : `diagram_${Date.now()}`;
-  await supabase
-    .from('jarvis_visual_cache')
-    .upsert(
-      { topic, svg_content: svgMatch[0], last_used: new Date().toISOString() },
-      { onConflict: 'topic' }
-    );
-}
+async function cacheVisual(_text: string) { /* no-op without Supabase */ }
 
 // ── Providers, localStorage, streaming ────────────────────────────────────────
 
@@ -1168,37 +1182,14 @@ export function IntelligenceChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, streamingId]);
 
-  // Load history + memory once on mount
+  // Load messages + memory from localStorage on mount
   useEffect(() => {
     async function init() {
       try {
-        const [msgRes, memRes, queueRes] = await Promise.all([
-          supabase
-            .from('jarvis_chat_messages')
-            .select('*')
-            .order('created_at', { ascending: true })
-            .limit(50),
-          supabase.from('jarvis_memory').select('*'),
-          supabase
-            .from('jarvis_pushed_prompts')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(20),
-        ]);
-
-        if (msgRes.error) {
-          if (msgRes.error.code === '42P01') {
-            setTablesError('Supabase tables not created yet. Run the SQL from the setup instructions in your Supabase dashboard.');
-          } else {
-            console.error('jarvis_chat_messages load error:', msgRes.error);
-          }
-        } else {
-          setMessages((msgRes.data ?? []) as ChatMessage[]);
-        }
-
-        if (!memRes.error)   setMemoryRows((memRes.data ?? []) as MemoryRow[]);
-        if (!queueRes.error) setPushQueue((queueRes.data ?? []) as PushedPrompt[]);
+        const stored = loadSessionMessages(_currentSessionId);
+        setMessages(stored);
+        const mem = loadMemory();
+        setMemoryRows(mem);
       } catch (e) {
         console.error('IntelligenceChat init error:', e);
       } finally {
@@ -1248,18 +1239,10 @@ export function IntelligenceChat() {
     setLoading(true);
     setStreamingId(streamId);
 
-    supabase
-      .from('jarvis_chat_messages')
-      .insert({ role: 'user', content: text, session_id: sessionId.current })
-      .select()
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setMessages(prev =>
-            prev.map(m => (m.id === userMsg.id ? (data as ChatMessage) : m))
-          );
-        }
-      });
+    // Save to localStorage
+    const now = Date.now();
+    userMsg.id = `msg-${now}-user`;
+    streamMsg.id = `msg-${now}-assist`;
 
     const diag: Partial<ChatDiagnostics> = {
       ts: new Date().toISOString(),
@@ -1299,23 +1282,13 @@ export function IntelligenceChat() {
         onToken
       );
 
-      const { data: savedAssistant } = await supabase
-        .from('jarvis_chat_messages')
-        .insert({
-          role: 'assistant',
-          content,
-          session_id: sessionId.current,
-          has_visual: /<svg/i.test(content),
-        })
-        .select()
-        .single();
-
-      const assistantMsg = (savedAssistant ?? {
-        id: `tmp-a-${Date.now()}`,
-        role: 'assistant' as const,
+      const assistantMsg: ChatMessage = {
+        id: `msg-${Date.now()}-assist-final`,
+        role: 'assistant',
         content,
         created_at: new Date().toISOString(),
-      }) as ChatMessage;
+        session_id: _currentSessionId,
+      };
 
       setMessages(prev =>
         prev.filter(m => m.id !== streamId).concat(assistantMsg)
@@ -1382,14 +1355,13 @@ export function IntelligenceChat() {
 
   const saveToQueue = async () => {
     if (!pushModal.message) return;
-    const msgId = pushModal.message.id;
-    const sourceId = msgId && !msgId.startsWith('tmp') && !msgId.startsWith('err') ? msgId : null;
-    const { data } = await supabase
-      .from('jarvis_pushed_prompts')
-      .insert({ prompt_text: currentModalPrompt, source_message_id: sourceId, status: 'pending' })
-      .select()
-      .single();
-    if (data) setPushQueue(prev => [data as PushedPrompt, ...prev]);
+    const item: PushedPrompt = {
+      id: `queue-${Date.now()}`,
+      prompt_text: currentModalPrompt,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    setPushQueue(prev => [item, ...prev]);
     setPushModal({ open: false, message: null, mode: 'prompt' });
   };
 
@@ -1400,7 +1372,6 @@ export function IntelligenceChat() {
   };
 
   const markQueueDone = async (id: string) => {
-    await supabase.from('jarvis_pushed_prompts').update({ status: 'copied' }).eq('id', id);
     setPushQueue(prev => prev.filter(p => p.id !== id));
   };
 

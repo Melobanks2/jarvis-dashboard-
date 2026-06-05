@@ -1,3 +1,7 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "buildCommand": "cd jarvis-dashboard && npm run build",
+  "outputDirectory": "jarvis-dashboard/.next",
+  "installCommand": "cd jarvis-dashboard && npm install",
+  "ignoreCommand": "git diff HEAD~1 --quiet -- jarvis-dashboard/"
 }
