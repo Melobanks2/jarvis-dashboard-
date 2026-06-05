@@ -1,9 +1,17 @@
-node_modules/
-.next/
+# Root monorepo
+.env
 .env.local
 .env*.local
 *.log
 .DS_Store
 
-# TS incremental build cache
+# Next.js (jarvis-dashboard)
+node_modules/
+.next/
 tsconfig.tsbuildinfo
+
+# asaparv-agent
+data/
+config/
+__pycache__/
+*.pyc
