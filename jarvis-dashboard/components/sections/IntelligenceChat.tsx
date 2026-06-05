@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2, Settings, SlidersHorizontal } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2, Settings, SlidersHorizontal, Eye, EyeOff, Save } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
@@ -393,16 +393,48 @@ const LS_CURRENT_SESSION = 'jarvis_current_session';
 const LS_SETTINGS = 'jarvis_chat_settings';
 const MESSAGE_KEY = (sid: string) => `jarvis_chat_messages_${sid}`;
 
+interface ProviderApiKey {
+  key: string;
+  saved: boolean; // tracks if the user has clicked Save for this key
+}
+
 interface ChatSettings {
-  apiKey: string;
+  apiKeys: Record<string, ProviderApiKey>;
+  selectedModel: ModelValue;
   systemPrompt: string;
   selectedVoice: string | null;
 }
 
+const API_KEY_PROVIDERS = [
+  { id: 'openrouter', label: 'OPENROUTER', sublabel: 'All Models', placeholder: 'sk-or-...' },
+  { id: 'gemini', label: 'GEMINI', sublabel: '', placeholder: 'AIza...' },
+  { id: 'anthropic', label: 'ANTHROPIC / CLAUDE', sublabel: '', placeholder: 'sk-ant-...' },
+  { id: 'groq', label: 'GROQ', sublabel: '', placeholder: 'gsk_...' },
+  { id: 'deepseek', label: 'DEEPSEEK', sublabel: '', placeholder: 'sk-...' },
+] as const;
+
+const DEFAULT_SETTINGS: ChatSettings = {
+  apiKeys: Object.fromEntries(API_KEY_PROVIDERS.map(p => [p.id, { key: '', saved: false }])),
+  selectedModel: 'gemini-flash',
+  systemPrompt: '',
+  selectedVoice: null,
+};
+
 function loadSettingsFromLS(): ChatSettings {
-  if (typeof window === 'undefined') return { apiKey: '', systemPrompt: '', selectedVoice: null };
-  try { return JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}'); }
-  catch { return { apiKey: '', systemPrompt: '', selectedVoice: null }; }
+  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}');
+    // Migrate old single-key format
+    if (raw.apiKey && !raw.apiKeys) {
+      return { ...DEFAULT_SETTINGS, ...raw, apiKeys: { ...DEFAULT_SETTINGS.apiKeys, openrouter: { key: raw.apiKey, saved: false } } };
+    }
+    return {
+      apiKeys: { ...DEFAULT_SETTINGS.apiKeys, ...(raw.apiKeys ?? {}) },
+      selectedModel: raw.selectedModel ?? 'gemini-flash',
+      systemPrompt: raw.systemPrompt ?? '',
+      selectedVoice: raw.selectedVoice ?? null,
+    };
+  } catch { return DEFAULT_SETTINGS; }
 }
 function saveSettingsToLS(s: ChatSettings) {
   if (typeof window === 'undefined') return;
@@ -559,10 +591,8 @@ export function IntelligenceChat() {
 
   // ── Settings state ──────────────────────────────────────────
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<ChatSettings>(() => {
-    const loaded = loadSettingsFromLS();
-    return { apiKey: loaded.apiKey ?? '', systemPrompt: loaded.systemPrompt ?? '', selectedVoice: loaded.selectedVoice ?? null };
-  });
+  const [settings, setSettings] = useState<ChatSettings>(() => loadSettingsFromLS());
+  const [keyVisibilities, setKeyVisibilities] = useState<Record<string, boolean>>({});
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const sessionIdRef    = useRef(activeSessionId);
@@ -596,6 +626,11 @@ export function IntelligenceChat() {
   useEffect(() => {
     saveSettingsToLS(settings);
   }, [settings]);
+
+  // ── Sync selectedModel with settings.selectedModel ───────────────────
+  useEffect(() => {
+    setSelectedModel(settings.selectedModel);
+  }, [settings.selectedModel]);
 
   const estimatedTokens = useMemo(() => {
     const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
@@ -1251,8 +1286,8 @@ export function IntelligenceChat() {
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className="fixed top-0 right-0 h-full z-50 flex flex-col"
               style={{
-                width: 380,
-                maxWidth: '90vw',
+                width: 420,
+                maxWidth: '92vw',
                 background: 'rgba(14,15,24,0.98)',
                 borderLeft: '1px solid rgba(255,255,255,0.08)',
                 boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
@@ -1281,27 +1316,113 @@ export function IntelligenceChat() {
               </div>
 
               {/* Scrollable settings body */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-                {/* API Key */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+
+                {/* ═══════════ API KEYS ═══════════ */}
                 <div>
-                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>API Key (optional, for private endpoints)</label>
-                  <input
-                    type="password"
-                    value={settings.apiKey}
-                    onChange={e => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="sk-..."
-                    className="w-full rounded-lg px-3 py-2.5 text-[11px] outline-none"
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#a89ef5' }}>API Keys</div>
+                  <div className="space-y-3">
+                    {API_KEY_PROVIDERS.map(provider => {
+                      const isVisible = keyVisibilities[provider.id] ?? false;
+                      const apiKeyValue = settings.apiKeys[provider.id]?.key ?? '';
+                      const isSaved = settings.apiKeys[provider.id]?.saved ?? false;
+                      return (
+                        <div key={provider.id}>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[10px] font-semibold" style={{ color: '#c4c4d6' }}>{provider.label}</span>
+                            {provider.sublabel && (
+                              <span className="text-[9px]" style={{ color: '#52526e' }}> — {provider.sublabel}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="relative flex-1">
+                              <input
+                                type={isVisible ? 'text' : 'password'}
+                                value={apiKeyValue}
+                                onChange={e => setSettings(prev => ({
+                                  ...prev,
+                                  apiKeys: { ...prev.apiKeys, [provider.id]: { key: e.target.value, saved: false } },
+                                }))}
+                                placeholder={provider.placeholder}
+                                className="w-full rounded-lg px-3 py-2 text-[11px] outline-none pr-8"
+                                style={{
+                                  background: 'rgba(255,255,255,0.04)',
+                                  border: `1px solid ${isSaved ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                  color: '#c4c4d6',
+                                  transition: 'border-color 0.2s',
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setKeyVisibilities(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5"
+                                style={{ color: '#52526e' }}
+                                title={isVisible ? 'Hide key' : 'Show key'}
+                              >
+                                {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettings(prev => ({
+                                  ...prev,
+                                  apiKeys: { ...prev.apiKeys, [provider.id]: { key: prev.apiKeys[provider.id]?.key ?? '', saved: true } },
+                                }));
+                              }}
+                              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-lg text-[10px] font-medium"
+                              style={{
+                                background: isSaved ? 'rgba(74,222,128,0.15)' : 'rgba(83,74,183,0.2)',
+                                border: `1px solid ${isSaved ? 'rgba(74,222,128,0.3)' : 'rgba(83,74,183,0.3)'}`,
+                                color: isSaved ? '#4ade80' : '#a89ef5',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              {isSaved ? <Check size={10} /> : <Save size={10} />}
+                              {isSaved ? 'Saved' : 'Save'}
+                            </button>
+                          </div>
+                          {/* Placeholder usage indicator */}
+                          <div className="mt-1 text-[9px] flex items-center gap-1.5" style={{ color: '#52526e' }}>
+                            <span>Usage:</span>
+                            <span style={{ color: '#8e8ea0' }}>— / —</span>
+                            <span className="ml-auto italic" style={{ color: '#3d3d52' }}>wire endpoint later</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
+
+                {/* ═══════════ MODEL SELECTION ═══════════ */}
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#a89ef5' }}>Model Selection</div>
+                  <select
+                    value={settings.selectedModel}
+                    onChange={e => setSettings(prev => ({ ...prev, selectedModel: e.target.value as ModelValue }))}
+                    className="w-full rounded-lg px-3 py-2.5 text-[11px] outline-none cursor-pointer"
                     style={{
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.08)',
                       color: '#c4c4d6',
                     }}
-                  />
+                  >
+                    {MODEL_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value} style={{ background: '#0e0f18' }}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* System Prompt */}
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
+
+                {/* ═══════════ CHAT BEHAVIOR / SYSTEM PROMPT ═══════════ */}
                 <div>
-                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>Custom System Prompt (append to default)</label>
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#a89ef5' }}>Chat Behavior</div>
+                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>Custom System Prompt (appended to default)</label>
                   <textarea
                     value={settings.systemPrompt}
                     onChange={e => setSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
@@ -1317,9 +1438,13 @@ export function IntelligenceChat() {
                   />
                 </div>
 
-                {/* Voice Selection */}
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
+
+                {/* ═══════════ TTS VOICE SETTINGS ═══════════ */}
                 <div>
-                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>TTS Voice</label>
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#a89ef5' }}>TTS Voice</div>
+                  <label className="text-[10px] font-medium block mb-1.5" style={{ color: '#8e8ea0' }}>Voice Selection</label>
                   <select
                     value={settings.selectedVoice ?? ''}
                     onChange={e => setSettings(prev => ({ ...prev, selectedVoice: e.target.value || null }))}
@@ -1343,6 +1468,7 @@ export function IntelligenceChat() {
                     <div className="text-[9px] mt-1.5" style={{ color: '#52526e' }}>No voices loaded yet — try speaking once to trigger voice detection.</div>
                   )}
                 </div>
+
               </div>
             </motion.div>
           </>
