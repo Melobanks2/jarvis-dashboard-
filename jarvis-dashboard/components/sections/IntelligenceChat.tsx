@@ -538,6 +538,7 @@ const MODEL_OPTIONS = [
   { label: 'DeepSeek', value: 'deepseek' },
   { label: 'Groq Llama', value: 'groq' },
   { label: 'OpenRouter', value: 'openrouter' },
+  { label: 'Free Tier Router', value: 'openrouter-free' },
 ] as const;
 
 type ModelValue = (typeof MODEL_OPTIONS)[number]['value'];
@@ -548,7 +549,79 @@ const MODEL_MAX_CONTEXT: Record<ModelValue, number> = {
   deepseek: 128_000,
   groq: 128_000,
   openrouter: 128_000,
+  'openrouter-free': 128_000,
 };
+
+// ── OpenRouter Safety & Selection helpers ──────────────────────────────────────
+// Ensures every OpenRouter request is forced into the free tier so we never
+// trigger a paid API call that would fail with 402 Payment Required.
+
+const OR_FREE_SUFFIX = ':free';
+const OR_PRIMARY_FREE_MODEL = 'google/gemini-2.0-flash-exp:free';
+const OR_FALLBACK_MODELS = [
+  'google/gemini-2.0-flash-exp:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+] as const;
+
+/** Append `:free` to a model ID if not already present. */
+function appendFreeSuffix(modelId: string): string {
+  return modelId.endsWith(OR_FREE_SUFFIX) ? modelId : `${modelId}${OR_FREE_SUFFIX}`;
+}
+
+/** Detect coding-related intent in the user's prompt. */
+function isTaskCodeRelated(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const patterns = [
+    'code', 'write', 'debug', 'fix', 'function', 'component', 'class',
+    'import', 'export', 'build', 'compile', 'refactor', 'implement',
+    'api', 'endpoint', 'typescript', 'javascript', 'python', 'react',
+    'next', 'node', 'npm', 'pnpm', 'script', 'git', 'deploy', 'docker',
+    'test', 'lint', 'type', 'interface', 'struct', 'algorithm', 'sql',
+    'query', 'database', 'backend', 'frontend', 'server', 'cli',
+  ];
+  return patterns.some(p => lower.includes(p));
+}
+
+/** Pick the best free model for the detected task type. */
+function pickFreeModel(prompt: string): string {
+  if (isTaskCodeRelated(prompt)) {
+    return 'qwen/qwen-2.5-72b-instruct:free';
+  }
+  return OR_PRIMARY_FREE_MODEL;
+}
+
+/**
+ * Resolve the OpenRouter model ID with forced free-tier routing.
+ *
+ * - For `openrouter-free` (Free Tier Router): picks the best free model
+ *   based on the user's prompt content.
+ * - For `openrouter` (specific model): forces `:free` suffix on the primary
+ *   free model to ensure no paid request is ever made.
+ *
+ * Returns the resolved model string to send to the Thunder proxy.
+ */
+function resolveOpenRouterModel(
+  model: ModelValue,
+  promptText: string,
+  _settings: ChatSettings,
+): string {
+  if (model === 'openrouter-free') {
+    return pickFreeModel(promptText);
+  }
+  // For explicit OpenRouter selection, force free tier
+  return appendFreeSuffix(OR_PRIMARY_FREE_MODEL);
+}
+
+/** Get the next available free model after a 402/403 error for context handoff. */
+function getNextFreeModel(currentModel: string): string | null {
+  const idx = OR_FALLBACK_MODELS.findIndex(m => m === currentModel);
+  if (idx >= 0 && idx < OR_FALLBACK_MODELS.length - 1) {
+    return OR_FALLBACK_MODELS[idx + 1];
+  }
+  return OR_FALLBACK_MODELS[0] !== currentModel ? OR_FALLBACK_MODELS[0] : null;
+}
 
 function formatTokenCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -571,6 +644,13 @@ export function IntelligenceChat() {
   const [copiedId, setCopiedId]           = useState<string | null>(null);
   const [modalCopied, setModalCopied]     = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelValue>('gemini-flash');
+
+  // ── Context Handoff state (OpenRouter 402/403 fallback) ─────────────
+  // When an OpenRouter request fails with 402/403, we offer to retry with
+  // the next free model and summarize the conversation so the user can
+  // continue where they left off without losing context.
+  const [handoffModel, setHandoffModel] = useState<string | null>(null);
+  const [handoffPending, setHandoffPending] = useState(false);
 
   // ── Session state (replaces the old useRef sessionId) ──────────────
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -796,8 +876,15 @@ export function IntelligenceChat() {
         throw new Error('Chat backend not configured (NEXT_PUBLIC_THUNDER_CHAT_URL / NEXT_PUBLIC_THUNDER_CHAT_SECRET missing)');
       }
       diag.url = `${chatUrl}/api/chat`;
+
+      // ── OpenRouter Safety: resolve model with forced free-tier routing ──
+      const isOR = selectedModel === 'openrouter' || selectedModel === 'openrouter-free';
+      const resolvedModel = isOR
+        ? resolveOpenRouterModel(selectedModel, text, settings)
+        : selectedModel;
+
       const reqBody = {
-        model: selectedModel,
+        model: resolvedModel,
         stream: false,
         options: { num_gpu: 99, num_ctx: 8192 },
         messages: [
@@ -821,7 +908,37 @@ export function IntelligenceChat() {
       try { data = JSON.parse(rawText); } catch {
         throw new Error(`Non-JSON response (status ${res.status}). First 200 chars: ${rawText.slice(0, 200)}`);
       }
-      if (!res.ok) throw new Error(data.error || `Proxy returned status ${res.status}`);
+      if (!res.ok) {
+        // ── OpenRouter 402/403 Context Handoff ────────────────────────
+        // If the free-tier request fails with a payment/auth error,
+        // offer to switch to the next available free model instead of
+        // showing a dead-end error. The handoff summarizes the current
+        // conversation so the user can continue without losing context.
+        if (isOR && (res.status === 402 || res.status === 403)) {
+          const nextModel = getNextFreeModel(resolvedModel);
+          if (nextModel) {
+            setHandoffModel(nextModel);
+            setHandoffPending(true);
+            // Build a context summary for the handoff so the user knows
+            // what will be sent to the new model.
+            const summaryLines = messages.slice(-6).map(m =>
+              `- **${m.role === 'user' ? 'You' : 'Jarvis'}**: ${m.content.slice(0, 120)}${m.content.length > 120 ? '...' : ''}`
+            ).join('\n');
+            setMessages(prev => [
+              ...prev,
+              {
+                id: `handoff-${Date.now()}`,
+                role: 'assistant' as const,
+                content: `**⚠️ Free-tier limit reached** on \`${resolvedModel}\` (HTTP ${res.status}).\n\nI can switch to the next free model to continue your request:\n\n- **Next model**: \`${nextModel}\`\n\n**Conversation so far:**\n${summaryLines}\n\n_Click "Switch Model & Retry" below to continue, or select a different model manually._`,
+                created_at: new Date().toISOString(),
+              },
+            ]);
+            setLoading(false);
+            return;
+          }
+        }
+        throw new Error(data.error || `Proxy returned status ${res.status}`);
+      }
 
       const content: string = data.message?.content ?? '';
 
@@ -1144,6 +1261,101 @@ export function IntelligenceChat() {
       setVoiceError('Text-to-speech not available.');
     }
   }, [speakingMsgId, pickBestVoice]);
+
+  // ── Context Handoff: accept + retry with next free model ──────────────
+  // When a 402/403 triggers the handoff, this handler switches to the
+  // suggested free model, removes the handoff message, and re-sends the
+  // last user message through the new model. The full conversation context
+  // is preserved in the `apiMessages` that sendMessage rebuilds.
+  const handleAcceptHandoff = useCallback(async () => {
+    if (!handoffModel || !handoffPending) return;
+    const targetModel = handoffModel;
+
+    // Remove the handoff info message and set the new model
+    setMessages(prev => prev.filter(m => !m.id?.startsWith('handoff-')));
+    setHandoffModel(null);
+    setHandoffPending(false);
+
+    // Update both the local and settings-selected model to the fallback
+    setSelectedModel(targetModel as ModelValue);
+    setSettings(prev => ({ ...prev, selectedModel: targetModel as ModelValue }));
+
+    // Find the last user message to re-send through the new model
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+
+    // Set the input so sendMessage picks it up, then trigger send
+    setInput(lastUserMsg.content);
+    // Brief delay so React state settles before sendMessage reads the input
+    await new Promise(r => setTimeout(r, 50));
+    // Manually invoke the send flow with the handoff model
+    setLoading(true);
+    try {
+      const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
+      const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
+      const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
+      if (!chatUrl || !chatSecret) throw new Error('Chat backend not configured');
+
+      // Build messages from the full conversation (excluding handoff messages)
+      const apiMessages = messages
+        .filter(m => !m.id?.startsWith('handoff-'))
+        .slice(-20)
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const reqBody = {
+        model: targetModel,
+        stream: false,
+        options: { num_gpu: 99, num_ctx: 8192 },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...apiMessages,
+        ],
+      };
+
+      const res = await fetch(`${chatUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Chat-Secret': chatSecret },
+        body: JSON.stringify(reqBody),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        let errData: { error?: string } = {};
+        try { errData = JSON.parse(errText); } catch { /* non-JSON */ }
+        throw new Error(errData.error || `Proxy returned status ${res.status}`);
+      }
+
+      const rawText = await res.text();
+      let data: { message?: { content?: string } } = {};
+      try { data = JSON.parse(rawText); } catch {
+        throw new Error(`Non-JSON response (status ${res.status})`);
+      }
+
+      const content: string = data.message?.content ?? '';
+      const assistantMsg: ChatMessage = {
+        id: `tmp-a-${Date.now()}`,
+        role: 'assistant',
+        content,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, assistantMsg]);
+      setInput('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'assistant' as const,
+          content: `**Error on fallback model \`${targetModel}\`:** ${errMsg}\n\nAll free models may be exhausted. Try again later or select a different provider.`,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }, [handoffModel, handoffPending, messages, memoryRows]);
 
   return (
     <div className="h-full flex flex-col">
@@ -1527,6 +1739,54 @@ export function IntelligenceChat() {
               speakingMsgId={speakingMsgId}
             />
           ))
+        )}
+
+        {/* ── Context Handoff banner (402/403 fallback) ────────────────── */}
+        {handoffPending && handoffModel && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="mx-2 my-2"
+          >
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(186,117,23,0.12)',
+                border: '1px solid rgba(186,117,23,0.3)',
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-semibold" style={{ color: '#fcd34d' }}>
+                  Free-tier limit hit — switch model?
+                </div>
+                <div className="text-[10px] mt-0.5" style={{ color: '#c4c4d6' }}>
+                  Retry with <span style={{ color: '#a89ef5' }}>{handoffModel}</span> to continue your request
+                </div>
+              </div>
+              <motion.button
+                onClick={handleAcceptHandoff}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-semibold"
+                style={{
+                  background: 'rgba(186,117,23,0.25)',
+                  border: '1px solid rgba(186,117,23,0.4)',
+                  color: '#fcd34d',
+                }}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.94 }}
+              >
+                Switch & Retry
+              </motion.button>
+              <button
+                onClick={() => { setHandoffPending(false); setHandoffModel(null); }}
+                className="flex-shrink-0 p-1"
+                style={{ color: '#52526e' }}
+                title="Dismiss"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </motion.div>
         )}
 
         {/* Loading dots */}
