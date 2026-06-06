@@ -455,7 +455,7 @@ function ObjectionCard({ obj }: { obj: Objection }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function ScriptTraining() {
+export default function ScriptTraining() {
   const [activeTab, setActiveTab] = useState<'script' | 'objections'>('script');
   const [activeObjectionTab, setActiveObjectionTab] = useState<'objections' | 'rules'>('objections');
 

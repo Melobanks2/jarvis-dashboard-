@@ -9,7 +9,7 @@ import {
   Bot, Radio, Target, X, CheckCircle, BookOpen,
   BarChart3, List,
 } from 'lucide-react';
-import { ScriptTraining } from './ScriptTraining';
+import ScriptTraining from './ScriptTraining';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
