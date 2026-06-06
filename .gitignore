@@ -15,3 +15,4 @@ data/
 config/
 __pycache__/
 *.pyc
+.vercel
