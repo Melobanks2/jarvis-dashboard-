@@ -7,8 +7,11 @@ import {
   Flame, Snowflake, AlertCircle, RotateCcw,
   MapPin, FileText, Clock, TrendingUp,
   Bot, Radio, Target, X, CheckCircle, Settings,
+  BarChart3, GitBranch,
 } from 'lucide-react';
 import { getApiKey } from '@/components/sections/IntelligenceChat';
+import { PerformanceAnalytics } from '@/components/sections/dialer/PerformanceAnalytics';
+import { ScriptTraining } from '@/components/sections/dialer/ScriptTraining';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +59,8 @@ interface TranscriptLine {
   timestamp: string;
 }
 
+type DialerTab = 'live' | 'analytics' | 'script';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseCSV(text: string): Lead[] {
@@ -99,7 +104,7 @@ const LANE_COLOR: Record<LaneState, string> = {
 const LANE_LABEL: Record<LaneState, string> = {
   idle:      'Idle',
   ringing:   'Ringing',
-  connected: 'Human · David active',
+  connected: 'Human · Sarah active',
   voicemail: 'Voicemail — skipped',
   no_answer: 'No answer',
   ended:     'Ended',
@@ -112,6 +117,12 @@ const DISPOSITIONS: { id: Disposition; label: string; color: string; icon: React
   { id: 'no_answer',    label: 'No Answer',    color: '#52526e', icon: PhoneOff    },
   { id: 'wrong_number', label: 'Wrong Number', color: '#fbbf24', icon: AlertCircle },
   { id: 'refund',       label: 'Refund',       color: '#a78bfa', icon: RotateCcw   },
+];
+
+const DIALER_TABS: { id: DialerTab; label: string; icon: React.ElementType }[] = [
+  { id: 'live',     label: 'Live Dialer',       icon: Phone },
+  { id: 'analytics', label: 'Performance Analytics', icon: BarChart3 },
+  { id: 'script',   label: 'Script & Training', icon: GitBranch },
 ];
 
 // ── Atom components ───────────────────────────────────────────────────────────
@@ -134,7 +145,6 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
     : 0;
   const pulsing = lane.state === 'ringing' || lane.state === 'connected';
 
-  // Show retry indicator if applicable
   const retryInfo = lane.state === 'no_answer' && lane.attempt_count && lane.max_attempts
     ? `${lane.attempt_count}/${lane.max_attempts}`
     : null;
@@ -151,7 +161,6 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
         boxShadow: isWinner ? `0 0 24px ${color}44` : 'none',
       }}
     >
-      {/* status light */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
@@ -176,7 +185,6 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
         </span>
       </div>
 
-      {/* lead body */}
       {lane.lead ? (
         <>
           <div className="flex items-center gap-2">
@@ -206,7 +214,6 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
         </div>
       )}
 
-      {/* timer */}
       {lane.state === 'connected' && (
         <div className="flex items-center justify-between pt-1 mt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <div className="flex items-center gap-1.5" style={{ color }}>
@@ -227,8 +234,8 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
 function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null }) {
   const config = {
     idle:       { color: '#52526e', label: 'IDLE',        sub: 'standing by' },
-    qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'spinning up Thunder…' },
-    on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'David active' },
+    qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'spinning up Sarah…' },
+    on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'Sarah active' },
   }[status];
 
   const pulsing = status !== 'idle';
@@ -259,7 +266,7 @@ function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null 
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-orbitron tracking-[2px] uppercase" style={{ color: '#52526e' }}>
-            David AI Agent
+            Sarah AI Agent
           </span>
         </div>
         <div className="font-orbitron text-[15px] font-black tracking-[1.5px]" style={{ color: config.color }}>
@@ -351,9 +358,8 @@ function GoalBar({ value, target }: { value: number; target: number }) {
   );
 }
 
-// Progress bar for dialer progress
 function DialerProgress({ progress }: { progress: Progress }) {
-  const { cursor, total_leads, completed, remaining } = progress;
+  const { total_leads, completed } = progress;
   const pct = total_leads > 0 ? (completed / total_leads) * 100 : 0;
 
   return (
@@ -381,8 +387,8 @@ function DialerProgress({ progress }: { progress: Progress }) {
         />
       </div>
       <div className="flex items-center justify-between text-[9px]" style={{ color: '#52526e' }}>
-        <span>{remaining} remaining</span>
-        <span>Batch {Math.floor(cursor / LANE_COUNT) + 1}</span>
+        <span>{progress.remaining} remaining</span>
+        <span>Batch {Math.floor(progress.cursor / LANE_COUNT) + 1}</span>
       </div>
     </div>
   );
@@ -430,14 +436,11 @@ function SummaryModal({
   );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Live Dialer Tab ───────────────────────────────────────────────────────────
 
-export function MultiDialer() {
-  // Data
+function LiveDialerTab() {
   const [leads,  setLeads]  = useState<Lead[]>([]);
   const [cursor, setCursor] = useState(0);
-
-  // Session state (driven by backend status poll)
   const [dialerState, setDialerState] = useState<DialerState>('idle');
   const [sessionId,   setSessionId]   = useState<string>('');
   const [lanes,       setLanes]       = useState<Lane[]>(
@@ -450,21 +453,11 @@ export function MultiDialer() {
   const [davidLane,   setDavidLane]   = useState<number | null>(null);
   const [winnerLane,  setWinnerLane]  = useState<number | null>(null);
   const [activeLead,  setActiveLead]  = useState<Lead | null>(null);
-
-  // Progress tracking from backend
   const [progress, setProgress] = useState<Progress>({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
-
-  // Clock (drives lane timers without re-polling)
   const [now, setNow] = useState(Date.now());
-
-  // Stats
   const [stats, setStats] = useState<Stats>({ callsMade: 0, contacted: 0, hot: 0, totalSeconds: 0 });
-
-  // Summary modal
   const [summary, setSummary] = useState<{ calls: number; contacted: number; hot: number; talk: number; session: number } | null>(null);
   const [showSummary, setShowSummary] = useState(false);
-
-  // ── Voice / transcript state ────────────────────────────────────────────
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [speakingLead, setSpeakingLead] = useState<'david' | 'lead' | null>(null);
   const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
@@ -476,16 +469,12 @@ export function MultiDialer() {
     } catch { return { sttProvider: 'gemini', greetingMode: 'auto', scriptMode: 'auto' }; }
   });
 
-  // Refs
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // Mirrors of cursor + dialNextBatch so the memoized status poll (deps: [])
-  // can advance batches with fresh values instead of stale-closure ones.
   const cursorRef = useRef(0);
   const dialNextBatchRef = useRef<(fromCursor: number) => void>(() => {});
 
-  // ── Wall clock for live timers ──────────────────────────────────────────────
   useEffect(() => {
     clockRef.current = setInterval(() => setNow(Date.now()), 500);
     return () => { if (clockRef.current) clearInterval(clockRef.current); };
@@ -493,7 +482,6 @@ export function MultiDialer() {
 
   useEffect(() => { cursorRef.current = cursor; }, [cursor]);
 
-  // ── Poll backend status ────────────────────────────────────────────────────
   const startPolling = useCallback((sid: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
@@ -521,16 +509,12 @@ export function MultiDialer() {
         if (data.status === 'ended') {
           clearInterval(pollRef.current!); pollRef.current = null;
           if (data.answered_lead) {
-            // A human was reached — collect a disposition before advancing.
             setDialerState('disposition');
             setStats(s => ({
               ...s,
               contacted: data.totals?.contacted_count ?? s.contacted,
             }));
           } else {
-            // No human answered this batch — nothing to disposition. Advance
-            // straight to the next batch. dialNextBatch guards end-of-list and
-            // flips to 'idle' when the cursor runs past the last lead.
             const nextCursor = cursorRef.current + LANE_COUNT;
             setCursor(nextCursor);
             setActiveLead(null);
@@ -545,9 +529,7 @@ export function MultiDialer() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  // ── Load progress from last session on mount ───────────────────────────────
   useEffect(() => {
-    // Try to restore progress from any active session
     if (sessionId) {
       fetch(`${API_BASE}/dialer/progress?sessionId=${sessionId}`)
         .then(r => r.json())
@@ -565,7 +547,6 @@ export function MultiDialer() {
     }
   }, [sessionId]);
 
-  // ── CSV upload ─────────────────────────────────────────────────────────────
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -585,7 +566,6 @@ export function MultiDialer() {
     e.target.value = '';
   }, []);
 
-  // ── Dial next batch of 5 ───────────────────────────────────────────────────
   const dialNextBatch = useCallback(async (fromCursor: number) => {
     if (fromCursor >= leads.length) {
       setDialerState('idle');
@@ -601,7 +581,6 @@ export function MultiDialer() {
     setDialerState('dialing');
     setStats(s => ({ ...s, callsMade: s.callsMade + batch.length }));
 
-    // Update progress state for new batch
     setProgress({
       cursor: fromCursor,
       total_leads: leads.length,
@@ -635,10 +614,8 @@ export function MultiDialer() {
     }
   }, [leads, startPolling]);
 
-  // Keep the ref pointed at the latest dialNextBatch for the status poll.
   useEffect(() => { dialNextBatchRef.current = dialNextBatch; }, [dialNextBatch]);
 
-  // ── Controls ───────────────────────────────────────────────────────────────
   const handleStart = useCallback(() => {
     if (dialerState === 'paused' || dialerState === 'idle') {
       if (leads.length > 0) dialNextBatch(cursor);
@@ -654,7 +631,6 @@ export function MultiDialer() {
     stopPolling();
     setDialerState('idle');
 
-    // Pull session summary before resetting
     if (sessionId) {
       try {
         const r = await fetch(`${API_BASE}/dialer/session-summary?sessionId=${sessionId}`);
@@ -671,7 +647,6 @@ export function MultiDialer() {
         }
       } catch { /* ignore */ }
     } else {
-      // No session ever started — show local stats
       setSummary({
         calls: stats.callsMade, contacted: stats.contacted, hot: stats.hot,
         talk: stats.totalSeconds, session: stats.totalSeconds,
@@ -684,7 +659,6 @@ export function MultiDialer() {
     setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
   }, [stopPolling, sessionId, stats]);
 
-  // ── Disposition ────────────────────────────────────────────────────────────
   const handleDisposition = useCallback(async (disp: Disposition) => {
     const lead = activeLead;
     if (!lead) return;
@@ -707,7 +681,6 @@ export function MultiDialer() {
       body: JSON.stringify({ disposition: disp, lead, callDuration, sessionId }),
     }).catch(console.error);
 
-    // ── Context handoff: push call summary to Jarvis Chat ──────────────────
     try {
       const summaryPayload = {
         lead,
@@ -724,7 +697,6 @@ export function MultiDialer() {
       localStorage.setItem(handoffKey, JSON.stringify(existing));
     } catch { /* swallow — handoff is best-effort */ }
 
-    // Clear transcript for next call
     setTranscript([]);
     setSpeakingLead(null);
     setCurrentAudioUrl(null);
@@ -733,7 +705,6 @@ export function MultiDialer() {
     setCursor(nextCursor);
     setActiveLead(null);
 
-    // Update progress
     setProgress({
       cursor: nextCursor,
       total_leads: leads.length,
@@ -749,28 +720,17 @@ export function MultiDialer() {
     }
   }, [activeLead, winnerLane, lanes, sessionId, cursor, leads.length, dialNextBatch, transcript]);
 
-  // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => () => { stopPolling(); }, [stopPolling]);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
   const remaining = Math.max(leads.length - cursor, 0);
   const conv = stats.callsMade > 0 ? ((stats.contacted / stats.callsMade) * 100).toFixed(0) : '0';
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-5 max-w-5xl mx-auto pb-8">
+    <div className="flex flex-col gap-5">
 
-      {/* Header */}
+      {/* Status indicator */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-orbitron text-[14px] font-bold tracking-[2px] uppercase" style={{ color: '#e8e8f0' }}>
-            Multi-Line Dialer
-          </h2>
-          <p className="text-[10px] mt-0.5" style={{ color: '#52526e' }}>
-            5 simultaneous calls → first to answer connects to you
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <div
             className="w-2 h-2 rounded-full"
             style={{
@@ -786,10 +746,8 @@ export function MultiDialer() {
         </div>
       </div>
 
-      {/* David agent card */}
       <DavidCard status={davidStatus} lane={davidLane} />
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Calls Made" value={stats.callsMade} color="#00e5ff" />
         <StatCard label="Contacted"  value={stats.contacted} color="#4ade80" />
@@ -798,22 +756,18 @@ export function MultiDialer() {
           sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
       </div>
 
-      {/* Dialer progress bar */}
       {progress.total_leads > 0 && (
         <DialerProgress progress={progress} />
       )}
 
-      {/* Goal bar */}
       <GoalBar value={stats.callsMade} target={DAILY_GOAL} />
 
-      {/* 5 lane grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {lanes.map(lane => (
           <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx} />
         ))}
       </div>
 
-      {/* Transcript stub */}
       <TranscriptPanel active={dialerState === 'connected'} transcript={transcript} speakingLead={speakingLead} />
 
       {/* CSV upload */}
@@ -852,7 +806,7 @@ export function MultiDialer() {
         )}
       </div>
 
-      {/* Disposition (after a call ends) */}
+      {/* Disposition */}
       <AnimatePresence>
         {dialerState === 'disposition' && activeLead && (
           <motion.div
@@ -946,7 +900,7 @@ export function MultiDialer() {
                   }}
                 >
                   <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
-                  <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : isCompleted ? '#52526e' : '#52526e' }}>
+                  <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : '#52526e' }}>
                     {lead.name}
                   </div>
                   <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
@@ -967,6 +921,69 @@ export function MultiDialer() {
         {showSummary && (
           <SummaryModal open={showSummary} onClose={() => setShowSummary(false)} summary={summary} />
         )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Main MultiDialer Component ────────────────────────────────────────────────
+
+export function MultiDialer() {
+  const [activeTab, setActiveTab] = useState<DialerTab>('live');
+
+  return (
+    <div className="flex flex-col gap-5 max-w-5xl mx-auto pb-8">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-orbitron text-[14px] font-bold tracking-[2px] uppercase" style={{ color: '#e8e8f0' }}>
+            Multi-Line Dialer
+          </h2>
+          <p className="text-[10px] mt-0.5" style={{ color: '#52526e' }}>
+            5 simultaneous calls → first to answer connects to you
+          </p>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-1 overflow-x-auto pb-1"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {DIALER_TABS.map(tab => {
+          const active = activeTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <motion.button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-sm flex-shrink-0 text-[10px] font-medium transition-colors"
+              style={{
+                background: active ? 'rgba(0,229,255,0.10)' : 'transparent',
+                border: active ? '1px solid rgba(0,229,255,0.25)' : '1px solid transparent',
+                color: active ? '#00e5ff' : '#52526e',
+              }}
+              whileHover={!active ? { color: '#c4c4d6' } : {}}
+            >
+              <Icon size={13} />
+              {tab.label}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.18 }}
+        >
+          {activeTab === 'live'     && <LiveDialerTab />}
+          {activeTab === 'analytics' && <PerformanceAnalytics />}
+          {activeTab === 'script'   && <ScriptTraining />}
+        </motion.div>
       </AnimatePresence>
     </div>
   );
