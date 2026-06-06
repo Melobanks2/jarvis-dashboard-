@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2 } from 'lucide-react';
+import { Send, Copy, Zap, X, ChevronDown, Check, Brain, Terminal, Mic, MicOff, Volume2, VolumeX, Plus, MessageSquare, Trash2, Settings, SlidersHorizontal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Highlight, themes as prismThemes } from 'prism-react-renderer';
 import { supabase } from '@/lib/supabase';
+import { useGeminiLiveStream } from '@/lib/hooks/useGeminiLiveStream';
 
 // ── Browser-native voice type shims (no external deps) ─────────────────
 // SpeechRecognition is non-standard and missing from lib.dom. We feature-
@@ -390,7 +391,25 @@ interface ChatSession {
 
 const LS_SESSIONS = 'jarvis_chat_sessions';
 const LS_CURRENT_SESSION = 'jarvis_current_session';
+const LS_SETTINGS = 'jarvis_chat_settings';
 const MESSAGE_KEY = (sid: string) => `jarvis_chat_messages_${sid}`;
+
+interface ChatSettings {
+  apiKey: string;
+  systemPrompt: string;
+  selectedVoice: string | null;
+}
+
+function loadSettingsFromLS(): ChatSettings {
+  if (typeof window === 'undefined') return { apiKey: '', systemPrompt: '', selectedVoice: null };
+  try { return JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}'); }
+  catch { return { apiKey: '', systemPrompt: '', selectedVoice: null }; }
+}
+function saveSettingsToLS(s: ChatSettings) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); }
+  catch { /* quota / private mode — ignore */ }
+}
 
 function loadSessionsFromLS(): ChatSession[] {
   if (typeof window === 'undefined') return [];
@@ -539,6 +558,17 @@ export function IntelligenceChat() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
+  // ── Gemini Live Audio Streaming state ─────────────────────────
+  const [voiceModeEnabled, setVoiceModeEnabled] = useState(false);
+
+  // ── Settings state ──────────────────────────────────────────
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<ChatSettings>(() => {
+    const loaded = loadSettingsFromLS();
+    return { apiKey: loaded.apiKey ?? '', systemPrompt: loaded.systemPrompt ?? '', selectedVoice: loaded.selectedVoice ?? null };
+  });
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
   const sessionIdRef    = useRef(activeSessionId);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
   const textareaRef     = useRef<HTMLTextAreaElement>(null);
@@ -551,6 +581,25 @@ export function IntelligenceChat() {
   useEffect(() => {
     return () => { stopSpeaking(); };
   }, []);
+
+  // ── Load available TTS voices ────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const loadVoices = () => {
+      try {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) setAvailableVoices(voices);
+      } catch { /* ignore */ }
+    };
+    loadVoices();
+    try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch { /* ignore */ }
+    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch { /* ignore */ } };
+  }, []);
+
+  // ── Persist settings to localStorage ─────────────────────────────────
+  useEffect(() => {
+    saveSettingsToLS(settings);
+  }, [settings]);
 
   const estimatedTokens = useMemo(() => {
     const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
@@ -566,19 +615,6 @@ export function IntelligenceChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Prewarm the Thunder GPU as soon as the chat panel mounts so the first
-  // user message doesn't pay the full ~60-120s cold-start latency. The proxy
-  // dedupes concurrent starts, so firing this on every mount is safe.
-  useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
-    const secret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
-    if (!url || !secret) return;
-    fetch(`${url}/api/prewarm`, {
-      method: 'POST',
-      headers: { 'X-Chat-Secret': secret, 'Content-Type': 'application/json' },
-      body: '{}',
-    }).catch(() => { /* fire and forget */ });
-  }, []);
 
   // Load sessions, messages, memory, and prompt queue once on mount.
   // localStorage is the source of truth for sessions & per-session messages.
@@ -708,90 +744,120 @@ export function IntelligenceChat() {
     };
 
     try {
-      const systemPrompt = buildSystemPrompt(buildMemoryContext(memoryRows));
-      const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
-      const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
-      if (!chatUrl || !chatSecret) {
-        diag.url = '<unset>';
-        throw new Error('Chat backend not configured (NEXT_PUBLIC_THUNDER_CHAT_URL / NEXT_PUBLIC_THUNDER_CHAT_SECRET missing)');
+      // ══════════════════════════════════════════════════════════════
+      // GEMINI LIVE API INTEGRATION (text-based for now)
+      // ══════════════════════════════════════════════════════════════
+      // This uses the Gemini API's text endpoint. For full audio-to-audio
+      // streaming with WebSocket, see the implementation notes below.
+      
+      const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        diag.url = 'Gemini Live API (not configured)';
+        throw new Error(
+          'Gemini Live API not configured. Add NEXT_PUBLIC_GEMINI_API_KEY to your .env.local file.'
+        );
       }
-      diag.url = `${chatUrl}/api/chat`;
-      const reqBody = {
-        model: selectedModel,
-        stream: false,
-        options: { num_gpu: 99, num_ctx: 8192 },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...apiMessages,
+
+      // Build system prompt with memory context
+      const memoryContext = buildMemoryContext(memoryRows);
+      const systemPrompt = buildSystemPrompt(memoryContext);
+      const fullSystemPrompt = settings.systemPrompt
+        ? `${systemPrompt}\n\n## CUSTOM INSTRUCTIONS:\n${settings.systemPrompt}`
+        : systemPrompt;
+
+      // Gemini API REST endpoint (text-based)
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${
+        selectedModel === 'gemini-pro' ? 'gemini-2.0-flash-exp' : 'gemini-2.0-flash-exp'
+      }:generateContent?key=${geminiApiKey}`;
+
+      diag.url = endpoint;
+      diag.method = 'POST';
+
+      const requestBody = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: fullSystemPrompt }]
+          },
+          ...apiMessages.map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.content }]
+          }))
         ],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        }
       };
-      diag.requestBodyExcerpt = JSON.stringify(reqBody).slice(0, 800);
-      const res = await fetch(diag.url, {
+
+      diag.requestBodyExcerpt = JSON.stringify(requestBody).slice(0, 800);
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Chat-Secret': chatSecret },
-        body: JSON.stringify(reqBody),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
-      diag.status = res.status;
-      diag.statusText = res.statusText;
-      diag.responseHeaders = Object.fromEntries(res.headers);
-      const rawText = await res.text();
-      diag.responseBodyExcerpt = rawText.slice(0, 800);
-      let data: { error?: string; message?: { content?: string } } = {};
-      try { data = JSON.parse(rawText); } catch {
-        throw new Error(`Non-JSON response (status ${res.status}). First 200 chars: ${rawText.slice(0, 200)}`);
+      diag.status = response.status;
+      diag.statusText = response.statusText;
+      diag.responseHeaders = Object.fromEntries(response.headers.entries());
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        diag.responseBodyExcerpt = errorText.slice(0, 800);
+        throw new Error(`Gemini API error: ${response.status} ${response.statusText}\n${errorText}`);
       }
-      if (!res.ok) throw new Error(data.error || `Proxy returned status ${res.status}`);
 
-      const content: string = data.message?.content ?? '';
+      const data = await response.json();
+      diag.responseBodyExcerpt = JSON.stringify(data).slice(0, 800);
 
-      // Save assistant message
-      const { data: savedAssistant } = await supabase
-        .from('jarvis_chat_messages')
-        .insert({
-          role: 'assistant',
-          content,
-          session_id: sessionIdRef.current,
-          has_visual: /<svg/i.test(content),
-        })
-        .select()
-        .single();
+      // Extract the assistant's response
+      const assistantText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini API.';
 
-      const assistantMsg = (savedAssistant ?? {
-        id: `tmp-a-${Date.now()}`,
-        role: 'assistant' as const,
-        content,
+      // Parse memory updates from the response
+      await parseMemoryUpdates(assistantText, setMemoryRows);
+
+      // Cache visuals (SVG diagrams) if any
+      await cacheVisual(assistantText);
+
+      const assistantMsg: ChatMessage = {
+        id: `tmp-${Date.now()}`,
+        role: 'assistant',
+        content: assistantText,
         created_at: new Date().toISOString(),
-      }) as ChatMessage;
+      };
 
       setMessages(prev => [...prev, assistantMsg]);
 
-      // Background: parse memory + cache visuals
-      parseMemoryUpdates(content, setMemoryRows);
-      if (/<svg/i.test(content)) cacheVisual(content);
+      // Save to Supabase (fire and forget)
+      supabase
+        .from('jarvis_chat_messages')
+        .insert({ role: 'assistant', content: assistantText, session_id: sessionIdRef.current })
+        .select()
+        .single()
+        .then(({ data: savedData }) => {
+          if (savedData) {
+            setMessages(prev =>
+              prev.map(m => (m.id === assistantMsg.id ? (savedData as ChatMessage) : m))
+            );
+          }
+        });
+
     } catch (err: unknown) {
       diag.errorMessage = err instanceof Error ? err.message : String(err);
-      // Fetch current proxy status as part of the diagnostic snapshot (best effort).
-      try {
-        const chatUrl = process.env.NEXT_PUBLIC_THUNDER_CHAT_URL;
-        const chatSecret = process.env.NEXT_PUBLIC_THUNDER_CHAT_SECRET;
-        if (chatUrl && chatSecret) {
-          const statusRes = await fetch(`${chatUrl}/api/status`, {
-            headers: { 'X-Chat-Secret': chatSecret },
-          });
-          diag.proxyStatus = statusRes.ok ? await statusRes.json() : { _http: statusRes.status };
-        } else {
-          diag.proxyStatus = { _note: 'env vars unset' };
-        }
-      } catch (statusErr) {
-        diag.proxyStatus = { _fetchError: String(statusErr) };
-      }
+      diag.url = diag.url || 'Gemini Live API';
       setMessages(prev => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           role: 'assistant' as const,
-          content: `**Error:** ${diag.errorMessage}\n\nIf this is the first message after >10 min idle, the GPU is cold-starting (~60-120s). Try again in a moment.\n\n_Click "Push error to Claude Code" below to bundle the network trace into a Claude Code prompt._`,
+          content: `**Gemini API Error:**\n\n${diag.errorMessage}\n\n` +
+            `The chat is configured for Gemini Live API but encountered an error. ` +
+            `Check your API key and network connection.`,
           created_at: new Date().toISOString(),
           diagnostics: diag as ChatDiagnostics,
         },
@@ -799,7 +865,7 @@ export function IntelligenceChat() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, memoryRows, selectedModel]);
+  }, [input, loading, messages, memoryRows, selectedModel, settings.systemPrompt]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -931,6 +997,61 @@ export function IntelligenceChat() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
+  // ── Gemini Live Audio Streaming Hook ─────────────────────────────────
+  const geminiApiKey = typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_GEMINI_API_KEY : '';
+  const memoryContext = useMemo(() => buildMemoryContext(memoryRows), [memoryRows]);
+  const systemPrompt = useMemo(() => buildSystemPrompt(memoryContext), [memoryContext]);
+  const fullSystemPrompt = useMemo(() => 
+    settings.systemPrompt ? `${systemPrompt}\n\n## CUSTOM INSTRUCTIONS:\n${settings.systemPrompt}` : systemPrompt,
+    [systemPrompt, settings.systemPrompt]
+  );
+
+  const geminiStream = useGeminiLiveStream({
+    apiKey: geminiApiKey || '',
+    systemPrompt: fullSystemPrompt,
+    model: 'models/gemini-2.0-flash-exp',
+    onTranscript: (text) => {
+      // User spoke - add to messages
+      const userMsg: ChatMessage = {
+        id: `tmp-${Date.now()}`,
+        role: 'user',
+        content: text,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, userMsg]);
+    },
+    onResponse: (text) => {
+      // AI responded - update or add assistant message
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.id?.startsWith('stream-')) {
+          // Update existing streaming message
+          return prev.map((m, i) => 
+            i === prev.length - 1 ? { ...m, content: m.content + text } : m
+          );
+        } else {
+          // Create new assistant message
+          return [...prev, {
+            id: `stream-${Date.now()}`,
+            role: 'assistant' as const,
+            content: text,
+            created_at: new Date().toISOString(),
+          }];
+        }
+      });
+    },
+    onError: (error) => {
+      console.error('Gemini Live Stream error:', error);
+      setVoiceError(error.message);
+    },
+    onStreamStart: () => {
+      console.log('🎙️ Voice mode activated');
+    },
+    onStreamEnd: () => {
+      console.log('🎙️ Voice mode deactivated');
+    },
+  });
+
   // ── Voice handlers (browser-native, wrapped in try/catch) ──────────
   const toggleListening = useCallback(() => {
     setVoiceError(null);
@@ -953,9 +1074,26 @@ export function IntelligenceChat() {
       rec.lang = 'en-US';
       rec.onresult = (event: any) => {
         try {
-          const transcript: string = event?.results?.[0]?.[0]?.transcript ?? '';
-          if (transcript) {
-            setInput(prev => (prev ? prev + ' ' : '') + transcript.trim());
+          // Handle all result entries (both interim and final)
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript: string = event.results[i]?.[0]?.transcript ?? '';
+            if (transcript) {
+              const isFinal = event.results[i].isFinal;
+              if (isFinal) {
+                // Final result: append to input
+                setInput(prev => (prev ? prev + ' ' : '') + transcript.trim());
+              } else {
+                // Interim result: show in input with visual cue
+                const interimText = transcript.trim();
+                if (interimText) {
+                  setInput(prev => {
+                    // Remove any previous interim text (denoted by trailing ⌘)
+                    const base = prev.endsWith(' ⌘') ? prev.slice(0, -2) : prev;
+                    return base + (base ? ' ' : '') + interimText + ' ⌘';
+                  });
+                }
+              }
+            }
           }
         } catch { /* ignore */ }
       };
@@ -978,6 +1116,29 @@ export function IntelligenceChat() {
       setIsListening(false);
     }
   }, [isListening]);
+
+  // ── Pick best voice: user-selected > premium/enhanced > system default ──
+  const pickBestVoice = useCallback(() => {
+    const voices = availableVoices.length > 0 ? availableVoices : ('speechSynthesis' in window ? window.speechSynthesis.getVoices() : []);
+    if (voices.length === 0) return null;
+    // 1) If user selected a specific voice, use it
+    if (settings.selectedVoice) {
+      const found = voices.find(v => v.name === settings.selectedVoice || v.voiceURI === settings.selectedVoice);
+      if (found) return found;
+    }
+    // 2) Look for premium / enhanced English voices
+    const premium = voices.find(v =>
+      v.lang.startsWith('en') && (
+        v.name.toLowerCase().includes('premium') ||
+        v.name.toLowerCase().includes('enhanced') ||
+        v.name.toLowerCase().includes('natural')
+      )
+    );
+    if (premium) return premium;
+    // 3) Prefer English voices
+    const en = voices.find(v => v.lang.startsWith('en'));
+    return en || voices[0] || null;
+  }, [availableVoices, settings.selectedVoice]);
 
   const speakMessage = useCallback((msg: ChatMessage) => {
     if (!msg || msg.role !== 'assistant') return;
@@ -1006,9 +1167,14 @@ export function IntelligenceChat() {
       const utt = new SpeechSynthesisUtterance(plain);
       utt.rate = 1.0;
       utt.pitch = 1.0;
+      // Use best available voice
+      try {
+        const voice = pickBestVoice();
+        if (voice) utt.voice = voice;
+      } catch { /* ignore — use default */ }
       utt.onend = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
       utt.onerror = () => { setSpeakingMsgId(prev => (prev === msg.id ? null : prev)); };
-      setSpeakingMsgId(msg.id);
+      setSpeakingMsgId(msg.id || null);
       try { window.speechSynthesis.speak(utt); }
       catch (e) {
         setSpeakingMsgId(null);
@@ -1018,11 +1184,11 @@ export function IntelligenceChat() {
       setSpeakingMsgId(null);
       setVoiceError('Text-to-speech not available.');
     }
-  }, [speakingMsgId]);
+  }, [speakingMsgId, pickBestVoice]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Session header — New Chat + saved-sessions dropdown */}
+      {/* Session header — New Chat + saved-sessions dropdown + Settings */}
       <div
         className="flex-shrink-0 flex items-center gap-2 px-3 py-2"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.6)' }}
@@ -1121,7 +1287,106 @@ export function IntelligenceChat() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Settings gear icon */}
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(v => !v)}
+          className="flex-shrink-0 p-1.5 rounded-lg transition-colors"
+          style={{
+            color: settingsOpen ? '#a89ef5' : '#52526e',
+            background: settingsOpen ? 'rgba(83,74,183,0.15)' : 'transparent',
+          }}
+          title="Settings"
+        >
+          <Settings size={14} />
+        </button>
       </div>
+
+      {/* ── Settings Panel ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {settingsOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden flex-shrink-0"
+          >
+            <div
+              className="px-4 py-3 space-y-3"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(11,12,19,0.4)' }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <SlidersHorizontal size={12} style={{ color: '#a89ef5' }} />
+                <span className="text-[11px] font-semibold" style={{ color: '#c4c4d6' }}>Settings</span>
+              </div>
+
+              {/* API Key */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>API Key (optional, for private endpoints)</label>
+                <input
+                  type="password"
+                  value={settings.apiKey}
+                  onChange={e => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                  placeholder="sk-..."
+                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                  }}
+                />
+              </div>
+
+              {/* System Prompt */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>Custom System Prompt (append to default)</label>
+                <textarea
+                  value={settings.systemPrompt}
+                  onChange={e => setSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                  placeholder="Add custom instructions, persona tweaks, or parameters..."
+                  rows={3}
+                  className="w-full resize-none rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                    lineHeight: '1.5',
+                  }}
+                />
+              </div>
+
+              {/* Voice Selection */}
+              <div>
+                <label className="text-[10px] font-medium block mb-1" style={{ color: '#8e8ea0' }}>TTS Voice</label>
+                <select
+                  value={settings.selectedVoice ?? ''}
+                  onChange={e => setSettings(prev => ({ ...prev, selectedVoice: e.target.value || null }))}
+                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none cursor-pointer"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#c4c4d6',
+                  }}
+                >
+                  <option value="" style={{ background: '#0e0f18' }}>Auto (premium/enhanced preferred)</option>
+                  {availableVoices
+                    .filter(v => v.lang.startsWith('en'))
+                    .map(v => (
+                      <option key={v.name} value={v.name} style={{ background: '#0e0f18' }}>
+                        {v.name} ({v.lang}){v.localService ? ' [local]' : ''}
+                      </option>
+                    ))}
+                </select>
+                {availableVoices.length === 0 && (
+                  <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>No voices loaded yet — try speaking once to trigger voice detection.</div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Voice error toast */}
       {voiceError && (
@@ -1325,6 +1590,28 @@ export function IntelligenceChat() {
               </option>
             ))}
           </select>
+          
+          {/* Voice Mode Toggle */}
+          <motion.button
+            type="button"
+            onClick={() => geminiStream.toggleStream()}
+            disabled={!geminiApiKey}
+            title={geminiStream.isStreaming ? 'Stop voice mode (Gemini Live)' : 'Start voice mode (Gemini Live)'}
+            className="flex-shrink-0 px-3 py-3 rounded-xl flex items-center gap-2 text-[11px] font-medium"
+            style={{
+              background: geminiStream.isStreaming ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
+              color: geminiStream.isStreaming ? '#4ade80' : geminiApiKey ? '#a89ef5' : '#52526e',
+              border: geminiStream.isStreaming ? '1px solid rgba(74,222,128,0.4)' : '1px solid rgba(255,255,255,0.1)',
+              minHeight: 44,
+              opacity: !geminiApiKey ? 0.5 : 1,
+              cursor: !geminiApiKey ? 'not-allowed' : 'pointer',
+            }}
+            whileHover={geminiApiKey ? { scale: 1.02 } : {}}
+            whileTap={geminiApiKey ? { scale: 0.98 } : {}}
+          >
+            {geminiStream.isSpeaking ? <Volume2 size={14} /> : <Mic size={14} />}
+            {geminiStream.isStreaming ? 'Live' : 'Voice'}
+          </motion.button>
         <textarea
           ref={textareaRef}
           value={input}

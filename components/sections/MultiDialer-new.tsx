@@ -6,10 +6,8 @@ import {
   Phone, PhoneOff, Upload, Play, Pause, Square,
   Flame, Snowflake, AlertCircle, RotateCcw,
   MapPin, FileText, Clock, TrendingUp,
-  Bot, Radio, Target, X, CheckCircle, BookOpen,
-  BarChart3, List,
+  Bot, Radio, Target, X, CheckCircle,
 } from 'lucide-react';
-import { ScriptTraining } from './ScriptTraining';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -406,19 +404,7 @@ function SummaryModal({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-type DialerTab = 'live' | 'script' | 'analytics' | 'reviews';
-
-const DIALER_TABS: { id: DialerTab; label: string; icon: React.ElementType }[] = [
-  { id: 'live',     label: 'Live Dialer',           icon: Phone     },
-  { id: 'script',   label: 'Script & Training',     icon: BookOpen  },
-  { id: 'analytics',label: 'Performance Analytics', icon: BarChart3 },
-  { id: 'reviews',  label: 'Call Review',           icon: List      },
-];
-
 export function MultiDialer() {
-  // Tab
-  const [tab, setTab] = useState<DialerTab>('live');
-
   // Data
   const [leads,  setLeads]  = useState<Lead[]>([]);
   const [cursor, setCursor] = useState(0);
@@ -712,256 +698,194 @@ export function MultiDialer() {
             5 simultaneous calls → first to answer connects to you
           </p>
         </div>
-        {tab === 'live' && (
-          <div className="flex items-center gap-1.5">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                background: dialerState === 'connected' ? '#4ade80'
-                  : dialerState === 'dialing' ? '#fbbf24'
-                  : '#52526e',
-                boxShadow: dialerState === 'connected' ? '0 0 8px #4ade80' : 'none',
-              }}
-            />
-            <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
-              {dialerState === 'connected' ? 'LIVE' : dialerState.toUpperCase()}
-            </span>
+        <div className="flex items-center gap-1.5">
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{
+              background: dialerState === 'connected' ? '#4ade80'
+                : dialerState === 'dialing' ? '#fbbf24'
+                : '#52526e',
+              boxShadow: dialerState === 'connected' ? '0 0 8px #4ade80' : 'none',
+            }}
+          />
+          <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
+            {dialerState === 'connected' ? 'LIVE' : dialerState.toUpperCase()}
+          </span>
+        </div>
+      </div>
+
+      {/* David agent card */}
+      <DavidCard status={davidStatus} lane={davidLane} />
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Calls Made" value={stats.callsMade} color="#00e5ff" />
+        <StatCard label="Contacted"  value={stats.contacted} color="#4ade80" />
+        <StatCard label="Hot Leads"  value={stats.hot}       color="#ff3366" />
+        <StatCard label="Conv. Rate" value={`${conv}%`}      color="#a78bfa"
+          sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
+      </div>
+
+      {/* Dialer progress bar */}
+      {progress.total_leads > 0 && (
+        <DialerProgress progress={progress} />
+      )}
+
+      {/* Goal bar */}
+      <GoalBar value={stats.callsMade} target={DAILY_GOAL} />
+
+      {/* 5 lane grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {lanes.map(lane => (
+          <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx} />
+        ))}
+      </div>
+
+      {/* Transcript stub */}
+      <TranscriptPanel active={dialerState === 'connected'} />
+
+      {/* CSV upload */}
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-medium" style={{ color: '#c4c4d6' }}>
+              {leads.length > 0
+                ? `${leads.length} leads loaded — ${remaining} remaining`
+                : 'Upload CSV to get started'}
+            </div>
+            {leads.length > 0 && (
+              <div className="text-[9px] mt-0.5" style={{ color: '#52526e' }}>
+                Batch {Math.floor(cursor / LANE_COUNT) + 1} of {Math.ceil(leads.length / LANE_COUNT)}
+                {leads[cursor] ? ` · Next: ${leads[cursor].name}` : ''}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium"
+            style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
+          >
+            <Upload size={11} />
+            {leads.length > 0 ? 'Replace CSV' : 'Upload CSV'}
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
+        </div>
+        {leads.length === 0 && (
+          <div className="text-[9px]" style={{ color: '#3a3a52' }}>
+            CSV columns: name, phone, address, notes (header row required)
           </div>
         )}
       </div>
 
-      {/* Tab bar */}
-      <div
-        className="rounded-xl p-1 flex gap-1"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
-      >
-        {DIALER_TABS.map(t => {
-          const Icon = t.icon;
-          const isActive = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-orbitron tracking-[1.5px] uppercase transition-all"
-              style={{
-                background: isActive ? 'rgba(74,222,128,0.1)' : 'transparent',
-                color: isActive ? '#4ade80' : '#52526e',
-                border: isActive ? '1px solid rgba(74,222,128,0.2)' : '1px solid transparent',
-              }}
-            >
-              <Icon size={12} />
-              {t.label}
-            </button>
-          );
-        })}
+      {/* Disposition (after a call ends) */}
+      <AnimatePresence>
+        {dialerState === 'disposition' && activeLead && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.2)' }}
+          >
+            <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#a78bfa' }}>
+              Disposition · {activeLead.name}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {DISPOSITIONS.map(d => {
+                const Icon = d.icon;
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => handleDisposition(d.id)}
+                    className="flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all"
+                    style={{ background: `${d.color}0c`, border: `1px solid ${d.color}33` }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}1a`; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}0c`; }}
+                  >
+                    <Icon size={16} style={{ color: d.color }} />
+                    <span className="text-[10px] font-medium" style={{ color: d.color }}>{d.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Controls */}
+      <div className="flex items-center gap-3">
+        {(dialerState === 'idle' || dialerState === 'paused') && (
+          <button
+            onClick={handleStart}
+            disabled={leads.length === 0 || remaining === 0}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
+          >
+            <Play size={14} />
+            {dialerState === 'paused' ? 'Resume' : 'Start Dialing'}
+          </button>
+        )}
+
+        {(dialerState === 'dialing' || dialerState === 'connecting' || dialerState === 'connected') && (
+          <button
+            onClick={handlePause}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
+            style={{ background: 'rgba(251,191,36,0.08)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}
+          >
+            <Pause size={14} />
+            Pause
+          </button>
+        )}
+
+        {dialerState !== 'idle' && (
+          <button
+            onClick={handleStop}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
+            style={{ background: 'rgba(255,51,102,0.08)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.2)' }}
+          >
+            <Square size={14} />
+            Stop Dialing
+          </button>
+        )}
       </div>
 
-      {tab === 'live' && (
-        <>
-          {/* David agent card */}
-          <DavidCard status={davidStatus} lane={davidLane} />
-
-          {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Calls Made" value={stats.callsMade} color="#00e5ff" />
-            <StatCard label="Contacted"  value={stats.contacted} color="#4ade80" />
-            <StatCard label="Hot Leads"  value={stats.hot}       color="#ff3366" />
-            <StatCard label="Conv. Rate" value={`${conv}%`}      color="#a78bfa"
-              sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
-          </div>
-
-          {/* Dialer progress bar */}
-          {progress.total_leads > 0 && (
-            <DialerProgress progress={progress} />
-          )}
-
-          {/* Goal bar */}
-          <GoalBar value={stats.callsMade} target={DAILY_GOAL} />
-
-          {/* 5 lane grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {lanes.map(lane => (
-              <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx} />
-            ))}
-          </div>
-
-          {/* Transcript stub */}
-          <TranscriptPanel active={dialerState === 'connected'} />
-
-          {/* CSV upload */}
-          <div
-            className="rounded-2xl p-4 flex flex-col gap-3"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-medium" style={{ color: '#c4c4d6' }}>
-                  {leads.length > 0
-                    ? `${leads.length} leads loaded — ${remaining} remaining`
-                    : 'Upload CSV to get started'}
-                </div>
-                {leads.length > 0 && (
-                  <div className="text-[9px] mt-0.5" style={{ color: '#52526e' }}>
-                    Batch {Math.floor(cursor / LANE_COUNT) + 1} of {Math.ceil(leads.length / LANE_COUNT)}
-                    {leads[cursor] ? ` · Next: ${leads[cursor].name}` : ''}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium"
-                style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
-              >
-                <Upload size={11} />
-                {leads.length > 0 ? 'Replace CSV' : 'Upload CSV'}
-              </button>
-              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
-            </div>
-            {leads.length === 0 && (
-              <div className="text-[9px]" style={{ color: '#3a3a52' }}>
-                CSV columns: name, phone, address, notes (header row required)
-              </div>
-            )}
-          </div>
-
-          {/* Disposition (after a call ends) */}
-          <AnimatePresence>
-            {dialerState === 'disposition' && activeLead && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="rounded-2xl p-4 flex flex-col gap-3"
-                style={{ background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.2)' }}
-              >
-                <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#a78bfa' }}>
-                  Disposition · {activeLead.name}
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {DISPOSITIONS.map(d => {
-                    const Icon = d.icon;
-                    return (
-                      <button
-                        key={d.id}
-                        onClick={() => handleDisposition(d.id)}
-                        className="flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all"
-                        style={{ background: `${d.color}0c`, border: `1px solid ${d.color}33` }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}1a`; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}0c`; }}
-                      >
-                        <Icon size={16} style={{ color: d.color }} />
-                        <span className="text-[10px] font-medium" style={{ color: d.color }}>{d.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            {(dialerState === 'idle' || dialerState === 'paused') && (
-              <button
-                onClick={handleStart}
-                disabled={leads.length === 0 || remaining === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
-              >
-                <Play size={14} />
-                {dialerState === 'paused' ? 'Resume' : 'Start Dialing'}
-              </button>
-            )}
-
-            {(dialerState === 'dialing' || dialerState === 'connecting' || dialerState === 'connected') && (
-              <button
-                onClick={handlePause}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
-                style={{ background: 'rgba(251,191,36,0.08)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}
-              >
-                <Pause size={14} />
-                Pause
-              </button>
-            )}
-
-            {dialerState !== 'idle' && (
-              <button
-                onClick={handleStop}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
-                style={{ background: 'rgba(255,51,102,0.08)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.2)' }}
-              >
-                <Square size={14} />
-                Stop Dialing
-              </button>
-            )}
-          </div>
-
-          {/* Lead queue preview */}
-          {leads.length > 0 && (
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-            >
-              <div className="text-[9px] font-orbitron tracking-[1.5px] uppercase mb-3" style={{ color: '#52526e' }}>
-                Queue — {progress.remaining} remaining
-              </div>
-              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                {leads.slice(cursor, cursor + 20).map((lead, i) => {
-                  const absIdx = cursor + i;
-                  const isCurrentBatch = dialerState !== 'idle' && i < LANE_COUNT;
-                  const isCompleted = absIdx < progress.completed;
-                  return (
-                    <div
-                      key={absIdx}
-                      className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
-                      style={{
-                        background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
-                        borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
-                      }}
-                    >
-                      <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
-                      <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : isCompleted ? '#52526e' : '#52526e' }}>
-                        {lead.name}
-                      </div>
-                      <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
-                    </div>
-                  );
-                })}
-                {progress.remaining > 20 && (
-                  <div className="text-[9px] text-center pt-1" style={{ color: '#3a3a52' }}>
-                    +{progress.remaining - 20} more
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {tab === 'script' && (
-        <ScriptTraining />
-      )}
-
-      {tab === 'analytics' && (
+      {/* Lead queue preview */}
+      {leads.length > 0 && (
         <div
-          className="flex-1 rounded-2xl p-6 flex items-center justify-center"
+          className="rounded-2xl p-4"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <div className="text-center">
-            <BarChart3 size={24} style={{ color: '#52526e', margin: '0 auto 8px' }} />
-            <div className="text-[12px] font-medium" style={{ color: '#c4c4d6' }}>Performance Analytics</div>
-            <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>Coming soon — call metrics, conversion trends, agent scoring</div>
+          <div className="text-[9px] font-orbitron tracking-[1.5px] uppercase mb-3" style={{ color: '#52526e' }}>
+            Queue — {progress.remaining} remaining
           </div>
-        </div>
-      )}
-
-      {tab === 'reviews' && (
-        <div
-          className="flex-1 rounded-2xl p-6 flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-        >
-          <div className="text-center">
-            <List size={24} style={{ color: '#52526e', margin: '0 auto 8px' }} />
-            <div className="text-[12px] font-medium" style={{ color: '#c4c4d6' }}>Call Review</div>
-            <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>Coming soon — recording playback, transcript replay, coaching notes</div>
+          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+            {leads.slice(cursor, cursor + 20).map((lead, i) => {
+              const absIdx = cursor + i;
+              const isCurrentBatch = dialerState !== 'idle' && i < LANE_COUNT;
+              const isCompleted = absIdx < progress.completed;
+              return (
+                <div
+                  key={absIdx}
+                  className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
+                  style={{
+                    background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
+                    borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
+                  }}
+                >
+                  <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
+                  <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : isCompleted ? '#52526e' : '#52526e' }}>
+                    {lead.name}
+                  </div>
+                  <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
+                </div>
+              );
+            })}
+            {progress.remaining > 20 && (
+              <div className="text-[9px] text-center pt-1" style={{ color: '#3a3a52' }}>
+                +{progress.remaining - 20} more
+              </div>
+            )}
           </div>
         </div>
       )}
