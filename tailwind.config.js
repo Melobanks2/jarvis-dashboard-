@@ -32,6 +32,8 @@ module.exports = {
       },
       fontFamily: {
         orbitron: ['Orbitron', 'monospace'],
+        spacemono: ['var(--font-space-mono)', 'monospace'],
+        dmsans:   ['var(--font-dm-sans)', 'sans-serif'],
         mono:     ['Inter', '-apple-system', 'sans-serif'],
         sans:     ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
