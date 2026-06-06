@@ -104,6 +104,34 @@ const AUDIO_MAP: Record<string, string> = {
   'obj-dnc': `${BASE_URL}/audio/corpus/sarah/script-v4/obj-dnc-24k.wav`,
   'obj-not-interested': `${BASE_URL}/audio/corpus/sarah/script-v4/obj-not-interested-24k.wav`,
   'obj-hostile': `${BASE_URL}/audio/corpus/sarah/script-v4/obj-hostile-24k.wav`,
+  // ACK/RECAP audio files
+  'ack1-divorce': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-divorce-24k.wav`,
+  'ack2-divorce': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-divorce-24k.wav`,
+  'recap-divorce': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-divorce-24k.wav`,
+  'ack1-inherited': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-inherited-24k.wav`,
+  'ack2-inherited': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-inherited-24k.wav`,
+  'recap-inherited': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-inherited-24k.wav`,
+  'ack1-behind': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-behind-24k.wav`,
+  'ack2-behind': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-behind-24k.wav`,
+  'recap-behind': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-behind-24k.wav`,
+  'ack1-relocating': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-relocating-24k.wav`,
+  'ack2-relocating': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-relocating-24k.wav`,
+  'recap-relocating': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-relocating-24k.wav`,
+  'ack1-vacant': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-vacant-24k.wav`,
+  'ack2-vacant': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-vacant-24k.wav`,
+  'recap-vacant': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-vacant-24k.wav`,
+  'ack1-tired_landlord': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-landlord-24k.wav`,
+  'ack2-tired_landlord': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-landlord-24k.wav`,
+  'recap-tired_landlord': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-landlord-24k.wav`,
+  'ack1-preforeclosure': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-foreclosure-24k.wav`,
+  'ack2-preforeclosure': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-foreclosure-24k.wav`,
+  'recap-preforeclosure': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-foreclosure-24k.wav`,
+  'ack1-tax_lien': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-taxlien-24k.wav`,
+  'ack2-tax_lien': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-taxlien-24k.wav`,
+  'recap-tax_lien': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-taxlien-24k.wav`,
+  'ack1-exploring': `${BASE_URL}/audio/corpus/sarah/script-v4/ack1-exploring-24k.wav`,
+  'ack2-exploring': `${BASE_URL}/audio/corpus/sarah/script-v4/ack2-exploring-24k.wav`,
+  'recap-exploring': `${BASE_URL}/audio/corpus/sarah/script-v4/recap-exploring-24k.wav`,
 };
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -402,16 +430,19 @@ function PainPathCard({ path }: { path: PainPath }) {
               <div className="rounded-lg p-3 space-y-1.5" style={{ background: `${C.surface}`, borderLeft: `2px solid ${C.green}44` }}>
                 <MutedLabel text="1st Ack" />
                 <div className="font-dmsans text-[11px] leading-relaxed" style={{ color: C.text, opacity: 0.8 }}>{path.ack1}</div>
+                {AUDIO_MAP[`ack1-${path.id}`] && <AudioPlayer url={AUDIO_MAP[`ack1-${path.id}`]} />}
               </div>
               <div className="rounded-lg p-3 space-y-1.5" style={{ background: `${C.surface}`, borderLeft: `2px solid ${C.green}44` }}>
                 <MutedLabel text="2nd Ack" />
                 <div className="font-dmsans text-[11px] leading-relaxed" style={{ color: C.text, opacity: 0.8 }}>{path.ack2}</div>
+                {AUDIO_MAP[`ack2-${path.id}`] && <AudioPlayer url={AUDIO_MAP[`ack2-${path.id}`]} />}
               </div>
               <div className="rounded-lg p-3 space-y-1.5" style={{ background: `${C.surface}`, borderLeft: `2px solid ${C.accent}44` }}>
                 <MutedLabel text="Recap options" />
                 {path.recap.map((r, i) => (
                   <div key={i} className="font-dmsans text-[11px] mt-1 leading-relaxed" style={{ color: C.text, opacity: 0.7 }}>{r}</div>
                 ))}
+                {AUDIO_MAP[`recap-${path.id}`] && <AudioPlayer url={AUDIO_MAP[`recap-${path.id}`]} />}
               </div>
             </div>
           </motion.div>
