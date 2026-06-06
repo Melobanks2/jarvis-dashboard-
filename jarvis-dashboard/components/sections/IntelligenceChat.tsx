@@ -411,6 +411,7 @@ const API_KEY_PROVIDERS = [
   { id: 'anthropic', label: 'ANTHROPIC / CLAUDE', sublabel: '', placeholder: 'sk-ant-...' },
   { id: 'groq', label: 'GROQ', sublabel: '', placeholder: 'gsk_...' },
   { id: 'deepseek', label: 'DEEPSEEK', sublabel: '', placeholder: 'sk-...' },
+  { id: 'elevenlabs', label: 'ELEVENLABS', sublabel: 'TTS Voice', placeholder: 'el_...' },
 ] as const;
 
 const DEFAULT_SETTINGS: ChatSettings = {
@@ -465,6 +466,21 @@ function saveSessionMessagesToLS(sid: string, msgs: ChatMessage[]) {
 function createSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+/**
+ * Read an API key from the saved chat settings.
+ * Returns the key string if it exists and is marked as saved, or null otherwise.
+ * Used by MultiDialer to pass provider keys to the backend.
+ */
+export function getApiKey(provider: string): string | null {
+  try {
+    const raw = localStorage.getItem(LS_SETTINGS);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const entry = parsed?.apiKeys?.[provider];
+    return entry?.saved && entry?.key ? entry.key : null;
+  } catch { return null; }
+}
+
 function autoNameSession(msgs: ChatMessage[]): string {
   const f = msgs.find(m => m.role === 'user');
   if (!f) return 'New Chat';
@@ -711,6 +727,31 @@ export function IntelligenceChat() {
   useEffect(() => {
     setSelectedModel(settings.selectedModel);
   }, [settings.selectedModel]);
+
+  // ── Consume dialer handoff context ────────────────────────────────────
+  // When a call ends in the MultiDialer, it pushes a summary to localStorage.
+  // This effect picks it up and injects it as a system message so Jarvis
+  // has full context of the call without the user needing to copy/paste.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jarvis_chat_handoff');
+      if (!raw) return;
+      const handoff = JSON.parse(raw);
+      if (!Array.isArray(handoff) || handoff.length === 0) return;
+      const contextBlock = handoff.map((h: any) =>
+        `[DIALER CALL] ${h.lead?.name || 'Unknown'} (${h.lead?.phone || '?'}) — ${h.disposition}\n` +
+        `Duration: ${h.callDuration || 0}s\n` +
+        `Transcript:\n${h.transcript || '(none)'}`
+      ).join('\n\n');
+      setMessages(prev => [...prev, {
+        id: `handoff_${Date.now()}`,
+        role: 'assistant',
+        content: `📞 **Dialer Context Loaded**\n\nThe following call summaries have been loaded into my context:\n\n${contextBlock}`,
+        created_at: new Date().toISOString(),
+      }]);
+      localStorage.removeItem('jarvis_chat_handoff');
+    } catch { /* swallow */ }
+  }, []);
 
   const estimatedTokens = useMemo(() => {
     const totalChars = messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);

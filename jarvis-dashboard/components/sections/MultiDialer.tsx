@@ -6,8 +6,9 @@ import {
   Phone, PhoneOff, Upload, Play, Pause, Square,
   Flame, Snowflake, AlertCircle, RotateCcw,
   MapPin, FileText, Clock, TrendingUp,
-  Bot, Radio, Target, X, CheckCircle,
+  Bot, Radio, Target, X, CheckCircle, Settings,
 } from 'lucide-react';
+import { getApiKey } from '@/components/sections/IntelligenceChat';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,12 @@ interface Progress {
 }
 
 interface Stats { callsMade: number; contacted: number; hot: number; totalSeconds: number }
+
+interface TranscriptLine {
+  speaker: 'david' | 'lead' | 'system';
+  text: string;
+  timestamp: string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -264,7 +271,15 @@ function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null 
   );
 }
 
-function TranscriptPanel({ active }: { active: boolean }) {
+function TranscriptPanel({ active, transcript, speakingLead }: {
+  active: boolean;
+  transcript: TranscriptLine[];
+  speakingLead: 'david' | 'lead' | null;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [transcript]);
   return (
     <div
       className="rounded-2xl p-4 flex flex-col gap-2"
@@ -277,17 +292,30 @@ function TranscriptPanel({ active }: { active: boolean }) {
             Live Transcript
           </span>
         </div>
-        <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#3a3a52' }}>
-          Whisper · stub
+        <span
+          className="text-[8px] font-orbitron tracking-[1px] uppercase"
+          style={{ color: speakingLead === 'david' ? '#00e5ff' : speakingLead === 'lead' ? '#00ff88' : '#3a3a52' }}
+        >
+          {speakingLead === 'david' ? '● Sarah speaking' : speakingLead === 'lead' ? '● Lead speaking' : 'Silent'}
         </span>
       </div>
       <div
-        className="rounded-lg p-3 min-h-[120px] flex items-center justify-center"
+        ref={scrollRef}
+        className="rounded-lg p-3 min-h-[120px] max-h-[200px] overflow-y-auto flex flex-col gap-1"
         style={{ background: 'rgba(0,0,0,0.25)', border: '1px dashed rgba(255,255,255,0.04)' }}
       >
-        <span className="text-[10px] italic" style={{ color: active ? '#52526e' : '#3a3a52' }}>
-          {active ? 'Whisper pipeline pending — transcript will stream here.' : 'No active call.'}
-        </span>
+        {transcript.length === 0 ? (
+          <span className="text-[10px] italic" style={{ color: active ? '#52526e' : '#3a3a52' }}>
+            {active ? 'Waiting for transcript...' : 'No active call.'}
+          </span>
+        ) : transcript.map((line, i) => (
+          <div key={i} className="text-[10px] leading-relaxed" style={{ color: line.speaker === 'david' ? '#00e5ff' : line.speaker === 'lead' ? '#00ff88' : '#52526e' }}>
+            <span className="font-bold uppercase text-[8px] tracking-wider" style={{ color: line.speaker === 'david' ? '#00e5ff' : line.speaker === 'lead' ? '#00ff88' : '#3a3a52' }}>
+              {line.speaker === 'david' ? 'Sarah' : line.speaker === 'lead' ? 'Lead' : 'Sys'}:
+            </span>{' '}
+            {line.text}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -436,6 +464,18 @@ export function MultiDialer() {
   const [summary, setSummary] = useState<{ calls: number; contacted: number; hot: number; talk: number; session: number } | null>(null);
   const [showSummary, setShowSummary] = useState(false);
 
+  // ── Voice / transcript state ────────────────────────────────────────────
+  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [speakingLead, setSpeakingLead] = useState<'david' | 'lead' | null>(null);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
+  const [showDialerSettings, setShowDialerSettings] = useState(false);
+  const [voiceSettings, setVoiceSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem('jarvis_dialer_settings');
+      return raw ? JSON.parse(raw) : { sttProvider: 'gemini', greetingMode: 'auto', scriptMode: 'auto' };
+    } catch { return { sttProvider: 'gemini', greetingMode: 'auto', scriptMode: 'auto' }; }
+  });
+
   // Refs
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -466,6 +506,9 @@ export function MultiDialer() {
         if (data.david) { setDavidStatus(data.david.state); setDavidLane(data.david.lane ?? null); }
         setWinnerLane(data.winner_lane ?? null);
         if (data.progress) setProgress(data.progress);
+        if (Array.isArray(data.transcript)) setTranscript(data.transcript);
+        if (data.speaking_lead) setSpeakingLead(data.speaking_lead);
+        if (data.audio_url) setCurrentAudioUrl(data.audio_url);
 
         if (data.status === 'connecting' && data.answered_lead) {
           setActiveLead(data.answered_lead);
@@ -571,7 +614,14 @@ export function MultiDialer() {
       const r = await fetch(`${API_BASE}/dialer/call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sid, leads: batch, cursor: fromCursor, totalLeads: leads.length }),
+        body: JSON.stringify({
+          sessionId: sid,
+          leads: batch,
+          cursor: fromCursor,
+          totalLeads: leads.length,
+          geminiApiKey: getApiKey('gemini'),
+          voiceSettings,
+        }),
       });
       if (!r.ok) {
         console.error('dial failed', await r.text());
@@ -657,6 +707,28 @@ export function MultiDialer() {
       body: JSON.stringify({ disposition: disp, lead, callDuration, sessionId }),
     }).catch(console.error);
 
+    // ── Context handoff: push call summary to Jarvis Chat ──────────────────
+    try {
+      const summaryPayload = {
+        lead,
+        disposition: disp,
+        callDuration,
+        transcript: transcript.map(t => `${t.speaker}: ${t.text}`).join('\n'),
+        sessionId,
+        timestamp: new Date().toISOString(),
+        source: 'multi-dialer',
+      };
+      const handoffKey = 'jarvis_chat_handoff';
+      const existing = JSON.parse(localStorage.getItem(handoffKey) || '[]');
+      existing.push(summaryPayload);
+      localStorage.setItem(handoffKey, JSON.stringify(existing));
+    } catch { /* swallow — handoff is best-effort */ }
+
+    // Clear transcript for next call
+    setTranscript([]);
+    setSpeakingLead(null);
+    setCurrentAudioUrl(null);
+
     const nextCursor = cursor + LANE_COUNT;
     setCursor(nextCursor);
     setActiveLead(null);
@@ -675,7 +747,7 @@ export function MultiDialer() {
     } else {
       setDialerState('idle');
     }
-  }, [activeLead, winnerLane, lanes, sessionId, cursor, leads.length, dialNextBatch]);
+  }, [activeLead, winnerLane, lanes, sessionId, cursor, leads.length, dialNextBatch, transcript]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => () => { stopPolling(); }, [stopPolling]);
@@ -742,7 +814,7 @@ export function MultiDialer() {
       </div>
 
       {/* Transcript stub */}
-      <TranscriptPanel active={dialerState === 'connected'} />
+      <TranscriptPanel active={dialerState === 'connected'} transcript={transcript} speakingLead={speakingLead} />
 
       {/* CSV upload */}
       <div
