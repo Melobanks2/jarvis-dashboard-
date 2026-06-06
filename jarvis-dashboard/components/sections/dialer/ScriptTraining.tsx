@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  GitBranch, ChevronDown, ChevronRight, Play, Pause,
+  GitBranch, ChevronDown, ChevronRight, Play, Pause, Square,
   MessageSquare, FileText, Clock, User, MapPin,
   ArrowRight, CheckCircle, AlertCircle, Star, Save,
-  Volume2, VolumeX, RotateCcw, BookOpen,
+  Volume2, VolumeX, RotateCcw, BookOpen, SkipForward, SkipBack,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,6 +31,61 @@ interface CallReviewEntry {
   scriptNode: string;
   audioUrl?: string;
   notes: string;
+}
+
+// Sarah WAV segment mapping — keywords in transcript → WAV filename
+const SARAH_WAV_MAP: { keywords: string[]; wav: string }[] = [
+  { keywords: ['how are you today', 'investment team', 'follow up'], wav: 'greet-prefix-24k.wav' },
+  { keywords: ['completely understand', 'going through a lot'], wav: 'pain-behind-24k.wav' },
+  { keywords: ['divorce'], wav: 'pain-divorce-24k.wav' },
+  { keywords: ['relocat'], wav: 'pain-relocating-24k.wav' },
+  { keywords: ['inherited'], wav: 'pain-inherited-24k.wav' },
+  { keywords: ['renting', 'rent it out', 'rental'], wav: 'pain-landlord-24k.wav' },
+  { keywords: ['vacant'], wav: 'pain-vacant-24k.wav' },
+  { keywords: ['exploring', 'considering'], wav: 'pain-exploring-24k.wav' },
+  { keywords: ['timeline'], wav: 'line-timeline-thinking-24k.wav' },
+  { keywords: ['condition'], wav: 'line-condition-overall-24k.wav' },
+  { keywords: ['decision maker'], wav: 'line-decision-makers-24k.wav' },
+  { keywords: ['occupancy'], wav: 'line-occupancy-24k.wav' },
+  { keywords: ['ownership', 'how long'], wav: 'line-ownership-length-24k.wav' },
+  { keywords: ['price', 'thinking', 'what number'], wav: 'line-price-24k.wav' },
+  { keywords: ['ballpark'], wav: 'line-ballpark-24k.wav' },
+  { keywords: ['offer', 'cash', '$'], wav: 'line-pitch-24k.wav' },
+  { keywords: ['underwriter'], wav: 'line-fact-find-24k.wav' },
+  { keywords: ['bad time'], wav: 'line-bad-time-24k.wav' },
+  { keywords: ['not interested'], wav: 'obj-not-interested-24k.wav' },
+  { keywords: ['are you ai', 'robot'], wav: 'obj-are-you-ai-24k.wav' },
+  { keywords: ['give me an offer', 'just tell me'], wav: 'obj-give-me-offer-24k.wav' },
+  { keywords: ['don\'t call', 'dnc', 'remove'], wav: 'obj-dnc-24k.wav' },
+  { keywords: ['hostile', 'angry', 'get lost'], wav: 'obj-hostile-24k.wav' },
+  { keywords: ['excellent', 'send the contract', 'move forward', 'let\'s do'], wav: 'closer-hot-warm-24k.wav' },
+  { keywords: ['call back', 'follow up', 'tomorrow'], wav: 'closer-cold-24k.wav' },
+  { keywords: ['listing', 'commission', 'market'], wav: 'line-timeline-followup-24k.wav' },
+  { keywords: ['systems', 'roof', 'ac', 'plumbing'], wav: 'line-condition-systems-24k.wav' },
+];
+
+/** Match a Sarah transcript line to its closest WAV file */
+function matchSarahWav(text: string): string | null {
+  const lower = text.toLowerCase();
+  for (const entry of SARAH_WAV_MAP) {
+    if (entry.keywords.some(kw => lower.includes(kw))) return entry.wav;
+  }
+  return null;
+}
+
+/** Build ordered list of Sarah WAV segments from a review's transcript */
+function buildSarahPlaylist(transcript: { speaker: string; text: string }[]): { wav: string; label: string; lineIdx: number }[] {
+  const playlist: { wav: string; label: string; lineIdx: number }[] = [];
+  transcript.forEach((line, idx) => {
+    if (line.speaker !== 'sarah') return;
+    if (line.text.includes('[UNDERWRITER HOLD')) return;
+    const wav = matchSarahWav(line.text);
+    if (wav) {
+      const shortLabel = line.text.length > 60 ? line.text.slice(0, 57) + '…' : line.text;
+      playlist.push({ wav: `/sarah/${wav}`, label: shortLabel, lineIdx: idx });
+    }
+  });
+  return playlist;
 }
 
 // ── Decision Tree Data ────────────────────────────────────────────────────────
@@ -371,21 +426,334 @@ function TreeNode({ node, depth = 0, expanded, onToggle }: {
 
 // ── Call Review Detail ────────────────────────────────────────────────────────
 
-function CallReviewDetail({ review, onClose }: { review: CallReviewEntry; onClose: () => void }) {
+function SarahAudioPlayer({ transcript }: { transcript: { speaker: string; text: string; timestamp: string }[] }) {
+  const playlist = useMemo(() => buildSarahPlaylist(transcript), [transcript]);
+  const [currentIdx, setCurrentIdx] = useState(-1);        // -1 = not started
   const [playing, setPlaying] = useState(false);
-  const [notes, setNotes] = useState(review.notes);
-  const [saved, setSaved] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [progress, setProgress] = useState(0);              // 0-1 current segment progress
+  const [currentTime, setCurrentTime] = useState(0);        // seconds elapsed in segment
+  const [duration, setDuration] = useState(0);              // current segment duration
+  const [volume, setVolume] = useState(0.85);
+  const [muted, setMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const seekRef = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState<Record<number, boolean>>({});
 
-  const handlePlay = () => {
+  // Create / reset audio element when segment changes
+  useEffect(() => {
+    if (currentIdx < 0 || currentIdx >= playlist.length) return;
+    try {
+      const src = playlist[currentIdx].wav;
+      const a = new Audio(src);
+      a.volume = muted ? 0 : volume;
+      audioRef.current = a;
+
+      const onLoaded = () => { setDuration(a.duration); setLoaded(prev => ({ ...prev, [currentIdx]: true })); };
+      const onTime = () => { setCurrentTime(a.currentTime); setProgress(a.duration ? a.currentTime / a.duration : 0); };
+      const onEnd = () => { playNext(); };
+      const onErr = () => { playNext(); };
+
+      a.addEventListener('loadedmetadata', onLoaded);
+      a.addEventListener('timeupdate', onTime);
+      a.addEventListener('ended', onEnd);
+      a.addEventListener('error', onErr);
+
+      a.play().catch(() => { setPlaying(false); });
+      setPlaying(true);
+
+      return () => {
+        a.removeEventListener('loadedmetadata', onLoaded);
+        a.removeEventListener('timeupdate', onTime);
+        a.removeEventListener('ended', onEnd);
+        a.removeEventListener('error', onErr);
+        a.pause();
+        audioRef.current = null;
+      };
+    } catch { /* swallow */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIdx]);
+
+  // Volume sync
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = muted ? 0 : volume;
+  }, [volume, muted]);
+
+  const playNext = useCallback(() => {
+    setCurrentIdx(prev => {
+      const next = prev + 1;
+      if (next < playlist.length) return next;
+      setPlaying(false);
+      return prev; // stay at last segment
+    });
+  }, [playlist.length]);
+
+  const playPrev = () => {
     if (audioRef.current) {
-      if (playing) { audioRef.current.pause(); } else { audioRef.current.play().catch(() => {}); }
-      setPlaying(!playing);
+      // If > 2s into current segment, restart it; otherwise go back
+      if (audioRef.current.currentTime > 2) {
+        audioRef.current.currentTime = 0;
+        return;
+      }
     }
+    setCurrentIdx(prev => Math.max(0, prev - 1));
   };
 
+  const handlePlayPause = () => {
+    const a = audioRef.current;
+    if (!a) {
+      // Start from beginning
+      if (playlist.length > 0) setCurrentIdx(0);
+      return;
+    }
+    if (playing) { a.pause(); setPlaying(false); }
+    else { a.play().catch(() => {}); setPlaying(true); }
+  };
+
+  const handleStop = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+    setCurrentIdx(-1);
+    setPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+  };
+
+  const handleSkipTo = (idx: number) => {
+    if (idx >= 0 && idx < playlist.length) setCurrentIdx(idx);
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const bar = seekRef.current;
+    const a = audioRef.current;
+    if (!bar || !a || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    a.currentTime = pct * duration;
+  };
+
+  const fmtTime = (sec: number) => {
+    if (!isFinite(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  if (playlist.length === 0) {
+    return (
+      <div className="px-4 py-2 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <Volume2 size={11} style={{ color: '#3a3a52' }} />
+        <span className="text-[9px]" style={{ color: '#3a3a52' }}>No matching Sarah audio segments</span>
+      </div>
+    );
+  }
+
+  const totalSegments = playlist.length;
+  const activeLine = currentIdx >= 0 && currentIdx < playlist.length ? playlist[currentIdx].lineIdx : -1;
+
+  return (
+    <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      {/* Player Controls */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-1.5">
+          {/* Play / Pause */}
+          <button
+            onClick={handlePlayPause}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+            style={{ background: 'rgba(0,229,255,0.12)', border: '1px solid rgba(0,229,255,0.3)' }}
+          >
+            {playing ? <Pause size={13} style={{ color: '#00e5ff' }} /> : <Play size={13} style={{ color: '#00e5ff', marginLeft: 1 }} />}
+          </button>
+          {/* Stop */}
+          <button
+            onClick={handleStop}
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.2)' }}
+          >
+            <Square size={10} style={{ color: '#ff3366' }} />
+          </button>
+          {/* Prev */}
+          <button
+            onClick={playPrev}
+            disabled={currentIdx <= 0 && !playing}
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.04)', opacity: currentIdx <= 0 ? 0.3 : 1 }}
+          >
+            <SkipBack size={10} style={{ color: '#8888aa' }} />
+          </button>
+          {/* Next */}
+          <button
+            onClick={() => { if (currentIdx < totalSegments - 1) setCurrentIdx(prev => prev + 1); }}
+            disabled={currentIdx >= totalSegments - 1}
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.04)', opacity: currentIdx >= totalSegments - 1 ? 0.3 : 1 }}
+          >
+            <SkipForward size={10} style={{ color: '#8888aa' }} />
+          </button>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="flex-1 flex items-center gap-2">
+          <span className="text-[9px] font-orbitron w-7 text-right" style={{ color: '#52526e' }}>
+            {fmtTime(currentTime)}
+          </span>
+          <div
+            ref={seekRef}
+            onClick={handleSeek}
+            className="flex-1 h-5 rounded-full relative cursor-pointer group"
+            style={{ background: 'rgba(0,0,0,0.3)' }}
+          >
+            {/* Filled progress */}
+            <div
+              className="absolute top-0 left-0 h-full rounded-full transition-[width] duration-100"
+              style={{ width: `${progress * 100}%`, background: 'linear-gradient(90deg, rgba(0,229,255,0.3), rgba(0,229,255,0.6))' }}
+            />
+            {/* Thumb */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-lg transition-[left] duration-100"
+              style={{ left: `calc(${progress * 100}% - 6px)`, background: '#00e5ff', boxShadow: '0 0 8px rgba(0,229,255,0.5)' }}
+            />
+          </div>
+          <span className="text-[9px] font-orbitron w-7" style={{ color: '#52526e' }}>
+            {fmtTime(duration)}
+          </span>
+        </div>
+
+        {/* Volume */}
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setMuted(!muted)} className="flex-shrink-0">
+            {muted
+              ? <VolumeX size={12} style={{ color: '#ff3366' }} />
+              : <Volume2 size={12} style={{ color: '#52526e' }} />
+            }
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={muted ? 0 : volume}
+            onChange={e => { setVolume(parseFloat(e.target.value)); setMuted(false); }}
+            className="w-14 h-1 accent-[#00e5ff]"
+            style={{ accentColor: '#00e5ff' }}
+          />
+        </div>
+      </div>
+
+      {/* Segment List */}
+      <div className="flex items-center gap-2 mb-2">
+        <Volume2 size={11} style={{ color: '#00e5ff' }} />
+        <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
+          Sarah's Audio — {totalSegments} segments
+        </span>
+      </div>
+      <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1">
+        {playlist.map((seg, i) => {
+          const isActive = i === currentIdx;
+          const isPast = i < currentIdx;
+          return (
+            <button
+              key={i}
+              onClick={() => handleSkipTo(i)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all"
+              style={{
+                background: isActive ? 'rgba(0,229,255,0.1)' : 'transparent',
+                border: isActive ? '1px solid rgba(0,229,255,0.25)' : '1px solid transparent',
+              }}
+            >
+              {/* Index indicator */}
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[8px] font-orbitron font-bold"
+                style={{
+                  background: isActive ? '#00e5ff' : isPast ? 'rgba(0,229,255,0.15)' : 'rgba(255,255,255,0.04)',
+                  color: isActive ? '#000' : isPast ? '#00e5ff' : '#52526e',
+                  border: isPast && !isActive ? '1px solid rgba(0,229,255,0.3)' : 'none',
+                }}
+              >
+                {isPast ? '✓' : i + 1}
+              </div>
+              <span
+                className="text-[10px] truncate"
+                style={{ color: isActive ? '#e8e8f0' : isPast ? '#8888aa' : '#52526e' }}
+              >
+                {seg.label}
+              </span>
+              {isActive && playing && (
+                <span className="ml-auto flex-shrink-0 flex gap-0.5 items-end h-3">
+                  {[0, 1, 2].map(b => (
+                    <motion.div
+                      key={b}
+                      animate={{ height: [4, 12, 4] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: b * 0.15 }}
+                      className="w-[2px] rounded-full"
+                      style={{ background: '#00e5ff' }}
+                    />
+                  ))}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Transcript with active segment highlight */}
+      <div className="mt-3">
+        <div className="flex items-center gap-2 mb-2">
+          <MessageSquare size={11} style={{ color: '#52526e' }} />
+          <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
+            Transcript Sync
+          </span>
+        </div>
+        <div className="max-h-[220px] overflow-y-auto space-y-1 pr-1">
+          {transcript.map((line, i) => {
+            const isSarahLine = line.speaker === 'sarah';
+            const isHighlighted = i === activeLine;
+            return (
+              <div
+                key={i}
+                className="flex items-start gap-2 px-2 py-1 rounded transition-all"
+                style={{
+                  background: isHighlighted ? 'rgba(0,229,255,0.08)' : 'transparent',
+                  borderLeft: isHighlighted ? '2px solid #00e5ff' : '2px solid transparent',
+                }}
+              >
+                <span className="text-[8px] font-orbitron w-8 flex-shrink-0 pt-0.5" style={{ color: isHighlighted ? '#00e5ff' : '#3a3a52' }}>
+                  {line.timestamp}
+                </span>
+                <div className="flex-1">
+                  <span
+                    className="text-[8px] font-bold uppercase tracking-wider"
+                    style={{ color: isSarahLine ? '#00e5ff' : line.speaker === 'lead' ? '#00ff88' : '#52526e' }}
+                  >
+                    {isSarahLine ? 'SARAH' : line.speaker === 'lead' ? 'LEAD' : 'SYS'}:
+                  </span>
+                  <span
+                    className="text-[10px] ml-1.5"
+                    style={{ color: isHighlighted ? '#e8e8f0' : '#c4c4d6' }}
+                  >
+                    {line.text}
+                  </span>
+                </div>
+                {isSarahLine && isHighlighted && playing && (
+                  <span className="flex-shrink-0 flex gap-0.5 items-center h-3 mt-0.5">
+                    <Volume2 size={10} style={{ color: '#00e5ff' }} />
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Call Review Detail ────────────────────────────────────────────────────────
+
+function CallReviewDetail({ review, onClose }: { review: CallReviewEntry; onClose: () => void }) {
+  const [notes, setNotes] = useState(review.notes);
+  const [saved, setSaved] = useState(false);
+
   const handleSave = () => {
-    // Save to localStorage
     try {
       const key = 'jarvis_call_reviews';
       const existing = JSON.parse(localStorage.getItem(key) || '{}');
@@ -437,20 +805,8 @@ function CallReviewDetail({ review, onClose }: { review: CallReviewEntry; onClos
         </div>
       </div>
 
-      {/* Audio Player */}
-      {review.audioUrl && (
-        <div className="px-4 py-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-          <audio ref={audioRef} src={review.audioUrl} onEnded={() => setPlaying(false)} />
-          <button
-            onClick={handlePlay}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px]"
-            style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.2)', color: '#00e5ff' }}
-          >
-            {playing ? <Pause size={12} /> : <Play size={12} />}
-            {playing ? 'Pause Recording' : 'Play Recording'}
-          </button>
-        </div>
-      )}
+      {/* Sarah Audio Player (always shown — uses WAV segments) */}
+      <SarahAudioPlayer transcript={review.transcript} />
 
       {/* Script Node Path */}
       <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
@@ -476,43 +832,6 @@ function CallReviewDetail({ review, onClose }: { review: CallReviewEntry; onClos
               {i < arr.length - 1 && (
                 <ArrowRight size={10} style={{ color: '#3a3a52' }} />
               )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Color-Coded Transcript */}
-      <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="flex items-center gap-2 mb-2">
-          <MessageSquare size={12} style={{ color: '#52526e' }} />
-          <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
-            Transcript
-          </span>
-        </div>
-        <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-1">
-          {review.transcript.map((line, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span className="text-[8px] font-orbitron w-8 flex-shrink-0 pt-0.5" style={{ color: '#3a3a52' }}>
-                {line.timestamp}
-              </span>
-              <div className="flex-1">
-                <span
-                  className="text-[8px] font-bold uppercase tracking-wider"
-                  style={{
-                    color: line.speaker === 'sarah' ? '#00e5ff' : line.speaker === 'lead' ? '#00ff88' : '#52526e',
-                  }}
-                >
-                  {line.speaker === 'sarah' ? 'SARAH' : line.speaker === 'lead' ? 'LEAD' : 'SYS'}:
-                </span>
-                <span
-                  className="text-[10px] ml-1.5"
-                  style={{
-                    color: line.speaker === 'sarah' ? '#c4c4d6' : line.speaker === 'lead' ? '#c4c4d6' : '#52526e',
-                  }}
-                >
-                  {line.text}
-                </span>
-              </div>
             </div>
           ))}
         </div>
