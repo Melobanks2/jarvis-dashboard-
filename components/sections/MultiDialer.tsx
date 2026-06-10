@@ -797,12 +797,13 @@ export function MultiDialer() {
         }
         
         // Update stats from backend totals
+        // Backend keys: total_calls, contacted_count, hot_count, duration_seconds
         if (data.totals) {
           setStats(s => ({
-            callsMade: data.totals.calls_made ?? s.callsMade,
-            contacted: data.totals.contacted_count ?? s.contacted,
-            hot: s.hot, // hot leads tracked locally via disposition
-            totalSeconds: s.totalSeconds,
+            callsMade:    data.totals.total_calls      ?? s.callsMade,
+            contacted:    data.totals.contacted_count  ?? s.contacted,
+            hot:          data.totals.hot_count        ?? s.hot,
+            totalSeconds: data.totals.duration_seconds ?? s.totalSeconds,
           }));
         }
       } catch { /* swallow */ }
