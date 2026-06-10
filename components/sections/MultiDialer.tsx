@@ -7,7 +7,7 @@ import {
   Flame, Snowflake, AlertCircle, RotateCcw,
   MapPin, FileText, Clock, TrendingUp,
   Bot, Radio, Target, X, CheckCircle, BookOpen,
-  BarChart3, List,
+  BarChart3, List, RefreshCw, Trash2, Database,
 } from 'lucide-react';
 import ScriptTraining from './ScriptTraining';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -51,6 +51,15 @@ interface Progress {
 }
 
 interface Stats { callsMade: number; contacted: number; hot: number; totalSeconds: number }
+
+interface ListMeta {
+  name: string;
+  total: number;
+  called: number;
+  remaining: number;
+  pass: number;
+  isDialing: boolean;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -745,6 +754,11 @@ export function MultiDialer() {
   // Stats
   const [stats, setStats] = useState<Stats>({ callsMade: 0, contacted: 0, hot: 0, totalSeconds: 0 });
 
+  // Persistent list state
+  const [listId, setListId]     = useState<string>('');
+  const [listMeta, setListMeta] = useState<ListMeta | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   // Summary modal
   const [summary, setSummary] = useState<{ calls: number; contacted: number; hot: number; talk: number; session: number } | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -765,6 +779,12 @@ export function MultiDialer() {
   }, []);
 
   useEffect(() => { cursorRef.current = cursor; }, [cursor]);
+
+  // ── Restore listId from localStorage on mount ──────────────────────────────
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('dialerListId') : '';
+    if (saved) setListId(saved);
+  }, []);
 
   // ── Poll backend status ────────────────────────────────────────────────────
   const startPolling = useCallback((sid: string) => {
@@ -788,12 +808,20 @@ export function MultiDialer() {
           setDialerState('connected');
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
-        if (data.status === 'ended') {
-          // All leads exhausted — session fully complete.
-          // Autonomous AI handles all dispositions; no manual input needed.
+        if (data.status === 'ended' || data.status === 'list') {
+          // Session ended OR list pass complete — stop polling, go idle.
           clearInterval(pollRef.current!); pollRef.current = null;
           setDialerState('idle');
           setActiveLead(null);
+          // Refresh list meta to show updated called/remaining counts
+          if (sid.startsWith('list_')) {
+            fetch(`${API_BASE}/dialer/list/${sid}`)
+              .then(r2 => r2.json())
+              .then(d => {
+                if (d.listId) setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: false });
+              })
+              .catch(() => {});
+          }
         }
         
         // Update stats from backend totals
@@ -813,6 +841,28 @@ export function MultiDialer() {
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
+
+  // ── Load list meta when listId changes (after startPolling is available) ───
+  useEffect(() => {
+    if (!listId) return;
+    fetch(`${API_BASE}/dialer/list/${listId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          localStorage.removeItem('dialerListId');
+          setListId('');
+          return;
+        }
+        setListMeta({ name: data.name, total: data.total, called: data.called, remaining: data.remaining, pass: data.pass, isDialing: data.isDialing });
+        setProgress({ cursor: data.called, total_leads: data.total, completed: data.called, remaining: data.remaining });
+        if (data.isDialing) {
+          setDialerState('dialing');
+          setSessionId(listId);
+          startPolling(listId);
+        }
+      })
+      .catch(() => {});
+  }, [listId, startPolling]);
 
   // ── Load progress from last session on mount ───────────────────────────────
   useEffect(() => {
@@ -834,34 +884,86 @@ export function MultiDialer() {
     }
   }, [sessionId]);
 
-  // ── CSV upload ─────────────────────────────────────────────────────────────
+  // ── CSV upload — saves to Supabase for persistence ─────────────────────────
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       const newLeads = parseCSV(ev.target?.result as string);
-      setLeads(newLeads);
-      setCursor(0);
-      setProgress({
-        cursor: 0,
-        total_leads: newLeads.length,
-        completed: 0,
-        remaining: newLeads.length,
-      });
+      if (!newLeads.length) { e.target.value = ''; return; }
+
+      setUploading(true);
+      try {
+        const r = await fetch(`${API_BASE}/dialer/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leads: newLeads, name: file.name }),
+        });
+        const data = await r.json();
+        if (data.ok && data.listId) {
+          localStorage.setItem('dialerListId', data.listId);
+          setListId(data.listId);
+          setListMeta({ name: data.name, total: data.total, called: 0, remaining: data.total, pass: 1, isDialing: false });
+          setLeads(newLeads);
+          setCursor(0);
+          setProgress({ cursor: 0, total_leads: data.total, completed: 0, remaining: data.total });
+        }
+      } catch (err) {
+        console.error('List upload failed — falling back to local mode:', err);
+        // Fallback: keep leads locally if backend unreachable
+        setLeads(newLeads);
+        setCursor(0);
+        setProgress({ cursor: 0, total_leads: newLeads.length, completed: 0, remaining: newLeads.length });
+      } finally {
+        setUploading(false);
+      }
     };
     reader.readAsText(file);
     e.target.value = '';
   }, []);
 
-  // ── Start dialing session with queue-based auto-rotation ──────────────────
+  // ── Start dialing session ─────────────────────────────────────────────────
   const dialNextBatch = useCallback(async (fromCursor: number) => {
-    if (fromCursor >= leads.length) {
-      setDialerState('idle');
+    // ── LIST MODE: sessionId = listId, no leads in body ───────────────────
+    if (listId) {
+      const sid = listId;
+      setSessionId(sid);
+      setActiveLead(null);
+      setWinnerLane(null);
+      setDavidStatus('idle');
+      setDavidLane(null);
+      setDialerState('dialing');
+
+      try {
+        const r = await fetch(`${API_BASE}/dialer/call`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sid }),
+        });
+        const data = await r.json();
+        if (!r.ok || !data.ok) {
+          if (data.error === 'list_exhausted') {
+            setDialerState('idle');
+            // All leads dialed and nothing left to recycle
+            setListMeta(m => m ? { ...m, remaining: 0 } : null);
+            return;
+          }
+          console.error('dial failed', data);
+          setDialerState('idle');
+          return;
+        }
+        startPolling(sid);
+      } catch (err) {
+        console.error('Dial error:', err);
+        setDialerState('idle');
+      }
       return;
     }
-    
-    // Send ALL remaining leads to backend - queue-based auto-rotation handles the rest
+
+    // ── LEGACY MODE: no listId, send leads directly in body ───────────────
+    if (fromCursor >= leads.length) { setDialerState('idle'); return; }
+
     const remainingLeads = leads.slice(fromCursor);
     const sid = genSessionId();
     setSessionId(sid);
@@ -870,37 +972,21 @@ export function MultiDialer() {
     setDavidStatus('idle');
     setDavidLane(null);
     setDialerState('dialing');
-
-    // Update progress state for session start
-    setProgress({
-      cursor: fromCursor,
-      total_leads: leads.length,
-      completed: fromCursor,
-      remaining: leads.length - fromCursor,
-    });
+    setProgress({ cursor: fromCursor, total_leads: leads.length, completed: fromCursor, remaining: leads.length - fromCursor });
 
     try {
       const r = await fetch(`${API_BASE}/dialer/call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sessionId: sid, 
-          leads: remainingLeads, 
-          cursor: fromCursor, 
-          totalLeads: leads.length 
-        }),
+        body: JSON.stringify({ sessionId: sid, leads: remainingLeads, cursor: fromCursor, totalLeads: leads.length }),
       });
-      if (!r.ok) {
-        console.error('dial failed', await r.text());
-        setDialerState('idle');
-        return;
-      }
+      if (!r.ok) { console.error('dial failed', await r.text()); setDialerState('idle'); return; }
       startPolling(sid);
     } catch (err) {
       console.error('Dial error:', err);
       setDialerState('idle');
     }
-  }, [leads, startPolling]);
+  }, [listId, leads, startPolling]);
 
   // Keep the ref pointed at the latest dialNextBatch for the status poll.
   useEffect(() => { dialNextBatchRef.current = dialNextBatch; }, [dialNextBatch]);
@@ -908,9 +994,13 @@ export function MultiDialer() {
   // ── Controls ───────────────────────────────────────────────────────────────
   const handleStart = useCallback(() => {
     if (dialerState === 'paused' || dialerState === 'idle') {
-      if (leads.length > 0) dialNextBatch(cursor);
+      if (listId) {
+        dialNextBatch(0); // list mode — position tracked by backend
+      } else if (leads.length > 0) {
+        dialNextBatch(cursor);
+      }
     }
-  }, [dialerState, leads, cursor, dialNextBatch]);
+  }, [dialerState, listId, leads, cursor, dialNextBatch]);
 
   const handlePause = useCallback(() => {
     stopPolling();
@@ -920,36 +1010,43 @@ export function MultiDialer() {
   const handleStop = useCallback(async () => {
     stopPolling();
     setDialerState('idle');
+    setActiveLead(null);
 
-    // Pull session summary before resetting
+    if (listId) {
+      // List mode: just pause — the list persists, don't reset progress
+      return;
+    }
+
+    // Legacy mode: pull session summary, then reset
     if (sessionId) {
       try {
         const r = await fetch(`${API_BASE}/dialer/session-summary?sessionId=${sessionId}`);
         if (r.ok) {
           const s = await r.json();
-          setSummary({
-            calls:     s.calls_made,
-            contacted: s.contacted,
-            hot:       s.hot_leads,
-            talk:      s.talk_seconds,
-            session:   s.session_seconds,
-          });
+          setSummary({ calls: s.calls_made, contacted: s.contacted, hot: s.hot_leads, talk: s.talk_seconds, session: s.session_seconds });
           setShowSummary(true);
         }
       } catch { /* ignore */ }
     } else {
-      // No session ever started — show local stats
-      setSummary({
-        calls: stats.callsMade, contacted: stats.contacted, hot: stats.hot,
-        talk: stats.totalSeconds, session: stats.totalSeconds,
-      });
+      setSummary({ calls: stats.callsMade, contacted: stats.contacted, hot: stats.hot, talk: stats.totalSeconds, session: stats.totalSeconds });
       setShowSummary(true);
     }
 
     setCursor(0);
-    setActiveLead(null);
     setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
-  }, [stopPolling, sessionId, stats]);
+  }, [stopPolling, listId, sessionId, stats]);
+
+  const handleReplaceList = useCallback(() => {
+    stopPolling();
+    setDialerState('idle');
+    setListId('');
+    setListMeta(null);
+    setLeads([]);
+    setCursor(0);
+    setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
+    setActiveLead(null);
+    if (typeof window !== 'undefined') localStorage.removeItem('dialerListId');
+  }, [stopPolling]);
 
   // ── Disposition ────────────────────────────────────────────────────────────
   const handleDisposition = useCallback(async (disp: Disposition) => {
@@ -1081,41 +1178,100 @@ export function MultiDialer() {
           {/* Transcript stub */}
           <TranscriptPanel active={dialerState === 'connected'} />
 
-          {/* CSV upload */}
-          <div
-            className="rounded-2xl p-4 flex flex-col gap-3"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-medium" style={{ color: '#c4c4d6' }}>
-                  {leads.length > 0
-                    ? `${leads.length} leads loaded — ${remaining} remaining`
-                    : 'Upload CSV to get started'}
+          {/* Lead list / CSV upload */}
+          {listMeta ? (
+            /* ── Persistent list card ─────────────────────────────────────── */
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-3"
+              style={{ background: 'rgba(0,229,255,0.03)', border: '1px solid rgba(0,229,255,0.12)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database size={14} style={{ color: '#00e5ff' }} />
+                  <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#00e5ff' }}>
+                    Active List
+                  </span>
+                  {listMeta.pass > 1 && (
+                    <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
+                      style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
+                      Pass {listMeta.pass}
+                    </span>
+                  )}
                 </div>
-                {leads.length > 0 && (
-                  <div className="text-[9px] mt-0.5" style={{ color: '#52526e' }}>
-                    Batch {Math.floor(cursor / LANE_COUNT) + 1} of {Math.ceil(leads.length / LANE_COUNT)}
-                    {leads[cursor] ? ` · Next: ${leads[cursor].name}` : ''}
-                  </div>
-                )}
+                <button
+                  onClick={handleReplaceList}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px]"
+                  style={{ background: 'rgba(255,51,102,0.06)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.15)' }}
+                  title="Remove list and upload new CSV"
+                >
+                  <Trash2 size={10} />
+                  Replace
+                </button>
               </div>
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium"
-                style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
-              >
-                <Upload size={11} />
-                {leads.length > 0 ? 'Replace CSV' : 'Upload CSV'}
-              </button>
-              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
+
+              <div>
+                <div className="text-[13px] font-medium truncate" style={{ color: '#e8e8f0' }}>
+                  {listMeta.name}
+                </div>
+                <div className="text-[10px] mt-1" style={{ color: '#8888aa' }}>
+                  <span style={{ color: '#00e5ff' }}>{listMeta.called.toLocaleString()}</span>
+                  {' / '}
+                  {listMeta.total.toLocaleString()} called
+                  {' · '}
+                  <span style={{ color: listMeta.remaining > 0 ? '#fbbf24' : '#4ade80' }}>
+                    {listMeta.remaining.toLocaleString()} remaining
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {listMeta.total > 0 && (
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, (listMeta.called / listMeta.total) * 100)}%`,
+                      background: 'linear-gradient(90deg, #00e5ff, #4ade80)',
+                    }}
+                  />
+                </div>
+              )}
+
+              {listMeta.remaining === 0 && (
+                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: '#4ade80' }}>
+                  <CheckCircle size={11} />
+                  All leads dialed — upload a new CSV to start a fresh list
+                </div>
+              )}
             </div>
-            {leads.length === 0 && (
-              <div className="text-[9px]" style={{ color: '#3a3a52' }}>
-                CSV columns: name, phone, address, notes (header row required)
+          ) : (
+            /* ── Upload card ──────────────────────────────────────────────── */
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-3"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-medium" style={{ color: '#c4c4d6' }}>
+                    {uploading ? 'Uploading…' : 'Upload CSV to get started'}
+                  </div>
+                  <div className="text-[9px] mt-0.5" style={{ color: '#3a3a52' }}>
+                    Leads saved to cloud — survive refresh, crash, and restart
+                  </div>
+                </div>
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium disabled:opacity-50"
+                  style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
+                >
+                  {uploading ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />}
+                  {uploading ? 'Uploading…' : 'Upload CSV'}
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
 
           {/* Disposition (after a call ends) */}
           <AnimatePresence>
@@ -1155,7 +1311,7 @@ export function MultiDialer() {
             {(dialerState === 'idle' || dialerState === 'paused') && (
               <button
                 onClick={handleStart}
-                disabled={leads.length === 0 || remaining === 0}
+                disabled={!listId && (leads.length === 0 || remaining === 0)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
               >
