@@ -357,7 +357,7 @@ function DialerProgress({ progress }: { progress: Progress }) {
       </div>
       <div className="flex items-center justify-between text-[9px]" style={{ color: '#52526e' }}>
         <span>{remaining} remaining</span>
-        <span>Batch {Math.floor(cursor / LANE_COUNT) + 1}</span>
+        <span>Lead {completed + 1} of {total_leads}</span>
       </div>
     </div>
   );
@@ -685,23 +685,30 @@ export function MultiDialer() {
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
         if (data.status === 'ended') {
+          // Backend's queue-based auto-rotation completed - session is finished
           clearInterval(pollRef.current!); pollRef.current = null;
           if (data.answered_lead) {
-            // A human was reached — collect a disposition before advancing.
+            // A human was reached — collect a disposition before continuing
             setDialerState('disposition');
             setStats(s => ({
               ...s,
               contacted: data.totals?.contacted_count ?? s.contacted,
             }));
           } else {
-            // No human answered this batch — nothing to disposition. Advance
-            // straight to the next batch. dialNextBatch guards end-of-list and
-            // flips to 'idle' when the cursor runs past the last lead.
-            const nextCursor = cursorRef.current + LANE_COUNT;
-            setCursor(nextCursor);
+            // Session completed, no human on final call
+            setDialerState('idle');
             setActiveLead(null);
-            setTimeout(() => dialNextBatchRef.current(nextCursor), 600);
           }
+        }
+        
+        // Update stats from backend totals
+        if (data.totals) {
+          setStats(s => ({
+            callsMade: data.totals.calls_made ?? s.callsMade,
+            contacted: data.totals.contacted_count ?? s.contacted,
+            hot: s.hot, // hot leads tracked locally via disposition
+            totalSeconds: s.totalSeconds,
+          }));
         }
       } catch { /* swallow */ }
     }, 1500);
@@ -751,13 +758,15 @@ export function MultiDialer() {
     e.target.value = '';
   }, []);
 
-  // ── Dial next batch of 5 ───────────────────────────────────────────────────
+  // ── Start dialing session with queue-based auto-rotation ──────────────────
   const dialNextBatch = useCallback(async (fromCursor: number) => {
     if (fromCursor >= leads.length) {
       setDialerState('idle');
       return;
     }
-    const batch = leads.slice(fromCursor, fromCursor + LANE_COUNT);
+    
+    // Send ALL remaining leads to backend - queue-based auto-rotation handles the rest
+    const remainingLeads = leads.slice(fromCursor);
     const sid = genSessionId();
     setSessionId(sid);
     setActiveLead(null);
@@ -765,22 +774,25 @@ export function MultiDialer() {
     setDavidStatus('idle');
     setDavidLane(null);
     setDialerState('dialing');
-    setStats(s => ({ ...s, callsMade: s.callsMade + batch.length }));
 
-    // Update progress state for new batch
+    // Update progress state for session start
     setProgress({
       cursor: fromCursor,
       total_leads: leads.length,
       completed: fromCursor,
       remaining: leads.length - fromCursor,
-      batch_index: Math.floor(fromCursor / LANE_COUNT),
     });
 
     try {
       const r = await fetch(`${API_BASE}/dialer/call`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sid, leads: batch, cursor: fromCursor, totalLeads: leads.length }),
+        body: JSON.stringify({ 
+          sessionId: sid, 
+          leads: remainingLeads, 
+          cursor: fromCursor, 
+          totalLeads: leads.length 
+        }),
       });
       if (!r.ok) {
         console.error('dial failed', await r.text());
@@ -866,25 +878,15 @@ export function MultiDialer() {
       body: JSON.stringify({ disposition: disp, lead, callDuration, sessionId }),
     }).catch(console.error);
 
-    const nextCursor = cursor + LANE_COUNT;
-    setCursor(nextCursor);
+    // Clear disposition modal - backend's queue-based auto-rotation continues automatically
     setActiveLead(null);
-
-    // Update progress
-    setProgress({
-      cursor: nextCursor,
-      total_leads: leads.length,
-      completed: nextCursor,
-      remaining: leads.length - nextCursor,
-      batch_index: Math.floor(nextCursor / LANE_COUNT),
-    });
-
-    if (nextCursor < leads.length) {
-      setTimeout(() => dialNextBatch(nextCursor), 400);
-    } else {
-      setDialerState('idle');
+    setDialerState('dialing');
+    
+    // Resume polling to track backend's auto-rotation progress
+    if (sessionId) {
+      startPolling(sessionId);
     }
-  }, [activeLead, winnerLane, lanes, sessionId, cursor, leads.length, dialNextBatch]);
+  }, [activeLead, winnerLane, lanes, sessionId, startPolling]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => () => { stopPolling(); }, [stopPolling]);
