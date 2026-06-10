@@ -8,9 +8,11 @@ import {
   MapPin, FileText, Clock, TrendingUp,
   Bot, Radio, Target, X, CheckCircle, BookOpen,
   BarChart3, List, RefreshCw, Trash2, Database,
+  ChevronDown, ChevronUp, Headphones, Loader2, MessageSquare,
 } from 'lucide-react';
 import ScriptTraining from './ScriptTraining';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { supabase } from '../../lib/supabase';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -222,6 +224,22 @@ const DISPOSITIONS: { id: Disposition; label: string; color: string; icon: React
   { id: 'wrong_number', label: 'Wrong Number', color: '#fbbf24', icon: AlertCircle },
   { id: 'refund',       label: 'Refund',       color: '#a78bfa', icon: RotateCcw   },
 ];
+
+// ── Utility helpers for call review ────────────────────────────────────────────
+
+function timeAgo(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime();
+  if (diff < 60000)   return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000)return `${Math.floor(diff / 3600000)}h ago`;
+  return `${Math.floor(diff / 86400000)}d ago`;
+}
+
+function fmtDate(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'America/New_York',
+  });
+}
 
 // ── Atom components ───────────────────────────────────────────────────────────
 
@@ -515,6 +533,340 @@ function SummaryModal({
         </button>
       </motion.div>
     </motion.div>
+  );
+}
+
+// ── Call Review Component ─────────────────────────────────────────────────────
+
+interface CallReviewRecord {
+  id: string;
+  contact_name: string;
+  phone: string;
+  address: string;
+  call_duration: number;
+  outcome: string;
+  transcript_text: string;
+  recording_url: string;
+  called_at: string;
+}
+
+const OUTCOME_COLORS: Record<string, string> = {
+  hot:           '#ff3366',
+  warm:          '#ff8800',
+  cold:          '#60a5fa',
+  voicemail:     '#52526e',
+  no_answer:     '#52526e',
+  wrong_number:  '#fbbf24',
+  refund:        '#a78bfa',
+};
+
+function callOutcomeFromRecord(c: { stage_after?: string; call_duration?: number }): string {
+  const stage = c.stage_after || '';
+  if (stage === 'Hot Follow Up') return 'hot';
+  if (stage === 'Warm Follow Up') return 'warm';
+  if (stage.includes('No Contact') || stage.includes('Unresponsive') || (c.call_duration ?? 0) < 25) return 'voicemail';
+  return 'cold';
+}
+
+function CallReview() {
+  const [calls, setCalls] = useState<CallReviewRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fetch call records from Supabase
+  const fetchCalls = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('jarvis_calls')
+        .select('id, contact_name, phone, address, call_duration, stage_after, transcript_text, recording_url, called_at')
+        .neq('phone', '+13479704969')
+        .order('called_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const mapped: CallReviewRecord[] = (data || []).map(r => ({
+        id: r.id,
+        contact_name: r.contact_name || 'Unknown',
+        phone: r.phone || '',
+        address: r.address || '',
+        call_duration: r.call_duration ?? 0,
+        outcome: callOutcomeFromRecord(r),
+        transcript_text: r.transcript_text || '',
+        recording_url: r.recording_url || '',
+        called_at: r.called_at,
+      }));
+
+      setCalls(mapped);
+    } catch (err) {
+      console.error('Failed to fetch call reviews:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCalls(); }, [fetchCalls]);
+
+  // Audio playback
+  const handlePlayPause = useCallback((id: string, url: string) => {
+    if (playingId === id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
+    }
+    if (audioRef.current) { audioRef.current.pause(); }
+    const audio = new Audio(url);
+    audio.onended = () => setPlayingId(null);
+    audio.onerror = () => setPlayingId(null);
+    audio.play().catch(() => setPlayingId(null));
+    audioRef.current = audio;
+    setPlayingId(id);
+  }, [playingId]);
+
+  const toggleTranscript = useCallback((id: string) => {
+    setExpandedId(prev => prev === id ? null : id);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-orbitron text-[12px] font-bold tracking-[2px] uppercase" style={{ color: '#e8e8f0' }}>
+          <List size={14} style={{ color: '#a78bfa', display: 'inline', marginRight: 6 }} />
+          CALL REVIEW
+        </h3>
+        <button
+          onClick={fetchCalls}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-orbitron tracking-[1px] uppercase"
+          style={{
+            background: 'rgba(167,139,250,0.08)',
+            color: '#a78bfa',
+            border: '1px solid rgba(167,139,250,0.2)',
+          }}
+        >
+          <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Loading state */}
+      {loading && calls.length === 0 && (
+        <div
+          className="rounded-2xl p-8 flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Loader2 size={16} className="animate-spin" style={{ color: '#a78bfa' }} />
+            <span className="text-[10px]" style={{ color: '#52526e' }}>Loading call records…</span>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && calls.length === 0 && (
+        <div
+          className="rounded-2xl p-8 flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <div className="text-center">
+            <Headphones size={24} style={{ color: '#52526e', margin: '0 auto 8px' }} />
+            <div className="text-[11px]" style={{ color: '#52526e' }}>No calls recorded yet</div>
+          </div>
+        </div>
+      )}
+
+      {/* Call list */}
+      <div className="flex flex-col gap-2">
+        {calls.map(call => {
+          const outcomeColor = OUTCOME_COLORS[call.outcome] || '#52526e';
+          const isExpanded = expandedId === call.id;
+          const isPlaying = playingId === call.id;
+          const hasRecording = !!call.recording_url;
+          const hasTranscript = !!call.transcript_text;
+
+          return (
+            <motion.div
+              key={call.id}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isExpanded ? `${outcomeColor}44` : 'rgba(255,255,255,0.05)'}`,
+              }}
+            >
+              {/* Main row */}
+              <div
+                className="p-3 flex items-center gap-3 cursor-pointer"
+                onClick={() => toggleTranscript(call.id)}
+              >
+                {/* Avatar */}
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                  style={{ background: `${outcomeColor}22`, color: outcomeColor }}
+                >
+                  {call.contact_name?.[0]?.toUpperCase() || '?'}
+                </div>
+
+                {/* Info cols */}
+                <div className="flex-1 min-w-0 grid grid-cols-4 gap-2 items-center">
+                  {/* Name + phone + address */}
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-medium truncate" style={{ color: '#e8e8f0' }}>
+                      {call.contact_name}
+                    </div>
+                    <div className="text-[9px] truncate" style={{ color: '#52526e' }}>
+                      {call.phone}
+                      {call.address && ` · ${call.address}`}
+                    </div>
+                  </div>
+
+                  {/* Outcome badge */}
+                  <div className="flex justify-center">
+                    <span
+                      className="text-[9px] font-medium px-2 py-0.5 rounded-full capitalize"
+                      style={{ background: `${outcomeColor}18`, color: outcomeColor, border: `1px solid ${outcomeColor}33` }}
+                    >
+                      {call.outcome === 'voicemail' ? 'VM' : call.outcome}
+                    </span>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="text-[10px] font-orbitron text-center" style={{ color: '#8888aa' }}>
+                    {call.call_duration > 0 ? `${Math.floor(call.call_duration / 60)}:${String(call.call_duration % 60).padStart(2, '0')}` : '—'}
+                  </div>
+
+                  {/* Date */}
+                  <div className="text-[9px] text-right" style={{ color: '#52526e' }}>
+                    <div>{fmtDate(call.called_at)}</div>
+                    <div>{timeAgo(call.called_at)}</div>
+                  </div>
+                </div>
+
+                {/* Play button */}
+                {hasRecording && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handlePlayPause(call.id, call.recording_url); }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all"
+                    style={{
+                      background: isPlaying ? 'rgba(255,51,102,0.15)' : 'rgba(167,139,250,0.1)',
+                      border: `1px solid ${isPlaying ? 'rgba(255,51,102,0.3)' : 'rgba(167,139,250,0.2)'}`,
+                    }}
+                    title={isPlaying ? 'Stop' : 'Play recording'}
+                  >
+                    {isPlaying
+                      ? <Square size={10} style={{ color: '#ff3366' }} />
+                      : <Play size={10} style={{ color: '#a78bfa' }} />
+                    }
+                  </button>
+                )}
+
+                {/* Expand chevron */}
+                <div style={{ color: '#52526e' }}>
+                  {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </div>
+              </div>
+
+              {/* Transcript panel (expanded) */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 pb-3 pt-0" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                      {/* Transcript header */}
+                      <div className="flex items-center gap-2 py-2">
+                        <MessageSquare size={10} style={{ color: '#52526e' }} />
+                        <span className="text-[8px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
+                          Full Transcript
+                        </span>
+                        {hasRecording && (
+                          <span className="text-[8px] flex items-center gap-1 ml-auto" style={{ color: '#a78bfa' }}>
+                            <Headphones size={8} />
+                            Recording available
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Transcript content */}
+                      {hasTranscript ? (
+                        <div
+                          className="rounded-xl p-3 max-h-64 overflow-y-auto"
+                          style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}
+                        >
+                          {call.transcript_text.split('\n').map((line, i) => {
+                            // Color-code speaker lines (Sarah vs Seller)
+                            const lower = line.toLowerCase().trim();
+                            let speakerColor = '#52526e';
+                            let labelColor = '#00e5ff';
+                            if (lower.startsWith('sarah:') || lower.startsWith('david:') || lower.startsWith('agent:')) {
+                              speakerColor = '#4ade80'; labelColor = '#4ade80';
+                            } else if (lower.startsWith('seller:') || lower.startsWith('lead:') || lower.startsWith('contact:')) {
+                              speakerColor = '#fbbf24'; labelColor = '#fbbf24';
+                            } else if (lower.startsWith('system:') || lower.startsWith('note:')) {
+                              speakerColor = '#52526e'; labelColor = '#52526e';
+                            }
+
+                            return (
+                              <div key={i} className="flex gap-2 py-1 text-[10px] leading-relaxed">
+                                {line.includes(':') ? (
+                                  <>
+                                    <span className="font-bold shrink-0" style={{ color: labelColor }}>
+                                      {line.split(':')[0]}:
+                                    </span>
+                                    <span style={{ color: '#c4c4d6' }}>
+                                      {line.split(':').slice(1).join(':')}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span style={{ color: '#52526e' }}>{line}</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div
+                          className="rounded-xl p-4 flex items-center justify-center"
+                          style={{ background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(255,255,255,0.04)' }}
+                        >
+                          <span className="text-[10px] italic" style={{ color: '#3a3a52' }}>
+                            No transcript available for this call.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Summary footer */}
+      {!loading && calls.length > 0 && (
+        <div className="flex items-center justify-between text-[9px] px-1" style={{ color: '#52526e' }}>
+          <span>Showing {calls.length} calls</span>
+          <span>
+            {calls.filter(c => c.outcome === 'hot').length} hot
+            {' · '}
+            {calls.filter(c => c.outcome === 'warm').length} warm
+            {' · '}
+            {calls.filter(c => c.recording_url).length} recordings
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1391,18 +1743,7 @@ export function MultiDialer() {
 
       {tab === 'analytics' && <PerformanceAnalytics stats={stats} />}
 
-      {tab === 'reviews' && (
-        <div
-          className="flex-1 rounded-2xl p-6 flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-        >
-          <div className="text-center">
-            <List size={24} style={{ color: '#52526e', margin: '0 auto 8px' }} />
-            <div className="text-[12px] font-medium" style={{ color: '#c4c4d6' }}>Call Review</div>
-            <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>Coming soon — recording playback, transcript replay, coaching notes</div>
-          </div>
-        </div>
-      )}
+      {tab === 'reviews' && <CallReview />}
 
       {/* Summary modal */}
       <AnimatePresence>
