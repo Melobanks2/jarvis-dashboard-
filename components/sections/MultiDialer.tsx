@@ -54,28 +54,132 @@ interface Stats { callsMade: number; contacted: number; hot: number; totalSecond
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function parseCSV(text: string): Lead[] {
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  if (!lines.length) return [];
-  const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  const col = (h: string[], ...names: string[]) => {
-    for (const n of names) { const i = h.indexOf(n); if (i !== -1) return i; }
-    return -1;
-  };
-  const nameIdx    = col(header, 'name', 'full name', 'contact');
-  const phoneIdx   = col(header, 'phone', 'phone number', 'mobile', 'cell');
-  const addressIdx = col(header, 'address', 'property address', 'street');
-  const notesIdx   = col(header, 'notes', 'note', 'comments');
+// Quote-aware CSV line splitter (handles "Smith, John" style cells).
+function splitCSVLine(line: string): string[] {
+  const cells: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      cells.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  cells.push(cur.trim());
+  return cells;
+}
 
-  return lines.slice(1).map(line => {
-    const cells = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-    return {
-      name:    nameIdx    !== -1 ? cells[nameIdx]    || '' : cells[0] || '',
-      phone:   phoneIdx   !== -1 ? cells[phoneIdx]   || '' : cells[1] || '',
-      address: addressIdx !== -1 ? cells[addressIdx] || '' : cells[2] || '',
-      notes:   notesIdx   !== -1 ? cells[notesIdx]   || '' : cells[3] || '',
+// Valid NANP phone: 10 digits (or 11 with leading 1), not starting with 0/1.
+function looksLikePhone(v: string): boolean {
+  const d = (v || '').replace(/\D/g, '');
+  if (d.length === 10) return d[0] !== '0' && d[0] !== '1';
+  if (d.length === 11) return d[0] === '1' && d[1] !== '0' && d[1] !== '1';
+  return false;
+}
+
+const HEADER_TOKENS = new Set([
+  'name', 'full name', 'contact', 'first name', 'last name', 'owner', 'owner name',
+  'phone', 'phone number', 'phone 1', 'mobile', 'cell', 'cell phone', 'mobile phone',
+  'address', 'property address', 'street', 'street address', 'city', 'state', 'zip',
+  'notes', 'note', 'comments', 'email',
+]);
+
+function parseCSV(text: string): Lead[] {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+  const rows = lines.map(splitCSVLine);
+
+  const firstRow = rows[0].map(h => h.toLowerCase().trim());
+  const hasHeader = firstRow.some(h => HEADER_TOKENS.has(h));
+
+  if (hasHeader) {
+    const col = (...names: string[]) => {
+      for (const n of names) { const i = firstRow.indexOf(n); if (i !== -1) return i; }
+      return -1;
     };
-  }).filter(l => l.phone);
+    const nameIdx    = col('name', 'full name', 'contact', 'owner name', 'owner');
+    const firstIdx   = col('first name');
+    const lastIdx    = col('last name');
+    const phoneIdx   = col('phone', 'phone number', 'phone 1', 'mobile', 'cell', 'cell phone', 'mobile phone');
+    const addressIdx = col('address', 'property address', 'street address', 'street');
+    const notesIdx   = col('notes', 'note', 'comments');
+
+    return rows.slice(1).map(cells => {
+      let name = nameIdx !== -1 ? cells[nameIdx] || '' : '';
+      if (!name && (firstIdx !== -1 || lastIdx !== -1)) {
+        name = [firstIdx !== -1 ? cells[firstIdx] : '', lastIdx !== -1 ? cells[lastIdx] : '']
+          .filter(Boolean).join(' ');
+      }
+      return {
+        name,
+        phone:   phoneIdx   !== -1 ? cells[phoneIdx]   || '' : '',
+        address: addressIdx !== -1 ? cells[addressIdx] || '' : '',
+        notes:   notesIdx   !== -1 ? cells[notesIdx]   || '' : '',
+      };
+    }).filter(l => looksLikePhone(l.phone));
+  }
+
+  // ── Headerless CSV: infer columns from content across ALL rows ────────────
+  // (e.g. "Single Family,98300,JEFFERSON,Johnnie,Bell,515 14th St,Bessemer,AL,35020,2058303144,...")
+  const width = Math.max(...rows.map(r => r.length));
+  const frac = (test: (v: string) => boolean) => {
+    const out: number[] = [];
+    for (let c = 0; c < width; c++) {
+      let hit = 0, n = 0;
+      for (const r of rows) { const v = r[c]; if (v) { n++; if (test(v)) hit++; } }
+      out.push(n ? hit / n : 0);
+    }
+    return out;
+  };
+
+  // Phone column: highest fraction of valid NANP numbers (rejects prices/zips).
+  const phoneFrac = frac(looksLikePhone);
+  let phoneIdx = -1, best = 0.5;
+  phoneFrac.forEach((f, i) => { if (f > best) { best = f; phoneIdx = i; } });
+
+  // Street-address column: "515 14th St" — leading number + a word with letters.
+  const addrFrac = frac(v => /^\d+\s+\S*[a-zA-Z]/.test(v));
+  let addressIdx = -1; best = 0.5;
+  addrFrac.forEach((f, i) => { if (i !== phoneIdx && f > best) { best = f; addressIdx = i; } });
+
+  // Name: the alphabetic column(s) immediately before the street address
+  // (typical export layout: ..., first, last, street, city, state, zip, phone).
+  const alphaFrac = frac(v => /^[a-zA-Z][a-zA-Z .'-]*$/.test(v));
+  let firstIdx = -1, lastIdx = -1;
+  if (addressIdx > 0 && alphaFrac[addressIdx - 1] > 0.7) {
+    lastIdx = addressIdx - 1;
+    if (addressIdx > 1 && alphaFrac[addressIdx - 2] > 0.7) firstIdx = addressIdx - 2;
+  }
+
+  // City/state/zip usually follow the street column — fold into the address.
+  const cityIdx  = addressIdx !== -1 && alphaFrac[addressIdx + 1] > 0.7 ? addressIdx + 1 : -1;
+  const stateFrac = frac(v => /^[A-Za-z]{2}$/.test(v));
+  const stateIdx = cityIdx !== -1 && stateFrac[cityIdx + 1] > 0.7 ? cityIdx + 1 : -1;
+  const zipFrac  = frac(v => /^\d{5}(-\d{4})?$/.test(v));
+  const zipIdx   = stateIdx !== -1 && zipFrac[stateIdx + 1] > 0.7 ? stateIdx + 1 : -1;
+
+  return rows.map(cells => {
+    const name = [firstIdx !== -1 ? cells[firstIdx] : '', lastIdx !== -1 ? cells[lastIdx] : '']
+      .filter(Boolean).join(' ');
+    const address = [
+      addressIdx !== -1 ? cells[addressIdx] : '',
+      cityIdx    !== -1 ? cells[cityIdx]    : '',
+      stateIdx   !== -1 ? cells[stateIdx]   : '',
+      zipIdx     !== -1 ? cells[zipIdx]     : '',
+    ].filter(Boolean).join(', ');
+    return {
+      name,
+      phone: phoneIdx !== -1 ? cells[phoneIdx] || '' : '',
+      address,
+      notes: '',
+    };
+  }).filter(l => looksLikePhone(l.phone));
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
