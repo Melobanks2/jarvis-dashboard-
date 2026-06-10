@@ -789,20 +789,11 @@ export function MultiDialer() {
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
         if (data.status === 'ended') {
-          // Backend's queue-based auto-rotation completed - session is finished
+          // All leads exhausted — session fully complete.
+          // Autonomous AI handles all dispositions; no manual input needed.
           clearInterval(pollRef.current!); pollRef.current = null;
-          if (data.answered_lead) {
-            // A human was reached — collect a disposition before continuing
-            setDialerState('disposition');
-            setStats(s => ({
-              ...s,
-              contacted: data.totals?.contacted_count ?? s.contacted,
-            }));
-          } else {
-            // Session completed, no human on final call
-            setDialerState('idle');
-            setActiveLead(null);
-          }
+          setDialerState('idle');
+          setActiveLead(null);
         }
         
         // Update stats from backend totals
