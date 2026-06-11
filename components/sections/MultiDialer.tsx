@@ -22,6 +22,12 @@ const API_BASE =
 const LANE_COUNT = 5;
 const DAILY_GOAL = 200;
 
+const blankLanes = (): Lane[] =>
+  Array.from({ length: LANE_COUNT }, (_, i) => ({
+    idx: i, state: 'idle', lead: null, call_control_id: null,
+    started_at: null, ended_at: null, amd_result: null,
+  }));
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Lead { name: string; phone: string; address: string; notes: string }
@@ -1151,12 +1157,7 @@ export function MultiDialer() {
   // Session state (driven by backend status poll)
   const [dialerState, setDialerState] = useState<DialerState>('idle');
   const [sessionId,   setSessionId]   = useState<string>('');
-  const [lanes,       setLanes]       = useState<Lane[]>(
-    Array.from({ length: LANE_COUNT }, (_, i) => ({
-      idx: i, state: 'idle', lead: null, call_control_id: null,
-      started_at: null, ended_at: null, amd_result: null,
-    }))
-  );
+  const [lanes,       setLanes]       = useState<Lane[]>(blankLanes());
   const [davidStatus, setDavidStatus] = useState<DavidStatus>('idle');
   const [davidLane,   setDavidLane]   = useState<number | null>(null);
   const [winnerLane,  setWinnerLane]  = useState<number | null>(null);
@@ -1229,10 +1230,15 @@ export function MultiDialer() {
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
         if (data.status === 'ended' || data.status === 'list') {
-          // Session ended OR list pass complete — stop polling, go idle.
+          // Session ended OR list pass complete — stop polling, go idle, and
+          // blank the lanes so no stale "ACTIVE" card keeps a timer climbing.
           clearInterval(pollRef.current!); pollRef.current = null;
           setDialerState('idle');
           setActiveLead(null);
+          setLanes(blankLanes());
+          setWinnerLane(null);
+          setDavidStatus('idle');
+          setDavidLane(null);
           // Refresh list meta to show updated called/remaining counts
           if (sid.startsWith('list_')) {
             fetch(`${API_BASE}/dialer/list/${sid}`)
@@ -1422,15 +1428,38 @@ export function MultiDialer() {
     }
   }, [dialerState, listId, leads, cursor, dialNextBatch]);
 
+  // Clear all live-call visuals. Without this, frozen lane state keeps the
+  // "ACTIVE" badge and a client-side timer climbing forever (the timer is
+  // computed from lane.started_at against a ticking clock).
+  const clearLiveLanes = useCallback(() => {
+    setLanes(blankLanes());
+    setWinnerLane(null);
+    setDavidStatus('idle');
+    setDavidLane(null);
+    setActiveLead(null);
+  }, []);
+
   const handlePause = useCallback(() => {
     stopPolling();
     setDialerState('paused');
-  }, [stopPolling]);
+    clearLiveLanes();
+    // Pause must stop the SERVER too — rotation keeps dialing on its own
+    // otherwise. For list sessions 'list' status is exactly "paused"
+    // (resumable); the stop endpoint also force-resolves dead hung lanes.
+    const sid = sessionId || listId;
+    if (sid) {
+      fetch(`${API_BASE}/dialer/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(console.error);
+    }
+  }, [stopPolling, clearLiveLanes, sessionId, listId]);
 
   const handleStop = useCallback(async () => {
     stopPolling();
     setDialerState('idle');
-    setActiveLead(null);
+    clearLiveLanes();
 
     // Stop the session SERVER-SIDE too — without this the VPS keeps dialing
     // autonomously (webhook-driven rotation) until the queue is exhausted.
@@ -1475,7 +1504,7 @@ export function MultiDialer() {
 
     setCursor(0);
     setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
-  }, [stopPolling, listId, sessionId, stats]);
+  }, [stopPolling, clearLiveLanes, listId, sessionId, stats]);
 
   const handleReplaceList = useCallback(() => {
     stopPolling();
