@@ -254,7 +254,9 @@ function StatCard({ label, value, color, sub }: { label: string; value: string |
   );
 }
 
-function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: boolean }) {
+function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
+  lane: Lane; now: number; isWinner: boolean; isSelected: boolean; onSelect: () => void;
+}) {
   const color = LANE_COLOR[lane.state];
   const liveTimer = lane.started_at && (lane.state === 'connected' || lane.state === 'ringing')
     ? Math.max(0, Math.floor((now - new Date(lane.started_at).getTime()) / 1000))
@@ -271,11 +273,13 @@ function LaneCard({ lane, now, isWinner }: { lane: Lane; now: number; isWinner: 
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden"
+      onClick={onSelect}
+      className="rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden cursor-pointer"
+      title="Show this line's live transcript"
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${color}${lane.state === 'idle' ? '22' : '55'}`,
-        boxShadow: isWinner ? `0 0 24px ${color}44` : 'none',
+        background: isSelected ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.03)',
+        border: isSelected ? '1px solid rgba(0,229,255,0.5)' : `1px solid ${color}${lane.state === 'idle' ? '22' : '55'}`,
+        boxShadow: isSelected ? '0 0 16px rgba(0,229,255,0.25)' : isWinner ? `0 0 24px ${color}44` : 'none',
       }}
     >
       {/* status light */}
@@ -398,7 +402,48 @@ function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null 
   );
 }
 
-function TranscriptPanel({ active }: { active: boolean }) {
+interface TranscriptTurn { role: string; text: string; ts: number }
+
+function TranscriptPanel({ lane, pinned }: { lane: Lane | null; pinned: boolean }) {
+  const callId = lane?.call_control_id || null;
+  const [turns, setTurns] = useState<TranscriptTurn[]>([]);
+  const [callActive, setCallActive] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Poll the live transcript for the shown lane's call. On call end the
+  // backend reports active:false with no turns — keep the last conversation
+  // on screen until the lane rotates to a new call id.
+  useEffect(() => {
+    setTurns([]);
+    setCallActive(false);
+    if (!callId) return;
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/dialer/transcript?callId=${encodeURIComponent(callId)}`);
+        if (!r.ok || stopped) return;
+        const d = await r.json();
+        if (stopped) return;
+        if (Array.isArray(d.turns) && d.turns.length) setTurns(d.turns);
+        setCallActive(!!d.active);
+      } catch { /* transient — keep last state */ }
+    };
+    poll();
+    const iv = setInterval(poll, 1500);
+    return () => { stopped = true; clearInterval(iv); };
+  }, [callId]);
+
+  // Stick to the newest line as the conversation streams in.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [turns.length]);
+
+  const placeholder = !callId
+    ? 'No active call.'
+    : turns.length === 0
+      ? (lane?.state === 'connected' ? 'Live call — waiting for first words…' : 'Ringing — transcript starts when a human answers.')
+      : null;
+
   return (
     <div
       className="rounded-2xl p-4 flex flex-col gap-2"
@@ -406,22 +451,42 @@ function TranscriptPanel({ active }: { active: boolean }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Radio size={12} style={{ color: '#52526e' }} />
+          <Radio size={12} style={{ color: callActive ? '#4ade80' : '#52526e' }} />
           <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
             Live Transcript
           </span>
+          {lane && (
+            <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
+              style={{ background: 'rgba(0,229,255,0.1)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.2)' }}>
+              Line {lane.idx + 1}{lane.lead?.name ? ` · ${lane.lead.name}` : ''}{pinned ? '' : ' · auto'}
+            </span>
+          )}
         </div>
-        <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#3a3a52' }}>
-          Whisper · stub
+        <span className="text-[8px] font-orbitron tracking-[1px] uppercase"
+          style={{ color: callActive ? '#4ade80' : '#3a3a52' }}>
+          {callActive ? 'Deepgram · live' : 'Deepgram'}
         </span>
       </div>
       <div
-        className="rounded-lg p-3 min-h-[120px] flex items-center justify-center"
+        ref={scrollRef}
+        className="rounded-lg p-3 min-h-[120px] max-h-[260px] overflow-y-auto flex flex-col gap-1.5"
         style={{ background: 'rgba(0,0,0,0.25)', border: '1px dashed rgba(255,255,255,0.04)' }}
       >
-        <span className="text-[10px] italic" style={{ color: active ? '#52526e' : '#3a3a52' }}>
-          {active ? 'Whisper pipeline pending — transcript will stream here.' : 'No active call.'}
-        </span>
+        {placeholder ? (
+          <div className="flex-1 flex items-center justify-center min-h-[96px]">
+            <span className="text-[10px] italic" style={{ color: '#3a3a52' }}>{placeholder}</span>
+          </div>
+        ) : (
+          turns.map((t, i) => (
+            <div key={i} className="flex gap-2 items-baseline">
+              <span className="text-[8px] font-orbitron tracking-[1px] uppercase flex-shrink-0 w-[44px]"
+                style={{ color: t.role === 'david' ? '#4ade80' : '#00e5ff' }}>
+                {t.role === 'david' ? 'Sarah' : 'Seller'}
+              </span>
+              <span className="text-[11px] leading-relaxed" style={{ color: '#c8c8da' }}>{t.text}</span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -1103,6 +1168,9 @@ export function MultiDialer() {
   // Clock (drives lane timers without re-polling)
   const [now, setNow] = useState(Date.now());
 
+  // Live-transcript lane selection (null = auto-follow the connected lane)
+  const [selectedLane, setSelectedLane] = useState<number | null>(null);
+
   // Stats
   const [stats, setStats] = useState<Stats>({ callsMade: 0, contacted: 0, hot: 0, totalSeconds: 0 });
 
@@ -1364,8 +1432,29 @@ export function MultiDialer() {
     setDialerState('idle');
     setActiveLead(null);
 
+    // Stop the session SERVER-SIDE too — without this the VPS keeps dialing
+    // autonomously (webhook-driven rotation) until the queue is exhausted.
+    // list_* sessions go back to status 'list' (resumable); in-flight calls
+    // finish naturally.
+    const sid = sessionId || listId;
+    if (sid) {
+      fetch(`${API_BASE}/dialer/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(console.error);
+    }
+
     if (listId) {
-      // List mode: just pause — the list persists, don't reset progress
+      // List mode: the list persists, don't reset progress — refresh meta so
+      // called/remaining counts reflect the stopped pass.
+      setListMeta(m => (m ? { ...m, isDialing: false } : m));
+      fetch(`${API_BASE}/dialer/list/${listId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.listId) setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: false });
+        })
+        .catch(() => {});
       return;
     }
 
@@ -1523,12 +1612,22 @@ export function MultiDialer() {
           {/* 5 lane grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {lanes.map(lane => (
-              <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx} />
+              <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx}
+                isSelected={selectedLane === lane.idx}
+                onSelect={() => setSelectedLane(s => (s === lane.idx ? null : lane.idx))} />
             ))}
           </div>
 
-          {/* Transcript stub */}
-          <TranscriptPanel active={dialerState === 'connected'} />
+          {/* Live transcript — clicked lane, else auto-follow the live one */}
+          <TranscriptPanel
+            pinned={selectedLane != null}
+            lane={
+              (selectedLane != null ? lanes[selectedLane] : null) ||
+              lanes.find(l => l.state === 'connected' && winnerLane === l.idx) ||
+              lanes.find(l => l.state === 'connected') ||
+              null
+            }
+          />
 
           {/* Lead list / CSV upload */}
           {listMeta ? (
