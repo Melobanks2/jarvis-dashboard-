@@ -9,9 +9,10 @@ import {
   Bot, Radio, Target, X, CheckCircle, BookOpen,
   BarChart3, List, RefreshCw, Trash2, Database,
   ChevronDown, ChevronUp, Headphones, Loader2, MessageSquare,
+  Zap, Search, AlertTriangle, Calendar, Power, Plus,
 } from 'lucide-react';
 import ScriptTraining from './ScriptTraining';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { supabase } from '../../lib/supabase';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -21,6 +22,11 @@ const API_BASE =
   'https://api.jarviscommandcenter.space';
 const LANE_COUNT = 5;
 const DAILY_GOAL = 200;
+
+// Internal test line excluded from Call Review / analytics (Chris's cell).
+const EXCLUDED_PHONE =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DIALER_EXCLUDE_PHONE) ||
+  '+13479704969';
 
 const blankLanes = (): Lane[] =>
   Array.from({ length: LANE_COUNT }, (_, i) => ({
@@ -32,7 +38,7 @@ const blankLanes = (): Lane[] =>
 
 interface Lead { name: string; phone: string; address: string; notes: string }
 
-type Disposition = 'hot' | 'warm' | 'cold' | 'no_answer' | 'wrong_number' | 'refund';
+type Disposition = 'hot' | 'warm' | 'cold' | 'no_answer' | 'wrong_number' | 'refund' | 'callback';
 type DialerState = 'idle' | 'dialing' | 'connecting' | 'connected' | 'disposition' | 'paused';
 type LaneState = 'idle' | 'ringing' | 'connected' | 'voicemail' | 'no_answer' | 'ended';
 type DavidStatus = 'idle' | 'on_call' | 'qualifying';
@@ -67,6 +73,19 @@ interface ListMeta {
   remaining: number;
   pass: number;
   isDialing: boolean;
+}
+
+// Summary row for the multi-list picker (GET /dialer/lists).
+interface ListSummary {
+  listId: string;
+  name: string;
+  total: number;
+  called: number;
+  remaining: number;
+  contacted: number;
+  hot: number;
+  pass: number;
+  createdAt: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -216,7 +235,7 @@ const LANE_COLOR: Record<LaneState, string> = {
 const LANE_LABEL: Record<LaneState, string> = {
   idle:      'Idle',
   ringing:   'Ringing',
-  connected: 'Human · David active',
+  connected: 'Human · Sarah active',
   voicemail: 'Voicemail — skipped',
   no_answer: 'No answer',
   ended:     'Ended',
@@ -229,6 +248,7 @@ const DISPOSITIONS: { id: Disposition; label: string; color: string; icon: React
   { id: 'no_answer',    label: 'No Answer',    color: '#52526e', icon: PhoneOff    },
   { id: 'wrong_number', label: 'Wrong Number', color: '#fbbf24', icon: AlertCircle },
   { id: 'refund',       label: 'Refund',       color: '#a78bfa', icon: RotateCcw   },
+  { id: 'callback',     label: 'Callback',     color: '#22d3ee', icon: Calendar    },
 ];
 
 // ── Utility helpers for call review ────────────────────────────────────────────
@@ -269,10 +289,20 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
     : 0;
   const pulsing = lane.state === 'ringing' || lane.state === 'connected';
 
-  // Show retry indicator if applicable
-  const retryInfo = lane.state === 'no_answer' && lane.attempt_count && lane.max_attempts
+  // Attempt counter — useful on any non-idle state, not just no-answer.
+  const retryInfo = lane.attempt_count && lane.max_attempts
     ? `${lane.attempt_count}/${lane.max_attempts}`
     : null;
+
+  // Answering-machine detection result (Telnyx AMD) once known.
+  const amd = (lane.amd_result || '').toLowerCase();
+  const amdLabel = amd.includes('machine') ? 'Machine'
+    : amd === 'human' ? 'Human'
+    : amd && amd !== 'not_sure' ? amd
+    : null;
+  const amdColor = amd.includes('machine') ? '#ff3366' : amd === 'human' ? '#4ade80' : '#8888aa';
+
+  const showTimer = lane.state === 'connected' || lane.state === 'ringing';
 
   return (
     <motion.div
@@ -308,9 +338,17 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
             </span>
           )}
         </div>
-        <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#8888aa' }}>
-          {LANE_LABEL[lane.state]}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {amdLabel && (
+            <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron tracking-[0.5px] uppercase"
+              style={{ background: `${amdColor}22`, color: amdColor }}>
+              {amdLabel}
+            </span>
+          )}
+          <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#8888aa' }}>
+            {LANE_LABEL[lane.state]}
+          </span>
+        </div>
       </div>
 
       {/* lead body */}
@@ -343,14 +381,17 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
         </div>
       )}
 
-      {/* timer */}
-      {lane.state === 'connected' && (
+      {/* timer — runs while ringing and while connected */}
+      {showTimer && (
         <div className="flex items-center justify-between pt-1 mt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <div className="flex items-center gap-1.5" style={{ color }}>
             <Clock size={10} />
             <span className="text-[10px] font-orbitron">{fmt(liveTimer)}</span>
+            {lane.state === 'ringing' && (
+              <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#8888aa' }}>ringing</span>
+            )}
           </div>
-          {isWinner && (
+          {isWinner && lane.state === 'connected' && (
             <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#4ade80' }}>
               ● Winner
             </span>
@@ -365,7 +406,7 @@ function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null 
   const config = {
     idle:       { color: '#52526e', label: 'IDLE',        sub: 'standing by' },
     qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'spinning up Thunder…' },
-    on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'David active' },
+    on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'Sarah active' },
   }[status];
 
   const pulsing = status !== 'idle';
@@ -396,7 +437,7 @@ function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null 
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-orbitron tracking-[2px] uppercase" style={{ color: '#52526e' }}>
-            David AI Agent
+            Sarah AI Agent
           </span>
         </div>
         <div className="font-orbitron text-[15px] font-black tracking-[1.5px]" style={{ color: config.color }}>
@@ -629,15 +670,18 @@ const OUTCOME_COLORS: Record<string, string> = {
   no_answer:     '#52526e',
   wrong_number:  '#fbbf24',
   refund:        '#a78bfa',
+  callback:      '#22d3ee',
 };
 
-function callOutcomeFromRecord(c: { stage_after?: string; call_duration?: number }): string {
+function callOutcomeFromRecord(c: { stage_after?: string | null; call_duration?: number | null }): string {
   const stage = c.stage_after || '';
   if (stage === 'Hot Follow Up') return 'hot';
   if (stage === 'Warm Follow Up') return 'warm';
   if (stage.includes('No Contact') || stage.includes('Unresponsive') || (c.call_duration ?? 0) < 25) return 'voicemail';
   return 'cold';
 }
+
+type ReviewRange = 'today' | '7days' | '30days' | 'all';
 
 function CallReview() {
   const [calls, setCalls] = useState<CallReviewRecord[]>([]);
@@ -646,16 +690,31 @@ function CallReview() {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fetch call records from Supabase
+  // Filters
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState<ReviewRange>('30days');
+
+  // Fetch call records from Supabase (date window is server-side; outcome +
+  // search are derived/client-side over the loaded window).
   const fetchCalls = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('jarvis_calls')
         .select('id, contact_name, phone, address, call_duration, stage_after, transcript_text, recording_url, called_at')
-        .neq('phone', '+13479704969')
+        .neq('phone', EXCLUDED_PHONE)
         .order('called_at', { ascending: false })
-        .limit(100);
+        .limit(500);
+
+      if (dateRange !== 'all') {
+        const days = dateRange === 'today' ? 1 : dateRange === '7days' ? 7 : 30;
+        const since = new Date(); since.setHours(0, 0, 0, 0);
+        since.setDate(since.getDate() - (days - 1));
+        q = q.gte('called_at', since.toISOString());
+      }
+
+      const { data, error } = await q;
 
       if (error) throw error;
 
@@ -677,9 +736,19 @@ function CallReview() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => { fetchCalls(); }, [fetchCalls]);
+
+  // Apply outcome + search filters client-side.
+  const filteredCalls = calls.filter(c => {
+    if (outcomeFilter !== 'all' && c.outcome !== outcomeFilter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!c.contact_name.toLowerCase().includes(q) && !c.phone.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   // Audio playback
   const handlePlayPause = useCallback((id: string, url: string) => {
@@ -724,6 +793,61 @@ function CallReview() {
         </button>
       </div>
 
+      {/* Filters: search + date range + outcome chips */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[180px] rounded-lg px-3 py-2"
+            style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <Search size={12} style={{ color: '#52526e' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name or phone…"
+              className="flex-1 bg-transparent outline-none text-[11px]"
+              style={{ color: '#e8e8f0' }}
+            />
+            {search && <button onClick={() => setSearch('')} style={{ color: '#52526e' }}><X size={12} /></button>}
+          </div>
+          <div className="flex gap-1">
+            {(['today', '7days', '30days', 'all'] as const).map(r => (
+              <button
+                key={r}
+                onClick={() => setDateRange(r)}
+                className="px-2.5 py-1.5 rounded-lg text-[9px] font-orbitron tracking-[1px] uppercase"
+                style={{
+                  background: dateRange === r ? 'rgba(0,229,255,0.12)' : 'rgba(255,255,255,0.03)',
+                  color: dateRange === r ? '#00e5ff' : '#52526e',
+                  border: `1px solid ${dateRange === r ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                }}
+              >
+                {r === 'today' ? 'Today' : r === '7days' ? '7D' : r === '30days' ? '30D' : 'All'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {(['all', 'hot', 'warm', 'cold', 'voicemail'] as const).map(o => {
+            const active = outcomeFilter === o;
+            const color = o === 'all' ? '#a78bfa' : (OUTCOME_COLORS[o] || '#52526e');
+            const count = o === 'all' ? calls.length : calls.filter(c => c.outcome === o).length;
+            return (
+              <button
+                key={o}
+                onClick={() => setOutcomeFilter(o)}
+                className="px-2.5 py-1 rounded-full text-[9px] font-medium capitalize transition-all"
+                style={{
+                  background: active ? `${color}22` : 'rgba(255,255,255,0.03)',
+                  color: active ? color : '#52526e',
+                  border: `1px solid ${active ? `${color}55` : 'rgba(255,255,255,0.05)'}`,
+                }}
+              >
+                {o === 'voicemail' ? 'VM' : o} {count > 0 && <span style={{ opacity: 0.7 }}>· {count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Loading state */}
       {loading && calls.length === 0 && (
         <div
@@ -750,9 +874,17 @@ function CallReview() {
         </div>
       )}
 
+      {/* Filtered-empty state */}
+      {!loading && calls.length > 0 && filteredCalls.length === 0 && (
+        <div className="rounded-2xl p-6 flex items-center justify-center text-center"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <span className="text-[10px]" style={{ color: '#52526e' }}>No calls match the current filters.</span>
+        </div>
+      )}
+
       {/* Call list */}
       <div className="flex flex-col gap-2">
-        {calls.map(call => {
+        {filteredCalls.map(call => {
           const outcomeColor = OUTCOME_COLORS[call.outcome] || '#52526e';
           const isExpanded = expandedId === call.id;
           const isPlaying = playingId === call.id;
@@ -888,7 +1020,7 @@ function CallReview() {
                             }
 
                             return (
-                              <div key={i} className="flex gap-2 py-1 text-[10px] leading-relaxed">
+                              <div key={i} className="flex gap-2 py-1 text-[11px] leading-relaxed">
                                 {line.includes(':') ? (
                                   <>
                                     <span className="font-bold shrink-0" style={{ color: labelColor }}>
@@ -927,13 +1059,13 @@ function CallReview() {
       {/* Summary footer */}
       {!loading && calls.length > 0 && (
         <div className="flex items-center justify-between text-[9px] px-1" style={{ color: '#52526e' }}>
-          <span>Showing {calls.length} calls</span>
+          <span>Showing {filteredCalls.length} of {calls.length} calls</span>
           <span>
-            {calls.filter(c => c.outcome === 'hot').length} hot
+            {filteredCalls.filter(c => c.outcome === 'hot').length} hot
             {' · '}
-            {calls.filter(c => c.outcome === 'warm').length} warm
+            {filteredCalls.filter(c => c.outcome === 'warm').length} warm
             {' · '}
-            {calls.filter(c => c.recording_url).length} recordings
+            {filteredCalls.filter(c => c.recording_url).length} recordings
           </span>
         </div>
       )}
@@ -943,44 +1075,102 @@ function CallReview() {
 
 // ── Performance Analytics Component ───────────────────────────────────────────
 
-function PerformanceAnalytics({ stats }: { stats: Stats }) {
+interface AnalyticsRow { called_at: string; stage_after: string | null; call_duration: number | null }
+
+function PerformanceAnalytics() {
   const [timeRange, setTimeRange] = useState<'today' | '7days' | '30days' | 'all'>('30days');
+  const [rows, setRows] = useState<AnalyticsRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Generate mock time series data for charts (in production, this would come from API)
-  const generateTimeSeriesData = () => {
-    const days = timeRange === 'today' ? 1 : timeRange === '7days' ? 7 : timeRange === '30days' ? 30 : 60;
-    return Array.from({ length: days }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (days - 1 - i));
-      return {
-        date: date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }),
-        totalCalls: Math.floor(Math.random() * 8) + 1,
-        connected: Math.floor(Math.random() * 4) + 1,
-      };
-    });
-  };
+  // ── Pull real call records from Supabase for the selected window ──────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        let q = supabase
+          .from('jarvis_calls')
+          .select('called_at, stage_after, call_duration')
+          .neq('phone', EXCLUDED_PHONE)
+          .order('called_at', { ascending: true })
+          .limit(5000);
 
-  // Generate disposition breakdown data (with colors)
+        if (timeRange !== 'all') {
+          const days = timeRange === 'today' ? 1 : timeRange === '7days' ? 7 : 30;
+          const since = new Date();
+          since.setHours(0, 0, 0, 0);
+          since.setDate(since.getDate() - (days - 1));
+          q = q.gte('called_at', since.toISOString());
+        }
+
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!cancelled) setRows((data || []) as AnalyticsRow[]);
+      } catch (err) {
+        console.error('Analytics fetch failed:', err);
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [timeRange]);
+
+  // Connected = a real conversation (hot/warm/cold); voicemail/no-answer are not.
+  const isConnected = (o: string) => o === 'hot' || o === 'warm' || o === 'cold';
+  const dayKey = (ts: string) => new Date(ts).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+
+  // ── Volume line chart: continuous day axis, real counts per day ───────────────
+  const volumeData = (() => {
+    const days = timeRange === 'today' ? 1 : timeRange === '7days' ? 7 : timeRange === '30days' ? 30 : 0;
+    const buckets = new Map<string, { date: string; totalCalls: number; connected: number }>();
+    if (days > 0) {
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const k = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+        buckets.set(k, { date: k, totalCalls: 0, connected: 0 });
+      }
+    }
+    for (const r of rows) {
+      const k = dayKey(r.called_at);
+      let b = buckets.get(k);
+      if (!b) { b = { date: k, totalCalls: 0, connected: 0 }; buckets.set(k, b); }
+      b.totalCalls++;
+      if (isConnected(callOutcomeFromRecord(r))) b.connected++;
+    }
+    return Array.from(buckets.values());
+  })();
+
+  // ── Disposition breakdown: real outcome counts ────────────────────────────────
+  const outcomeCounts = rows.reduce<Record<string, number>>((acc, r) => {
+    const o = callOutcomeFromRecord(r);
+    acc[o] = (acc[o] || 0) + 1;
+    return acc;
+  }, {});
   const dispositionData = [
-    { name: 'Hot', count: stats.hot, fill: '#ff3366' },
-    { name: 'Warm', count: Math.floor(stats.contacted * 0.3), fill: '#ffb020' },
-    { name: 'Cold', count: Math.floor(stats.contacted * 0.2), fill: '#3ba1ff' },
-    { name: 'No Answer', count: stats.callsMade - stats.contacted, fill: '#52526e' },
-    { name: 'Wrong #', count: Math.floor(stats.callsMade * 0.05), fill: '#fbbf24' },
-    { name: 'Refund', count: Math.floor(stats.callsMade * 0.02), fill: '#a78bfa' },
+    { name: 'Hot',       count: outcomeCounts.hot       || 0, fill: '#ff3366' },
+    { name: 'Warm',      count: outcomeCounts.warm      || 0, fill: '#ffb020' },
+    { name: 'Cold',      count: outcomeCounts.cold      || 0, fill: '#3ba1ff' },
+    { name: 'Voicemail', count: outcomeCounts.voicemail || 0, fill: '#52526e' },
   ];
 
-  const volumeData = generateTimeSeriesData();
-  const avgDuration = stats.contacted > 0 ? Math.floor(stats.totalSeconds / stats.contacted) : 0;
-  const conversionRate = stats.callsMade > 0 ? (stats.contacted / stats.callsMade) * 100 : 0;
-  const handoffRate = stats.contacted > 0 ? (stats.hot / stats.contacted) * 100 : 0;
+  const totalCalls    = rows.length;
+  const connectedRows = rows.filter(r => isConnected(callOutcomeFromRecord(r)));
+  const connected     = connectedRows.length;
+  const hotCount      = outcomeCounts.hot || 0;
+  const talkSeconds   = connectedRows.reduce((s, r) => s + (r.call_duration || 0), 0);
+  const avgDuration   = connected > 0 ? Math.floor(talkSeconds / connected) : 0;
+  const conversionRate = totalCalls > 0 ? (connected / totalCalls) * 100 : 0;
+  const handoffRate    = connected  > 0 ? (hotCount / connected) * 100 : 0;
+  const stats = { callsMade: totalCalls, contacted: connected, hot: hotCount };
 
   return (
     <div className="flex flex-col gap-5">
       {/* Header with time range selector */}
       <div className="flex items-center justify-between">
-        <h3 className="font-orbitron text-[12px] font-bold tracking-[2px] uppercase" style={{ color: '#e8e8f0' }}>
+        <h3 className="font-orbitron text-[12px] font-bold tracking-[2px] uppercase flex items-center gap-2" style={{ color: '#e8e8f0' }}>
           📊 PERFORMANCE ANALYTICS
+          {loading && <Loader2 size={12} className="animate-spin" style={{ color: '#52526e' }} />}
         </h3>
         <div className="flex gap-2">
           {(['today', '7days', '30days', 'all'] as const).map(range => (
@@ -1083,7 +1273,7 @@ function PerformanceAnalytics({ stats }: { stats: Stats }) {
               />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                 {dispositionData.map((entry, index) => (
-                  <Bar key={`bar-${index}`} dataKey="count" fill={entry.fill} />
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>
@@ -1135,9 +1325,155 @@ function PerformanceAnalytics({ stats }: { stats: Stats }) {
   );
 }
 
+// ── Autopilot / scheduler card ────────────────────────────────────────────────
+
+interface SchedulerStatus {
+  enabled: boolean;
+  autostartHour: number;
+  doneToday: { date: string; ingest: boolean; summary: boolean; audit: boolean; cleanup: boolean };
+  lastAutoStartAt: string | null;
+  accountBlocked: boolean;
+  breaker?: { open?: boolean; [k: string]: unknown };
+}
+
+function AutopilotCard({ onToast }: { onToast: (text: string, kind?: ToastKind) => void }) {
+  const [sched, setSched] = useState<SchedulerStatus | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/dialer/scheduler`, { signal: AbortSignal.timeout(5000) });
+      if (r.ok) setSched(await r.json());
+    } catch { /* health dot already covers reachability */ }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [load]);
+
+  const runIngest = useCallback(async () => {
+    setRunning(true);
+    try {
+      const r = await fetch(`${API_BASE}/dialer/ingest-run`, { method: 'POST' });
+      const d = await r.json();
+      if (d.ok) {
+        onToast(`Ingest complete — ${d.pulled ?? 0} pulled, ${d.added ?? 0} added, ${d.injected ?? 0} dialing${d.dncExcluded ? `, ${d.dncExcluded} DNC` : ''}.`, 'success');
+      } else {
+        onToast(`Ingest skipped: ${d.reason || d.error || 'unknown'}`, 'info');
+      }
+      load();
+    } catch {
+      onToast('Could not run ingest — service unreachable.');
+    } finally {
+      setRunning(false);
+    }
+  }, [onToast, load]);
+
+  const enabled  = sched?.enabled ?? false;
+  const blocked  = sched?.accountBlocked ?? false;
+  const breakerOpen = !!sched?.breaker?.open;
+  const accent   = blocked || breakerOpen ? '#ff3366' : enabled ? '#4ade80' : '#52526e';
+
+  const flags = sched?.doneToday;
+  const fmtHour = (h: number) => {
+    const hr = Math.floor(h); const m = Math.round((h - hr) * 60);
+    const ampm = hr >= 12 ? 'PM' : 'AM'; const h12 = hr % 12 === 0 ? 12 : hr % 12;
+    return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${ampm}`;
+  };
+
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-3"
+      style={{ background: `linear-gradient(135deg, ${accent}0c 0%, rgba(255,255,255,0.02) 100%)`, border: `1px solid ${accent}33` }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap size={13} style={{ color: accent }} />
+          <span className="text-[11px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
+            Autopilot
+          </span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded font-orbitron tracking-[1px] uppercase"
+            style={{ background: `${accent}1a`, color: accent, border: `1px solid ${accent}33` }}>
+            {blocked ? 'Account blocked' : breakerOpen ? 'Breaker open' : enabled ? 'Armed' : 'Disabled'}
+          </span>
+        </div>
+        <button
+          onClick={runIngest}
+          disabled={running}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-orbitron tracking-[1px] uppercase disabled:opacity-40"
+          style={{ background: 'rgba(0,229,255,0.08)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.2)' }}
+        >
+          {running ? <RefreshCw size={11} className="animate-spin" /> : <Power size={11} />}
+          {running ? 'Running…' : 'Run ingest now'}
+        </button>
+      </div>
+
+      {sched ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px]" style={{ color: '#8888aa' }}>
+          <span>Auto-start <span style={{ color: '#c4c4d6' }}>{fmtHour(sched.autostartHour)}</span></span>
+          {flags && (
+            <span className="flex items-center gap-2">
+              {(['ingest', 'summary', 'audit', 'cleanup'] as const).map(k => (
+                <span key={k} className="flex items-center gap-1" title={`${k} ${flags[k] ? 'done' : 'pending'} today`}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: flags[k] ? '#4ade80' : '#3a3a52' }} />
+                  {k}
+                </span>
+              ))}
+            </span>
+          )}
+          {sched.lastAutoStartAt && (
+            <span>last auto-start <span style={{ color: '#c4c4d6' }}>{timeAgo(sched.lastAutoStartAt)}</span></span>
+          )}
+        </div>
+      ) : (
+        <div className="text-[10px] italic" style={{ color: '#3a3a52' }}>Scheduler status unavailable.</div>
+      )}
+    </div>
+  );
+}
+
+// ── Toast (transient error / info banner) ─────────────────────────────────────
+
+type ToastKind = 'error' | 'success' | 'info';
+interface ToastMsg { id: number; kind: ToastKind; text: string }
+
+const TOAST_STYLE: Record<ToastKind, { color: string; icon: React.ElementType }> = {
+  error:   { color: '#ff3366', icon: AlertTriangle },
+  success: { color: '#4ade80', icon: CheckCircle   },
+  info:    { color: '#00e5ff', icon: AlertCircle   },
+};
+
+function ToastStack({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id: number) => void }) {
+  return (
+    <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 max-w-sm">
+      <AnimatePresence>
+        {toasts.map(t => {
+          const cfg = TOAST_STYLE[t.kind];
+          const Icon = cfg.icon;
+          return (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
+              className="rounded-xl px-4 py-3 flex items-start gap-2.5 shadow-lg cursor-pointer"
+              style={{ background: '#15151f', border: `1px solid ${cfg.color}55`, boxShadow: `0 0 20px ${cfg.color}22` }}
+              onClick={() => onDismiss(t.id)}
+            >
+              <Icon size={14} style={{ color: cfg.color, marginTop: 1, flexShrink: 0 }} />
+              <span className="text-[12px] leading-snug" style={{ color: '#e8e8f0' }}>{t.text}</span>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 type DialerTab = 'live' | 'script' | 'analytics' | 'reviews';
+type ServiceHealth = 'up' | 'down' | 'unknown';
 
 const DIALER_TABS: { id: DialerTab; label: string; icon: React.ElementType }[] = [
   { id: 'live',     label: 'Live Dialer',           icon: Phone     },
@@ -1149,6 +1485,17 @@ const DIALER_TABS: { id: DialerTab; label: string; icon: React.ElementType }[] =
 export function MultiDialer() {
   // Tab
   const [tab, setTab] = useState<DialerTab>('live');
+
+  // Toasts + service health
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const [health, setHealth] = useState<ServiceHealth>('unknown');
+  const toastSeq = useRef(0);
+  const dismissToast = useCallback((id: number) => setToasts(ts => ts.filter(t => t.id !== id)), []);
+  const showToast = useCallback((text: string, kind: ToastKind = 'error') => {
+    const id = ++toastSeq.current;
+    setToasts(ts => [...ts, { id, kind, text }]);
+    setTimeout(() => setToasts(ts => ts.filter(t => t.id !== id)), 6000);
+  }, []);
 
   // Data
   const [leads,  setLeads]  = useState<Lead[]>([]);
@@ -1180,6 +1527,16 @@ export function MultiDialer() {
   const [listMeta, setListMeta] = useState<ListMeta | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Multi-list picker + live queue preview
+  const [lists, setLists] = useState<ListSummary[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [queuePreview, setQueuePreview] = useState<Lead[]>([]);
+
+  // Disposition extras: free-text note + pending callback time
+  const [dispoNote, setDispoNote] = useState('');
+  const [awaitingCallback, setAwaitingCallback] = useState(false);
+  const [callbackTime, setCallbackTime] = useState('');
+
   // Summary modal
   const [summary, setSummary] = useState<{ calls: number; contacted: number; hot: number; talk: number; session: number } | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -1201,10 +1558,56 @@ export function MultiDialer() {
 
   useEffect(() => { cursorRef.current = cursor; }, [cursor]);
 
+  // ── Service health poll — distinguishes "VPS down" from "idle" ──────────────
+  useEffect(() => {
+    let stopped = false;
+    const ping = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/dialer/healthz`, { signal: AbortSignal.timeout(5000) });
+        if (!stopped) setHealth(r.ok ? 'up' : 'down');
+      } catch { if (!stopped) setHealth('down'); }
+    };
+    ping();
+    const iv = setInterval(ping, 20000);
+    return () => { stopped = true; clearInterval(iv); };
+  }, []);
+
   // ── Restore listId from localStorage on mount ──────────────────────────────
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('dialerListId') : '';
     if (saved) setListId(saved);
+  }, []);
+
+  // ── Seed today's stats from Supabase on mount ───────────────────────────────
+  // The live poll only fills stats while dialing; without this, a page refresh
+  // shows an empty day (0 calls, empty goal bar) even after a full morning.
+  useEffect(() => {
+    (async () => {
+      try {
+        const since = new Date(); since.setHours(0, 0, 0, 0);
+        const { data, error } = await supabase
+          .from('jarvis_calls')
+          .select('stage_after, call_duration')
+          .neq('phone', EXCLUDED_PHONE)
+          .gte('called_at', since.toISOString())
+          .limit(5000);
+        if (error || !data) return;
+        let calls = 0, contacted = 0, hot = 0, secs = 0;
+        for (const r of data) {
+          calls++;
+          const o = callOutcomeFromRecord(r);
+          if (o === 'hot' || o === 'warm' || o === 'cold') { contacted++; secs += r.call_duration || 0; }
+          if (o === 'hot') hot++;
+        }
+        // Only seed if the live poll hasn't already produced higher numbers.
+        setStats(s => ({
+          callsMade:    Math.max(s.callsMade, calls),
+          contacted:    Math.max(s.contacted, contacted),
+          hot:          Math.max(s.hot, hot),
+          totalSeconds: Math.max(s.totalSeconds, secs),
+        }));
+      } catch { /* offline — leave stats at zero */ }
+    })();
   }, []);
 
   // ── Poll backend status ────────────────────────────────────────────────────
@@ -1290,6 +1693,66 @@ export function MultiDialer() {
       .catch(() => {});
   }, [listId, startPolling]);
 
+  // ── Multi-list picker: load all lists from the backend ─────────────────────
+  const loadLists = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/dialer/lists`);
+      if (!r.ok) return;
+      const d = await r.json();
+      if (Array.isArray(d.lists)) setLists(d.lists);
+    } catch { /* health dot covers reachability */ }
+  }, []);
+
+  useEffect(() => { loadLists(); }, [loadLists]);
+
+  // Switch the active list (persists the selection for next page load).
+  const switchList = useCallback((id: string) => {
+    if (id === listId) { setShowPicker(false); return; }
+    stopPolling();
+    setDialerState('idle');
+    setLanes(blankLanes());
+    setWinnerLane(null);
+    setDavidStatus('idle');
+    setDavidLane(null);
+    setActiveLead(null);
+    setListId(id);
+    setQueuePreview([]);
+    if (typeof window !== 'undefined') localStorage.setItem('dialerListId', id);
+    setShowPicker(false);
+  }, [listId, stopPolling]);
+
+  // Delete a list server-side, then refresh the picker.
+  const deleteListById = useCallback(async (id: string) => {
+    try {
+      await fetch(`${API_BASE}/dialer/list/${id}`, { method: 'DELETE' });
+    } catch { /* ignore */ }
+    if (id === listId) {
+      setListId('');
+      setListMeta(null);
+      setQueuePreview([]);
+      if (typeof window !== 'undefined') localStorage.removeItem('dialerListId');
+    }
+    loadLists();
+  }, [listId, loadLists]);
+
+  // ── Live queue preview for the active list (next-up leads) ──────────────────
+  useEffect(() => {
+    if (!listId) { setQueuePreview([]); return; }
+    let stopped = false;
+    const load = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/dialer/list/${listId}/queue?limit=20`);
+        if (!r.ok || stopped) return;
+        const d = await r.json();
+        if (!stopped && Array.isArray(d.leads)) setQueuePreview(d.leads);
+      } catch { /* transient */ }
+    };
+    load();
+    // Refresh while dialing so the preview tracks the advancing queue.
+    const iv = setInterval(load, 4000);
+    return () => { stopped = true; clearInterval(iv); };
+  }, [listId, dialerState]);
+
   // ── Load progress from last session on mount ───────────────────────────────
   useEffect(() => {
     // Try to restore progress from any active session
@@ -1317,7 +1780,11 @@ export function MultiDialer() {
     const reader = new FileReader();
     reader.onload = async ev => {
       const newLeads = parseCSV(ev.target?.result as string);
-      if (!newLeads.length) { e.target.value = ''; return; }
+      if (!newLeads.length) {
+        e.target.value = '';
+        showToast('No valid leads found in that CSV — check the phone column.', 'error');
+        return;
+      }
 
       setUploading(true);
       try {
@@ -1334,9 +1801,14 @@ export function MultiDialer() {
           setLeads(newLeads);
           setCursor(0);
           setProgress({ cursor: 0, total_leads: data.total, completed: 0, remaining: data.total });
+          showToast(`Uploaded "${data.name}" — ${data.total} leads ready${data.excluded ? `, ${data.excluded} DNC-excluded` : ''}.`, 'success');
+          loadLists();
+        } else {
+          showToast(`Upload rejected: ${data.error || 'unknown error'}`);
         }
       } catch (err) {
         console.error('List upload failed — falling back to local mode:', err);
+        showToast('Backend unreachable — leads loaded locally (will not survive refresh).', 'info');
         // Fallback: keep leads locally if backend unreachable
         setLeads(newLeads);
         setCursor(0);
@@ -1347,7 +1819,7 @@ export function MultiDialer() {
     };
     reader.readAsText(file);
     e.target.value = '';
-  }, []);
+  }, [showToast, loadLists]);
 
   // ── Start dialing session ─────────────────────────────────────────────────
   const dialNextBatch = useCallback(async (fromCursor: number) => {
@@ -1376,12 +1848,14 @@ export function MultiDialer() {
             return;
           }
           console.error('dial failed', data);
+          showToast(`Dial failed: ${data.error || 'backend rejected the request'}`);
           setDialerState('idle');
           return;
         }
         startPolling(sid);
       } catch (err) {
         console.error('Dial error:', err);
+        showToast('Could not reach the dialer service — is the VPS up?');
         setDialerState('idle');
       }
       return;
@@ -1406,13 +1880,14 @@ export function MultiDialer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: sid, leads: remainingLeads, cursor: fromCursor, totalLeads: leads.length }),
       });
-      if (!r.ok) { console.error('dial failed', await r.text()); setDialerState('idle'); return; }
+      if (!r.ok) { console.error('dial failed', await r.text()); showToast('Dial failed — backend rejected the request'); setDialerState('idle'); return; }
       startPolling(sid);
     } catch (err) {
       console.error('Dial error:', err);
+      showToast('Could not reach the dialer service — is the VPS up?');
       setDialerState('idle');
     }
-  }, [listId, leads, startPolling]);
+  }, [listId, leads, startPolling, showToast]);
 
   // Keep the ref pointed at the latest dialNextBatch for the status poll.
   useEffect(() => { dialNextBatchRef.current = dialNextBatch; }, [dialNextBatch]);
@@ -1476,14 +1951,19 @@ export function MultiDialer() {
 
     if (listId) {
       // List mode: the list persists, don't reset progress — refresh meta so
-      // called/remaining counts reflect the stopped pass.
+      // called/remaining counts reflect the stopped pass, and surface a session
+      // summary (the legacy-only modal never fired in the path actually used).
       setListMeta(m => (m ? { ...m, isDialing: false } : m));
-      fetch(`${API_BASE}/dialer/list/${listId}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.listId) setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: false });
-        })
-        .catch(() => {});
+      try {
+        const r = await fetch(`${API_BASE}/dialer/list/${listId}`);
+        const d = await r.json();
+        if (d.listId) {
+          setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: false });
+          setSummary({ calls: d.called, contacted: d.contacted, hot: d.hot, talk: stats.totalSeconds, session: stats.totalSeconds });
+          setShowSummary(true);
+        }
+      } catch { /* ignore */ }
+      loadLists();
       return;
     }
 
@@ -1504,30 +1984,22 @@ export function MultiDialer() {
 
     setCursor(0);
     setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
-  }, [stopPolling, clearLiveLanes, listId, sessionId, stats]);
-
-  const handleReplaceList = useCallback(() => {
-    stopPolling();
-    setDialerState('idle');
-    setListId('');
-    setListMeta(null);
-    setLeads([]);
-    setCursor(0);
-    setProgress({ cursor: 0, total_leads: 0, completed: 0, remaining: 0 });
-    setActiveLead(null);
-    if (typeof window !== 'undefined') localStorage.removeItem('dialerListId');
-  }, [stopPolling]);
+  }, [stopPolling, clearLiveLanes, listId, sessionId, stats, loadLists]);
 
   // ── Disposition ────────────────────────────────────────────────────────────
-  const handleDisposition = useCallback(async (disp: Disposition) => {
+  const handleDisposition = useCallback(async (disp: Disposition, callbackAt?: string) => {
     const lead = activeLead;
     if (!lead) return;
+
+    // Callback needs a time — first click reveals the picker, second confirms.
+    if (disp === 'callback' && !callbackAt) { setAwaitingCallback(true); return; }
 
     const winnerStarted = winnerLane != null ? lanes[winnerLane]?.started_at : null;
     const callDuration = winnerStarted
       ? Math.max(0, Math.floor((Date.now() - new Date(winnerStarted).getTime()) / 1000))
       : 0;
     const isHot = disp === 'hot';
+    const note = dispoNote.trim() || undefined;
 
     setStats(s => ({
       ...s,
@@ -1538,18 +2010,37 @@ export function MultiDialer() {
     fetch(`${API_BASE}/dialer/disposition`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disposition: disp, lead, callDuration, sessionId }),
-    }).catch(console.error);
+      body: JSON.stringify({ disposition: disp, lead, callDuration, sessionId, note, callbackAt }),
+    }).catch(err => { console.error(err); showToast('Failed to save disposition to the CRM.'); });
 
-    // Clear disposition modal - backend's queue-based auto-rotation continues automatically
+    // Reset the modal extras and let the backend's auto-rotation continue.
+    setDispoNote('');
+    setAwaitingCallback(false);
+    setCallbackTime('');
     setActiveLead(null);
     setDialerState('dialing');
-    
+
     // Resume polling to track backend's auto-rotation progress
     if (sessionId) {
       startPolling(sessionId);
     }
-  }, [activeLead, winnerLane, lanes, sessionId, startPolling]);
+  }, [activeLead, winnerLane, lanes, sessionId, startPolling, showToast, dispoNote]);
+
+  // Keyboard shortcuts 1–7 for fast disposition (ignored while typing the note).
+  useEffect(() => {
+    if (dialerState !== 'disposition' || !activeLead) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= DISPOSITIONS.length) {
+        e.preventDefault();
+        handleDisposition(DISPOSITIONS[n - 1].id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dialerState, activeLead, handleDisposition]);
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   useEffect(() => () => { stopPolling(); }, [stopPolling]);
@@ -1572,22 +2063,37 @@ export function MultiDialer() {
             5 simultaneous calls → first to answer connects to you
           </p>
         </div>
-        {tab === 'live' && (
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-4">
+          {tab === 'live' && (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{
+                  background: dialerState === 'connected' ? '#4ade80'
+                    : dialerState === 'dialing' ? '#fbbf24'
+                    : '#52526e',
+                  boxShadow: dialerState === 'connected' ? '0 0 8px #4ade80' : 'none',
+                }}
+              />
+              <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
+                {dialerState === 'connected' ? 'LIVE' : dialerState.toUpperCase()}
+              </span>
+            </div>
+          )}
+          {/* Service-health dot — distinguishes "VPS down" from "idle" */}
+          <div className="flex items-center gap-1.5" title={`Dialer service: ${health}`}>
             <div
               className="w-2 h-2 rounded-full"
               style={{
-                background: dialerState === 'connected' ? '#4ade80'
-                  : dialerState === 'dialing' ? '#fbbf24'
-                  : '#52526e',
-                boxShadow: dialerState === 'connected' ? '0 0 8px #4ade80' : 'none',
+                background: health === 'up' ? '#4ade80' : health === 'down' ? '#ff3366' : '#52526e',
+                boxShadow: health === 'up' ? '0 0 8px #4ade80' : health === 'down' ? '0 0 8px #ff3366' : 'none',
               }}
             />
             <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
-              {dialerState === 'connected' ? 'LIVE' : dialerState.toUpperCase()}
+              {health === 'up' ? 'ONLINE' : health === 'down' ? 'OFFLINE' : '···'}
             </span>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Tab bar */}
@@ -1621,6 +2127,9 @@ export function MultiDialer() {
           {/* David agent card */}
           <DavidCard status={davidStatus} lane={davidLane} />
 
+          {/* Autopilot / scheduler */}
+          <AutopilotCard onToast={showToast} />
+
           {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard label="Calls Made" value={stats.callsMade} color="#00e5ff" />
@@ -1637,6 +2146,20 @@ export function MultiDialer() {
 
           {/* Goal bar */}
           <GoalBar value={stats.callsMade} target={DAILY_GOAL} />
+
+          {/* Paused banner — session context is kept; Resume to continue */}
+          {dialerState === 'paused' && (
+            <div className="rounded-xl px-4 py-2.5 flex items-center gap-2"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+              <Pause size={13} style={{ color: '#fbbf24' }} />
+              <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#fbbf24' }}>
+                Paused
+              </span>
+              <span className="text-[10px]" style={{ color: '#8888aa' }}>
+                — list and progress kept. Press Resume to keep dialing, or Stop to end the session.
+              </span>
+            </div>
+          )}
 
           {/* 5 lane grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -1658,82 +2181,158 @@ export function MultiDialer() {
             }
           />
 
-          {/* Lead list / CSV upload */}
-          {listMeta ? (
-            /* ── Persistent list card ─────────────────────────────────────── */
-            <div
-              className="rounded-2xl p-4 flex flex-col gap-3"
-              style={{ background: 'rgba(0,229,255,0.03)', border: '1px solid rgba(0,229,255,0.12)' }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Database size={14} style={{ color: '#00e5ff' }} />
-                  <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#00e5ff' }}>
-                    Active List
-                  </span>
-                  {listMeta.pass > 1 && (
-                    <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
-                      style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
-                      Pass {listMeta.pass}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={handleReplaceList}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px]"
-                  style={{ background: 'rgba(255,51,102,0.06)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.15)' }}
-                  title="Remove list and upload new CSV"
-                >
-                  <Trash2 size={10} />
-                  Replace
-                </button>
-              </div>
-
-              <div>
-                <div className="text-[13px] font-medium truncate" style={{ color: '#e8e8f0' }}>
-                  {listMeta.name}
-                </div>
-                <div className="text-[10px] mt-1" style={{ color: '#8888aa' }}>
-                  <span style={{ color: '#00e5ff' }}>{listMeta.called.toLocaleString()}</span>
-                  {' / '}
-                  {listMeta.total.toLocaleString()} called
-                  {' · '}
-                  <span style={{ color: listMeta.remaining > 0 ? '#fbbf24' : '#4ade80' }}>
-                    {listMeta.remaining.toLocaleString()} remaining
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              {listMeta.total > 0 && (
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(100, (listMeta.called / listMeta.total) * 100)}%`,
-                      background: 'linear-gradient(90deg, #00e5ff, #4ade80)',
-                    }}
-                  />
-                </div>
-              )}
-
-              {listMeta.remaining === 0 && (
-                <div className="flex items-center gap-1.5 text-[10px]" style={{ color: '#4ade80' }}>
-                  <CheckCircle size={11} />
-                  All leads dialed — upload a new CSV to start a fresh list
-                </div>
-              )}
+          {/* Lead-list manager — picker + active list / upload */}
+          <div className="flex flex-col gap-3">
+            {/* Toolbar: switch lists + upload a new one */}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => { setShowPicker(p => !p); loadLists(); }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-orbitron tracking-[1px] uppercase"
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#8888aa', border: '1px solid rgba(255,255,255,0.06)' }}
+                title="Switch between saved lists"
+              >
+                <List size={12} />
+                {lists.length} {lists.length === 1 ? 'List' : 'Lists'}
+                {showPicker ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </button>
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium disabled:opacity-50"
+                style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
+              >
+                {uploading ? <RefreshCw size={11} className="animate-spin" /> : <Plus size={12} />}
+                {uploading ? 'Uploading…' : 'New list (CSV)'}
+              </button>
             </div>
-          ) : (
-            /* ── Upload card ──────────────────────────────────────────────── */
-            <div
-              className="rounded-2xl p-4 flex flex-col gap-3"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              <div className="flex items-center justify-between">
+
+            {/* Picker dropdown */}
+            <AnimatePresence>
+              {showPicker && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden rounded-2xl"
+                  style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <div className="p-2 flex flex-col gap-1 max-h-64 overflow-y-auto">
+                    {lists.length === 0 ? (
+                      <div className="text-[10px] italic text-center py-4" style={{ color: '#3a3a52' }}>
+                        No saved lists — upload a CSV to create one.
+                      </div>
+                    ) : lists.map(l => {
+                      const active = l.listId === listId;
+                      const pct = l.total > 0 ? Math.min(100, (l.called / l.total) * 100) : 0;
+                      return (
+                        <div
+                          key={l.listId}
+                          onClick={() => switchList(l.listId)}
+                          className="flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all"
+                          style={{
+                            background: active ? 'rgba(0,229,255,0.06)' : 'transparent',
+                            border: `1px solid ${active ? 'rgba(0,229,255,0.3)' : 'transparent'}`,
+                          }}
+                        >
+                          <Database size={13} style={{ color: active ? '#00e5ff' : '#52526e', flexShrink: 0 }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-medium truncate" style={{ color: active ? '#e8e8f0' : '#c4c4d6' }}>
+                              {l.name}
+                              {l.pass > 1 && <span className="ml-1.5 text-[8px]" style={{ color: '#a78bfa' }}>·P{l.pass}</span>}
+                            </div>
+                            <div className="text-[9px] mt-0.5" style={{ color: '#52526e' }}>
+                              {l.called.toLocaleString()}/{l.total.toLocaleString()} called · {l.remaining.toLocaleString()} left · {l.hot} hot
+                            </div>
+                            <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #00e5ff, #4ade80)' }} />
+                            </div>
+                          </div>
+                          <button
+                            onClick={e => { e.stopPropagation(); deleteListById(l.listId); }}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)' }}
+                            title="Delete this list permanently"
+                          >
+                            <Trash2 size={11} style={{ color: '#ff3366' }} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Active list card OR empty prompt */}
+            {listMeta ? (
+              <div
+                className="rounded-2xl p-4 flex flex-col gap-3"
+                style={{ background: 'rgba(0,229,255,0.03)', border: '1px solid rgba(0,229,255,0.12)' }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database size={14} style={{ color: '#00e5ff' }} />
+                    <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#00e5ff' }}>
+                      Active List
+                    </span>
+                    {listMeta.pass > 1 && (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
+                        style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
+                        Pass {listMeta.pass}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteListById(listId)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px]"
+                    style={{ background: 'rgba(255,51,102,0.06)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.15)' }}
+                    title="Delete this list permanently"
+                  >
+                    <Trash2 size={10} />
+                    Delete
+                  </button>
+                </div>
+
+                <div>
+                  <div className="text-[13px] font-medium truncate" style={{ color: '#e8e8f0' }}>
+                    {listMeta.name}
+                  </div>
+                  <div className="text-[10px] mt-1" style={{ color: '#8888aa' }}>
+                    <span style={{ color: '#00e5ff' }}>{listMeta.called.toLocaleString()}</span>
+                    {' / '}
+                    {listMeta.total.toLocaleString()} called
+                    {' · '}
+                    <span style={{ color: listMeta.remaining > 0 ? '#fbbf24' : '#4ade80' }}>
+                      {listMeta.remaining.toLocaleString()} remaining
+                    </span>
+                  </div>
+                </div>
+
+                {listMeta.total > 0 && (
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, (listMeta.called / listMeta.total) * 100)}%`,
+                        background: 'linear-gradient(90deg, #00e5ff, #4ade80)',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {listMeta.remaining === 0 && (
+                  <div className="flex items-center gap-1.5 text-[10px]" style={{ color: '#4ade80' }}>
+                    <CheckCircle size={11} />
+                    All leads dialed — upload a new CSV to start a fresh list
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className="rounded-2xl p-4 flex items-center justify-between"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
                 <div>
                   <div className="text-[11px] font-medium" style={{ color: '#c4c4d6' }}>
-                    {uploading ? 'Uploading…' : 'Upload CSV to get started'}
+                    {uploading ? 'Uploading…' : 'No active list — upload a CSV or pick one above'}
                   </div>
                   <div className="text-[9px] mt-0.5" style={{ color: '#3a3a52' }}>
                     Leads saved to cloud — survive refresh, crash, and restart
@@ -1749,8 +2348,8 @@ export function MultiDialer() {
                   {uploading ? 'Uploading…' : 'Upload CSV'}
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
           <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFile} />
 
           {/* Disposition (after a call ends) */}
@@ -1761,27 +2360,68 @@ export function MultiDialer() {
                 className="rounded-2xl p-4 flex flex-col gap-3"
                 style={{ background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.2)' }}
               >
-                <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#a78bfa' }}>
-                  Disposition · {activeLead.name}
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#a78bfa' }}>
+                    Disposition · {activeLead.name}
+                  </div>
+                  <span className="text-[8px]" style={{ color: '#52526e' }}>press 1–{DISPOSITIONS.length}</span>
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {DISPOSITIONS.map(d => {
+
+                {/* Optional note → flows into the GHL contact note */}
+                <input
+                  value={dispoNote}
+                  onChange={e => setDispoNote(e.target.value)}
+                  placeholder="Optional note (saved to CRM)…"
+                  className="w-full rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)', color: '#e8e8f0' }}
+                />
+
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                  {DISPOSITIONS.map((d, i) => {
                     const Icon = d.icon;
                     return (
                       <button
                         key={d.id}
                         onClick={() => handleDisposition(d.id)}
-                        className="flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all"
+                        className="relative flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all"
                         style={{ background: `${d.color}0c`, border: `1px solid ${d.color}33` }}
                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}1a`; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = `${d.color}0c`; }}
                       >
+                        <span className="absolute top-1 left-1.5 text-[8px] font-orbitron" style={{ color: `${d.color}99` }}>{i + 1}</span>
                         <Icon size={16} style={{ color: d.color }} />
                         <span className="text-[10px] font-medium" style={{ color: d.color }}>{d.label}</span>
                       </button>
                     );
                   })}
                 </div>
+
+                {/* Callback time picker — appears when Callback is chosen */}
+                <AnimatePresence>
+                  {awaitingCallback && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                      className="flex items-center gap-2 overflow-hidden"
+                    >
+                      <Calendar size={14} style={{ color: '#22d3ee', flexShrink: 0 }} />
+                      <input
+                        type="datetime-local"
+                        value={callbackTime}
+                        onChange={e => setCallbackTime(e.target.value)}
+                        className="flex-1 rounded-lg px-3 py-2 text-[11px] outline-none"
+                        style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(34,211,238,0.3)', color: '#e8e8f0' }}
+                      />
+                      <button
+                        onClick={() => callbackTime && handleDisposition('callback', new Date(callbackTime).toLocaleString('en-US', { timeZone: 'America/New_York' }))}
+                        disabled={!callbackTime}
+                        className="px-3 py-2 rounded-lg text-[10px] font-orbitron tracking-[1px] uppercase disabled:opacity-40"
+                        style={{ background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.3)' }}
+                      >
+                        Confirm
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1823,45 +2463,50 @@ export function MultiDialer() {
             )}
           </div>
 
-          {/* Lead queue preview */}
-          {leads.length > 0 && (
-            <div
-              className="rounded-2xl p-4"
-              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
-            >
-              <div className="text-[9px] font-orbitron tracking-[1.5px] uppercase mb-3" style={{ color: '#52526e' }}>
-                Queue — {progress.remaining} remaining
-              </div>
-              <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                {leads.slice(cursor, cursor + 20).map((lead, i) => {
-                  const absIdx = cursor + i;
-                  const isCurrentBatch = dialerState !== 'idle' && i < LANE_COUNT;
-                  const isCompleted = absIdx < progress.completed;
-                  return (
-                    <div
-                      key={absIdx}
-                      className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
-                      style={{
-                        background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
-                        borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
-                      }}
-                    >
-                      <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
-                      <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : isCompleted ? '#52526e' : '#52526e' }}>
-                        {lead.name}
+          {/* Lead queue preview — backend queue in list mode, local slice in legacy */}
+          {(listId ? queuePreview.length > 0 : leads.length > 0) && (() => {
+            const rows = listId ? queuePreview : leads.slice(cursor, cursor + 20);
+            return (
+              <div
+                className="rounded-2xl p-4"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+              >
+                <div className="text-[9px] font-orbitron tracking-[1.5px] uppercase mb-3" style={{ color: '#52526e' }}>
+                  Queue — {progress.remaining} remaining
+                </div>
+                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                  {rows.map((lead, i) => {
+                    const absIdx = listId ? i : cursor + i;
+                    const isCurrentBatch = dialerState !== 'idle' && i < LANE_COUNT;
+                    // In list mode the preview is purely upcoming leads (backend
+                    // pops as it dials), so there's no "completed" marker here.
+                    const isCompleted = !listId && absIdx < progress.completed;
+                    return (
+                      <div
+                        key={`${absIdx}-${lead.phone}`}
+                        className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
+                        style={{
+                          background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
+                          borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
+                        }}
+                      >
+                        <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
+                        <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : '#52526e' }}>
+                          {lead.name || '—'}
+                        </div>
+                        <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
                       </div>
-                      <div className="text-[9px]" style={{ color: '#3a3a52' }}>{lead.phone}</div>
+                    );
+                  })}
+                  {progress.remaining > rows.length && (
+                    <div className="text-[9px] text-center pt-1" style={{ color: '#3a3a52' }}>
+                      +{progress.remaining - rows.length} more
                     </div>
-                  );
-                })}
-                {progress.remaining > 20 && (
-                  <div className="text-[9px] text-center pt-1" style={{ color: '#3a3a52' }}>
-                    +{progress.remaining - 20} more
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </>
       )}
 
@@ -1869,7 +2514,7 @@ export function MultiDialer() {
         <ScriptTraining />
       )}
 
-      {tab === 'analytics' && <PerformanceAnalytics stats={stats} />}
+      {tab === 'analytics' && <PerformanceAnalytics />}
 
       {tab === 'reviews' && <CallReview />}
 
@@ -1879,6 +2524,9 @@ export function MultiDialer() {
           <SummaryModal open={showSummary} onClose={() => setShowSummary(false)} summary={summary} />
         )}
       </AnimatePresence>
+
+      {/* Transient error / info toasts */}
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
