@@ -25,6 +25,10 @@ export interface Lead {
   occupancy: string | null;
   marketValue: string | null;
   arv: string | null;
+  rehabCost: string | null;
+  rating: string | null;
+  dealType: string | null;
+  attempts: number | null;
   mortgage: string | null;
   status: string;
   updatedAt: string | null;
@@ -44,6 +48,15 @@ export interface StatsBySource {
 }
 // pipelineId -> { hot,warm,cold,dead: stageId }
 export type TempStages = Record<string, Partial<Record<Exclude<Temp, 'new'>, string | null>>>;
+
+// Ordered GHL pipeline metadata — lets the board mirror the pipeline 1:1.
+export interface PipelineStage { id: string; name: string; }
+export interface PipelineMeta {
+  id: string;
+  label: string;
+  source: string | null; // 'ispeed' | 'va' | null
+  stages: PipelineStage[];
+}
 
 export interface LiveCall {
   id: string;
@@ -81,6 +94,7 @@ export function useLeads(refreshKey: number) {
   const [stats, setStats]   = useState<LeadStats>({ ...EMPTY_STATS });
   const [statsBySource, setStatsBySource] = useState<StatsBySource>({ alpha: { ...EMPTY_STATS }, sarah: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
   const [tempStages, setTempStages] = useState<TempStages>({});
+  const [pipelines, setPipelines] = useState<PipelineMeta[]>([]);
   const [live, setLive]     = useState<LiveCall[]>([]);
   const [callsToday, setCallsToday] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -135,6 +149,7 @@ export function useLeads(refreshKey: number) {
         setStats(leadResp.stats || { ...EMPTY_STATS, total: merged.length });
         setStatsBySource(leadResp.statsBySource || { alpha: { ...EMPTY_STATS }, sarah: { ...EMPTY_STATS }, ispeed: { ...EMPTY_STATS } });
         setTempStages(leadResp.tempStages || {});
+        setPipelines(leadResp.pipelines || []);
         setError(null);
       }
 
@@ -159,5 +174,5 @@ export function useLeads(refreshKey: number) {
     return () => { active = false; };
   }, [refreshKey, tick]);
 
-  return { leads, stats, statsBySource, tempStages, live, callsToday, loading, error };
+  return { leads, stats, statsBySource, tempStages, pipelines, live, callsToday, loading, error };
 }

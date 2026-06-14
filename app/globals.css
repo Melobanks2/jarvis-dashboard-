@@ -56,6 +56,16 @@ body {
 .font-orbitron { font-family: 'Orbitron', monospace; }
 .font-mono     { font-family: 'Inter', monospace; }
 
+/* Leads section — clean, readable font (override the "video game" Orbitron
+   look). Scoped to .leads-clean so the rest of the dashboard is unaffected. */
+.leads-clean,
+.leads-clean .font-orbitron {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+.leads-clean .font-orbitron {
+  letter-spacing: normal !important;
+}
+
 /* Glow text — very subtle now */
 .glow-green  { text-shadow: 0 0 16px rgba(74,222,128,.35); }
 .glow-gold   { text-shadow: 0 0 16px rgba(251,191,36,.30); }
