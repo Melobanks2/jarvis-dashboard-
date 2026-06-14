@@ -2,18 +2,17 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, LayoutDashboard, Bot, Search, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users,
+  X, LayoutDashboard, Bot, GitBranch, Target, Lightbulb,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users, PhoneOutgoing,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
 const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: string; desc: string }[] = [
   { section: 'command-center',    label: 'Command Center',    Icon: LayoutDashboard, color: '#4ade80', desc: 'AI brain overview' },
-  { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#4ade80', desc: 'Live calls & lead cards' },
+  { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#4ade80', desc: 'Live GHL pipeline board' },
   { section: 'david-hq',         label: 'David HQ',          Icon: Shield,          color: '#fbbf24', desc: 'Deals & training' },
   { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#fbbf24', desc: 'Agent management' },
-  { section: 'lead-intelligence',label: 'Lead Intelligence', Icon: Search,          color: '#60a5fa', desc: 'Lead database' },
-  { section: 'pipeline',         label: 'Pipeline',          Icon: GitBranch,       color: '#a78bfa', desc: 'CRM pipeline view' },
+  { section: 'acquisitions',     label: 'Acquisitions',      Icon: PhoneOutgoing,   color: '#4ade80', desc: 'Power-dialer — work my leads' },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#4ade80', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#fbbf24', desc: 'Revenue targets' },
   { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#a78bfa', desc: 'Feature backlog' },

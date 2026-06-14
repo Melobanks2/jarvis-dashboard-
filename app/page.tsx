@@ -12,7 +12,6 @@ import { CommandCenter }       from '@/components/sections/CommandCenter';
 
 import { AIAgents }         from '@/components/sections/AIAgents';
 import { CallCenter }       from '@/components/sections/CallCenter';
-import { LeadIntelligence } from '@/components/sections/LeadIntelligence';
 import { Pipeline }         from '@/components/sections/Pipeline';
 import { ProspectsHub }     from '@/components/sections/ProspectsHub';
 import { GoalsVision }      from '@/components/sections/GoalsVision';
@@ -26,6 +25,7 @@ import { KnowledgeBase }          from '@/components/sections/KnowledgeBase';
 import { MarketingIntelligence }  from '@/components/sections/MarketingIntelligence';
 import { MultiDialer }            from '@/components/sections/MultiDialer';
 import { Leads }                  from '@/components/sections/Leads';
+import { Acquisitions }           from '@/components/sections/Acquisitions';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -36,8 +36,9 @@ const SECTION_TITLES: Record<string, string> = {
   'david-hq':          'David HQ',
   'ai-agents':         'AI Agents',
   'call-center':       'Call Center',
-  'lead-intelligence': 'Lead Intelligence',
+  'lead-intelligence': 'Leads',
   'pipeline':          'Pipeline',
+  'acquisitions':      'Acquisitions',
   'prospects-hub':     'Prospects Hub',
   'goals-vision':      'Goals & Vision',
   'ideas-lab':         'Ideas Lab',
@@ -58,7 +59,8 @@ function SectionContent({ section }: { section: string }) {
     case 'david-hq':          return <DavidHQ />;
     case 'ai-agents':         return <AIAgents />;
     case 'call-center':       return <CallCenter />;
-    case 'lead-intelligence': return <LeadIntelligence />;
+    case 'lead-intelligence': return <Leads />; {/* retired — consolidated into Leads board */}
+    case 'acquisitions':      return <Acquisitions />;
     case 'pipeline':          return <Pipeline />;
     case 'prospects-hub':     return <ProspectsHub />;
     case 'goals-vision':      return <GoalsVision />;

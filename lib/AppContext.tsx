@@ -7,7 +7,7 @@ export type Section =
   | 'david-hq'
   | 'ai-agents'
   | 'lead-intelligence'
-  | 'pipeline'
+  | 'acquisitions'
   | 'asap-scraper'
   | 'goals-vision'
   | 'ideas-lab'
@@ -16,6 +16,7 @@ export type Section =
   | 'leads'
   | 'settings'
   // Legacy sections (kept in type but removed from sidebar nav)
+  | 'pipeline'
   | 'call-center'
   | 'prospects-hub'
   | 'david-training'
