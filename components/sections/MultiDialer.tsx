@@ -405,7 +405,7 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
 function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null }) {
   const config = {
     idle:       { color: '#52526e', label: 'IDLE',        sub: 'standing by' },
-    qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'spinning up Thunder…' },
+    qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'Sarah qualifying lead…' },
     on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'Sarah active' },
   }[status];
 
@@ -1632,9 +1632,8 @@ export function MultiDialer() {
           setDialerState('connected');
           if (data.answered_lead) setActiveLead(data.answered_lead);
         }
-        if (data.status === 'ended' || data.status === 'list') {
-          // Session ended OR list pass complete — stop polling, go idle, and
-          // blank the lanes so no stale "ACTIVE" card keeps a timer climbing.
+        if (data.status === 'ended') {
+          // Session TRULY ended — stop polling, go idle, blank the lanes.
           clearInterval(pollRef.current!); pollRef.current = null;
           setDialerState('idle');
           setActiveLead(null);
@@ -1642,15 +1641,18 @@ export function MultiDialer() {
           setWinnerLane(null);
           setDavidStatus('idle');
           setDavidLane(null);
-          // Refresh list meta to show updated called/remaining counts
-          if (sid.startsWith('list_')) {
-            fetch(`${API_BASE}/dialer/list/${sid}`)
-              .then(r2 => r2.json())
-              .then(d => {
-                if (d.listId) setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: false });
-              })
-              .catch(() => {});
-          }
+        }
+        // 'list' = a pass finished but the session is still alive (auto-recycle /
+        // about to resume / momentarily reset). NEVER stop polling here — doing so
+        // froze the whole dashboard mid-run. Keep polling so lanes stay live; just
+        // refresh the list meta counts.
+        if (data.status === 'list' && sid.startsWith('list_')) {
+          fetch(`${API_BASE}/dialer/list/${sid}`)
+            .then(r2 => r2.json())
+            .then(d => {
+              if (d.listId) setListMeta({ name: d.name, total: d.total, called: d.called, remaining: d.remaining, pass: d.pass, isDialing: !!d.isDialing });
+            })
+            .catch(() => {});
         }
         
         // Update stats from backend totals
