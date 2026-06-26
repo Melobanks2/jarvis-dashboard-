@@ -524,15 +524,26 @@ function TranscriptPanel({ lane, pinned }: { lane: Lane | null; pinned: boolean 
             <span className="text-[10px] italic" style={{ color: '#3a3a52' }}>{placeholder}</span>
           </div>
         ) : (
-          turns.map((t, i) => (
-            <div key={i} className="flex gap-2 items-baseline">
-              <span className="text-[8px] font-orbitron tracking-[1px] uppercase flex-shrink-0 w-[44px]"
-                style={{ color: t.role === 'david' ? '#4ade80' : '#00e5ff' }}>
-                {t.role === 'david' ? 'Sarah' : 'Seller'}
-              </span>
-              <span className="text-[11px] leading-relaxed" style={{ color: '#c8c8da' }}>{t.text}</span>
-            </div>
-          ))
+          turns.map((t, i) => {
+            const isSarah = t.role === 'david';
+            return (
+              <div key={i} className={`flex ${isSarah ? 'justify-start' : 'justify-end'}`}>
+                <div
+                  className="max-w-[82%] rounded-xl px-2.5 py-1.5"
+                  style={{
+                    background: isSarah ? 'rgba(74,222,128,0.10)' : 'rgba(0,229,255,0.10)',
+                    border: `1px solid ${isSarah ? 'rgba(74,222,128,0.28)' : 'rgba(0,229,255,0.28)'}`,
+                  }}
+                >
+                  <div className="text-[8px] font-orbitron tracking-[1px] uppercase mb-0.5"
+                    style={{ color: isSarah ? '#4ade80' : '#00e5ff' }}>
+                    {isSarah ? '● Sarah' : '● Seller'}
+                  </div>
+                  <div className="text-[11px] leading-relaxed" style={{ color: isSarah ? '#d6f5e2' : '#cfeffb' }}>{t.text}</div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
