@@ -64,10 +64,12 @@ export function Leads() {
   );
 
   const answerRate = useMemo(() => {
-    const withCall = bySource.filter(l => l.callDuration != null);
-    if (!withCall.length) return 0;
-    const answered = withCall.filter(l => (l.callDuration || 0) > 15).length;
-    return Math.round((answered / withCall.length) * 100);
+    // Answer rate = answered / DIALED, not answered/answered. The old denominator
+    // only counted leads that already had a call duration, so it always read ~100%.
+    const dialed = bySource.filter(l => (l.attempts || 0) > 0);
+    if (!dialed.length) return 0;
+    const answered = dialed.filter(l => (l.callDuration || 0) > 15).length;
+    return Math.round((answered / dialed.length) * 100);
   }, [bySource]);
 
   // Which pipeline(s) feed the board columns for the active source filter.

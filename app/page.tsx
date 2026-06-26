@@ -33,7 +33,7 @@ const MissionControl = dynamic(
 );
 
 const SECTION_TITLES: Record<string, string> = {
-  'david-hq':          'David HQ',
+  'david-hq':          'Sarah HQ',
   'ai-agents':         'AI Agents',
   'call-center':       'Call Center',
   'lead-intelligence': 'Leads',

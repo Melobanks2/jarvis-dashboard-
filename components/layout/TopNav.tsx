@@ -69,7 +69,7 @@ export function TopNav() {
 
       {/* Right: actions + clock */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <NavBtn icon={<Zap size={11} />}      label="David HQ"        color="#4ade80" onClick={() => setActiveSection('david-hq')} />
+        <NavBtn icon={<Zap size={11} />}      label="Sarah HQ"        color="#4ade80" onClick={() => setActiveSection('david-hq')} />
         <NavBtn icon={<Maximize2 size={11} />} label="Mission Control" color="#a78bfa" onClick={() => setMissionControl(true)} />
         <NavBtn icon={<Search size={11} />}   label="Leads"           color="#60a5fa" onClick={() => setActiveSection('lead-intelligence')} />
         <div className="w-px h-4 bg-white/10 mx-1" />
