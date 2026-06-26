@@ -363,9 +363,11 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
             </div>
             <div className="min-w-0">
               <div className="text-[13px] font-bold truncate" style={{ color: '#e8e8f0' }}>
-                {lane.lead.name || 'Unknown'}
+                {lane.lead.name || lane.lead.phone || 'Unknown'}
               </div>
-              <div className="text-[10px] truncate" style={{ color: '#8888aa' }}>{lane.lead.phone}</div>
+              {lane.lead.name && (
+                <div className="text-[10px] truncate" style={{ color: '#8888aa' }}>{lane.lead.phone}</div>
+              )}
             </div>
           </div>
           {lane.lead.address && (
@@ -516,7 +518,7 @@ function TranscriptPanel({ lane, pinned }: { lane: Lane | null; pinned: boolean 
       </div>
       <div
         ref={scrollRef}
-        className="rounded-lg p-3 min-h-[120px] max-h-[260px] overflow-y-auto flex flex-col gap-1.5"
+        className="rounded-lg p-3 min-h-[220px] max-h-[460px] overflow-y-auto flex flex-col gap-2"
         style={{ background: 'rgba(0,0,0,0.25)', border: '1px dashed rgba(255,255,255,0.04)' }}
       >
         {placeholder ? (
