@@ -16,3 +16,6 @@ config/
 __pycache__/
 *.pyc
 .vercel
+
+# Doc contains a live Gemini API key — never commit
+GEMINI_LIVE_IMPLEMENTATION.md
