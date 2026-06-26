@@ -1203,42 +1203,27 @@ function PerformanceAnalytics() {
         </div>
       </div>
 
-      {/* Top KPI Cards */}
+      {/* Top KPI Cards — full outcome breakdown */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Phone size={14} style={{ color: '#00e5ff' }} />
-            <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#52526e' }}>Total Calls</span>
+        {[
+          { icon: Phone,      label: 'Total Calls',   value: stats.callsMade,              color: '#00e5ff' },
+          { icon: TrendingUp, label: 'Conversations', value: stats.contacted, sub: `${conversionRate.toFixed(0)}% of logged calls`, color: '#4ade80' },
+          { icon: Flame,      label: 'Hot',           value: outcomeCounts.hot  || 0,      color: '#ff3366' },
+          { icon: Flame,      label: 'Warm',          value: outcomeCounts.warm || 0,      color: '#ffb020' },
+          { icon: Snowflake,  label: 'Cold',          value: outcomeCounts.cold || 0,      color: '#3ba1ff' },
+          { icon: PhoneOff,   label: 'Voicemails',    value: outcomeCounts.voicemail || 0, color: '#8888aa' },
+          { icon: Clock,      label: 'Talk Time',     value: fmt(talkSeconds), sub: `avg ${fmt(avgDuration)} / conv`, color: '#a78bfa' },
+          { icon: Database,   label: 'Est. Telnyx Cost', value: `$${(stats.contacted * 0.018).toFixed(2)}`, sub: '~1.8¢ per connected call', color: '#fbbf24' },
+        ].map((k, i) => (
+          <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <k.icon size={14} style={{ color: k.color }} />
+              <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#52526e' }}>{k.label}</span>
+            </div>
+            <div className="text-[26px] font-orbitron font-black" style={{ color: k.color }}>{k.value}</div>
+            {k.sub && <div className="text-[8px] mt-1" style={{ color: '#52526e' }}>{k.sub}</div>}
           </div>
-          <div className="text-[28px] font-orbitron font-black" style={{ color: '#00e5ff' }}>{stats.callsMade}</div>
-        </div>
-
-        <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp size={14} style={{ color: '#4ade80' }} />
-            <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#52526e' }}>Connected</span>
-          </div>
-          <div className="text-[28px] font-orbitron font-black" style={{ color: '#4ade80' }}>{stats.contacted}</div>
-          <div className="text-[9px] mt-1" style={{ color: '#52526e' }}>
-            {conversionRate.toFixed(0)}%
-          </div>
-        </div>
-
-        <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Flame size={14} style={{ color: '#ff3366' }} />
-            <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#52526e' }}>Hot Leads</span>
-          </div>
-          <div className="text-[28px] font-orbitron font-black" style={{ color: '#ff3366' }}>{stats.hot}</div>
-        </div>
-
-        <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={14} style={{ color: '#a78bfa' }} />
-            <span className="text-[9px] font-orbitron tracking-[1px] uppercase" style={{ color: '#52526e' }}>Avg Duration</span>
-          </div>
-          <div className="text-[28px] font-orbitron font-black" style={{ color: '#a78bfa' }}>{fmt(avgDuration)}</div>
-        </div>
+        ))}
       </div>
 
       {/* Call Volume & Connections Chart */}
@@ -1249,7 +1234,7 @@ function PerformanceAnalytics() {
             Call Volume & Connections
           </span>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={300}>
           <LineChart data={volumeData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
             <XAxis dataKey="date" stroke="#7c8db5" fontSize={10} />
@@ -1275,7 +1260,7 @@ function PerformanceAnalytics() {
               Disposition Breakdown
             </span>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={dispositionData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1d2942" />
               <XAxis dataKey="name" stroke="#7c8db5" fontSize={10} />
