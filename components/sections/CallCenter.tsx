@@ -20,6 +20,46 @@ const STAGE_COLORS: Record<string, string> = {
 };
 function stageColor(s: string) { return STAGE_COLORS[s] || '#5a5a80'; }
 
+// Friendly names for the brain's internal qualification steps.
+const STEP_LABELS: Record<string, string> = {
+  greet: 'Greeting', pitch: 'Pitch', fact_find: 'Fact-Find',
+  timeline_thinking: 'Timeline', timeline_followup: 'Timeline', ownership_length: 'Ownership',
+  decision_makers: 'Decision-Makers', occupancy: 'Occupancy', occupancy_detail: 'Occupancy',
+  price: 'Price', price_best: 'Best Price', ballpark: 'Ballpark',
+  condition_overall: 'Condition', condition_systems: 'Systems', bad_time: 'Bad Time',
+  pain_followup: 'Motivation', close: 'Close',
+};
+function stepLabel(s: string) { return STEP_LABELS[s] || s.replace(/_/g, ' '); }
+
+// Pull the ordered qualification path out of a step-labelled transcript
+// (lines like "Sarah [pitch]: ..."). Collapses repeated consecutive steps.
+function parsePath(transcript?: string | null): string[] {
+  if (!transcript) return [];
+  const steps: string[] = [];
+  for (const line of transcript.split('\n')) {
+    const m = line.match(/^\s*Sarah\s*\[([^\]]+)\]/i);
+    if (m) { const s = m[1].trim(); if (steps[steps.length - 1] !== s) steps.push(s); }
+  }
+  return steps;
+}
+
+function PathTimeline({ steps }: { steps: string[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <div className="mb-2">
+      <div className="text-[8px] text-dimtext font-orbitron tracking-[1px] uppercase mb-1">🧠 Decision Path</div>
+      <div className="flex flex-wrap items-center gap-1">
+        {steps.map((s, i) => (
+          <span key={i} className="flex items-center gap-1">
+            <span className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: '#00e5ff15', color: '#00e5ff', border: '1px solid #00e5ff25' }}>{stepLabel(s)}</span>
+            {i < steps.length - 1 && <ArrowRight size={8} className="text-dimtext" />}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const FADE_UP = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 
@@ -112,6 +152,9 @@ function CallCard({ call }: { call: CallRecord }) {
         <span className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: `${ac}15`, color: ac, border: `1px solid ${ac}25` }}>{call.stage_after || '—'}</span>
       </div>
 
+      {/* Decision path */}
+      <PathTimeline steps={parsePath(call.transcript_full)} />
+
       {/* Tags */}
       {call.tags_applied?.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
@@ -166,6 +209,9 @@ function RecordingCard({ rec }: { rec: CallRecord }) {
 
       {rec.summary && <div className="text-[9px] text-dimtext italic mb-2 line-clamp-2">{rec.summary}</div>}
 
+      {/* Decision path — the route Sarah took through qualification */}
+      <PathTimeline steps={parsePath(rec.transcript_full)} />
+
       {rec.transcript_full && (
         <button
           onClick={() => setShowTx(!showTx)}
@@ -176,12 +222,20 @@ function RecordingCard({ rec }: { rec: CallRecord }) {
       )}
 
       {showTx && rec.transcript_full && (
-        <div className="mt-2 max-h-[220px] overflow-y-auto text-[9px] font-mono bg-bg3 border border-border2 rounded-sm p-2 leading-relaxed">
+        <div className="mt-2 max-h-[260px] overflow-y-auto text-[9px] font-mono bg-bg3 border border-border2 rounded-sm p-2 leading-relaxed">
           {rec.transcript_full.split('\n').map((line, i) => {
-            const isJarvis = line.toLowerCase().startsWith('jarvis') || line.toLowerCase().startsWith('agent');
-            const isSeller = line.toLowerCase().startsWith('seller') || line.toLowerCase().startsWith('contact');
+            const low = line.toLowerCase();
+            const isSarah  = low.startsWith('sarah') || low.startsWith('jarvis') || low.startsWith('agent');
+            const isSeller = low.startsWith('seller') || low.startsWith('contact');
+            const stepM = line.match(/^\s*Sarah\s*\[([^\]]+)\]:\s*/i);
+            const text  = stepM ? line.replace(/^(\s*Sarah)\s*\[[^\]]+\]:/i, '$1:') : line;
             return (
-              <div key={i} style={{ color: isJarvis ? '#00e5ff' : isSeller ? '#00ff88' : '#5a5a80' }}>{line}</div>
+              <div key={i} className="mb-0.5" style={{ color: isSarah ? '#00e5ff' : isSeller ? '#00ff88' : '#5a5a80' }}>
+                {stepM && (
+                  <span className="text-[7px] px-1 py-0.5 mr-1 rounded-sm align-middle" style={{ background: '#00e5ff15', color: '#00e5ff' }}>{stepLabel(stepM[1])}</span>
+                )}
+                {text}
+              </div>
             );
           })}
         </div>
