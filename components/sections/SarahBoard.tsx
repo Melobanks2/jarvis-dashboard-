@@ -6,6 +6,7 @@ import {
   Phone, Clock, MapPin, FileText, Check, X, Send, Loader2, Radio,
   AlertTriangle, ChevronDown, History, DollarSign, CalendarClock,
   Flame, Building2, Target, GripVertical, Copy,
+  LayoutGrid, Table2, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead, Temp, CallRecord, LEADS_API } from '@/lib/hooks/useLeads';
@@ -196,6 +197,7 @@ export function SarahBoard() {
   const liveKeys = useSarahLiveKeys();
 
   const [range, setRange] = useState<TimeRange>('all');
+  const [view, setView]   = useState<'board' | 'table'>('board');
 
   // Optimistic local mirror for drag-drop stage moves.
   const [localLeads, setLocalLeads] = useState<Lead[]>([]);
@@ -253,6 +255,7 @@ export function SarahBoard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ViewToggle view={view} onChange={setView} />
           <TimeToggle range={range} onChange={setRange} />
           <button onClick={refresh} className="text-[10px] text-dimtext hover:text-ncyan transition-colors px-2 py-1.5">↻ Refresh</button>
         </div>
@@ -287,10 +290,12 @@ export function SarahBoard() {
         </div>
       )}
 
-      {/* board */}
+      {/* board / table */}
       {!loading && (
         <motion.div variants={FADE_UP}>
-          <Board leads={ispeed} pipelines={ispeedPipelines} onMove={moveStage} liveKeys={liveKeys} />
+          {view === 'board'
+            ? <Board leads={ispeed} pipelines={ispeedPipelines} onMove={moveStage} liveKeys={liveKeys} />
+            : <LeadTable leads={ispeed} pipelines={ispeedPipelines} onMove={moveStage} liveKeys={liveKeys} />}
         </motion.div>
       )}
     </motion.div>
@@ -316,6 +321,215 @@ function TimeToggle({ range, onChange }: { range: TimeRange; onChange: (r: TimeR
         </button>
       ))}
     </div>
+  );
+}
+
+/* ─────────────────────────────── view toggle ─────────────────────────────── */
+
+function ViewToggle({ view, onChange }: { view: 'board' | 'table'; onChange: (v: 'board' | 'table') => void }) {
+  const opts = [
+    { key: 'board' as const, label: 'Board', Icon: LayoutGrid },
+    { key: 'table' as const, label: 'Table', Icon: Table2 },
+  ];
+  return (
+    <div className="flex items-center rounded-md border border-border2 overflow-hidden">
+      {opts.map(o => {
+        const active = view === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium transition-colors"
+            style={{ color: active ? '#0c0d14' : '#52526e', background: active ? '#fbbf24' : 'transparent' }}
+          >
+            <o.Icon size={11} /> {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── table view ─────────────────────────────── */
+
+// Days since an ISO timestamp; updatedAt ≈ last stage move, so this is "days in stage".
+const daysSince = (iso?: string | null) =>
+  iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : null;
+
+type SortKey = 'name' | 'stage' | 'days' | 'attempts' | 'lastcall' | 'refund' | 'temp';
+const TEMP_RANK: Record<Temp, number> = { hot: 0, warm: 1, new: 2, cold: 3, dead: 4 };
+
+function LeadTable({ leads, pipelines, onMove, liveKeys }: {
+  leads: Lead[];
+  pipelines: { id: string; stages: { id: string; name: string }[] }[];
+  onMove: (l: Lead, stageName: string) => void;
+  liveKeys: Set<string>;
+}) {
+  // Default: most days-in-stage first — the leads going stale float to the top.
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'days', dir: 'desc' });
+  const [detail, setDetail] = useState<{ id: string; tab: 'detail' | 'history' } | null>(null);
+  const detailLead = detail ? leads.find(l => l.id === detail.id) : null;
+  useEffect(() => {
+    if (detail && !leads.some(l => l.id === detail.id)) setDetail(null);
+  }, [leads, detail]);
+
+  // Stage <select> options + a pipeline-order index so "Stage" sorts follow deal flow.
+  const stageOptions = useMemo(() => {
+    const seen = new Set<string>(); const out: string[] = [];
+    for (const p of pipelines) for (const s of p.stages) {
+      const k = normStage(s.name);
+      if (!seen.has(k)) { seen.add(k); out.push(s.name); }
+    }
+    return out;
+  }, [pipelines]);
+  const stageIndex = useMemo(() => {
+    const m: Record<string, number> = {};
+    stageOptions.forEach((s, i) => { m[normStage(s)] = i; });
+    return m;
+  }, [stageOptions]);
+
+  const rows = useMemo(() => {
+    const val = (l: Lead): number | string => {
+      switch (sort.key) {
+        case 'name':     return l.name?.toLowerCase() || '';
+        case 'stage':    return stageIndex[normStage(l.stageName)] ?? 999;
+        case 'days':     return daysSince(l.updatedAt) ?? -1;
+        case 'attempts': return attemptCount(l);
+        case 'lastcall': {
+          const ts = l.calledAt || l.callHistory?.[0]?.calledAt;
+          return ts ? new Date(ts).getTime() : 0;
+        }
+        case 'refund':   return l.daysUntilDeadline ?? 99999;
+        case 'temp':     return TEMP_RANK[l.temp];
+      }
+    };
+    return [...leads].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      let c: number;
+      if (typeof va === 'string' && typeof vb === 'string') c = va.localeCompare(vb);
+      else c = (va as number) - (vb as number);
+      return sort.dir === 'asc' ? c : -c;
+    });
+  }, [leads, sort, stageIndex]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort(s => s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: (key === 'name' || key === 'stage') ? 'asc' : 'desc' });
+
+  if (!leads.length) {
+    return <div className="text-dimtext text-[11px] italic py-10 text-center">No iSpeed opportunities in this range — Sarah has nothing to dial yet.</div>;
+  }
+
+  const cols: { key: SortKey; label: string; align?: 'left' | 'right' | 'center' }[] = [
+    { key: 'name',     label: 'Lead' },
+    { key: 'stage',    label: 'Stage' },
+    { key: 'days',     label: 'Days in stage', align: 'right' },
+    { key: 'attempts', label: 'Attempts',      align: 'right' },
+    { key: 'lastcall', label: 'Last call',     align: 'right' },
+    { key: 'refund',   label: 'Refund',        align: 'right' },
+    { key: 'temp',     label: 'Temp',          align: 'center' },
+  ];
+
+  return (
+    <>
+      <div className="overflow-x-auto rounded-lg border border-border2">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-border2" style={{ background: 'rgba(255,255,255,0.025)' }}>
+              {cols.map(c => {
+                const active = sort.key === c.key;
+                return (
+                  <th
+                    key={c.key}
+                    onClick={() => toggleSort(c.key)}
+                    className="px-3 py-2.5 text-[9.5px] font-semibold uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-jtext"
+                    style={{ color: active ? '#fbbf24' : '#8a8aa3', textAlign: c.align || 'left' }}
+                  >
+                    <span className="inline-flex items-center gap-1" style={{ flexDirection: c.align === 'right' ? 'row-reverse' : 'row' }}>
+                      {c.label}
+                      {active
+                        ? (sort.dir === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)
+                        : <ArrowUpDown size={9} className="opacity-30" />}
+                    </span>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(lead => {
+              const dStage = daysSince(lead.updatedAt);
+              const dCrm = lead.daysInCrm ?? daysSince(lead.createdAt);
+              const attempts = attemptCount(lead);
+              const last = lead.calledAt || lead.callHistory?.[0]?.calledAt || null;
+              const r = refundMeta(lead);
+              const t = TEMP[lead.temp];
+              const onCall = liveKeys.has(digits10(lead.phone));
+              const ageColor = dStage == null ? '#5a5a80' : dStage > 30 ? '#f87171' : dStage > 14 ? '#fbbf24' : '#9a9ab3';
+              const selValue = stageOptions.find(s => normStage(s) === normStage(lead.stageName)) || lead.stageName;
+              return (
+                <tr
+                  key={lead.id}
+                  onClick={() => setDetail({ id: lead.id, tab: 'detail' })}
+                  className="border-b border-border2 cursor-pointer transition-colors hover:bg-white/[0.03]"
+                  style={onCall ? { background: 'rgba(248,113,113,0.06)' } : undefined}
+                >
+                  {/* Lead */}
+                  <td className="px-3 py-2 align-top">
+                    <div className="flex items-center gap-1.5">
+                      {onCall && <Radio size={10} className="text-nred animate-pulse flex-shrink-0" />}
+                      <span className="text-[12px] font-semibold text-textb truncate max-w-[180px]">{lead.name}</span>
+                    </div>
+                    {lead.address && <div className="text-[9px] text-dimtext truncate max-w-[200px]">{lead.address}</div>}
+                    {lead.phone && <div className="text-[9px] text-dimtext">{fmtPhone(lead.phone)}</div>}
+                  </td>
+                  {/* Stage (inline move) */}
+                  <td className="px-3 py-2 align-top" onClick={e => e.stopPropagation()}>
+                    <select
+                      value={selValue}
+                      onChange={e => onMove(lead, e.target.value)}
+                      className="bg-transparent text-[10px] text-jtext border border-border2 rounded px-1.5 py-1 max-w-[160px] cursor-pointer hover:border-white/25"
+                      style={{ outline: 'none' }}
+                    >
+                      {stageOptions.map(s => <option key={s} value={s} className="bg-[#15151f] text-jtext">{s}</option>)}
+                    </select>
+                  </td>
+                  {/* Days in stage */}
+                  <td className="px-3 py-2 text-right align-top">
+                    <span className="text-[12px] font-semibold" style={{ color: ageColor }}>{dStage == null ? '—' : `${dStage}d`}</span>
+                    {dCrm != null && <div className="text-[8px] text-dimtext">{dCrm}d in CRM</div>}
+                  </td>
+                  {/* Attempts */}
+                  <td className="px-3 py-2 text-right align-top">
+                    <span className="text-[12px] font-medium" style={{ color: attempts === 0 ? '#5a5a80' : '#c4c4d6' }}>{attempts}</span>
+                  </td>
+                  {/* Last call */}
+                  <td className="px-3 py-2 text-right align-top text-[10px] text-dimtext whitespace-nowrap">{last ? timeAgo(last) : '—'}</td>
+                  {/* Refund */}
+                  <td className="px-3 py-2 text-right align-top whitespace-nowrap">
+                    {r
+                      ? <span className="text-[11px] font-medium" style={{ color: r.color }}>{r.urgency === 'expired' ? 'closed' : `${r.days}d`}{r.cost ? <span className="text-dimtext"> · ${r.cost}</span> : null}</span>
+                      : <span className="text-dimtext text-[10px]">—</span>}
+                  </td>
+                  {/* Temp */}
+                  <td className="px-3 py-2 text-center align-top">
+                    <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: `${t.c}1a`, color: t.c, border: `1px solid ${t.c}40` }}>{t.label}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="text-[9px] text-dimtext mt-2 px-1">{rows.length} leads · click a row for detail · click a column to sort · change stage inline</div>
+
+      <AnimatePresence>
+        {detail && detailLead && (
+          <LeadDetailModal lead={detailLead} initialTab={detail.tab} onClose={() => setDetail(null)} />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
