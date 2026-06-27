@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { supabase, timeAgo, fmtDate, todayStart } from '@/lib/supabase';
 import { SarahBoard } from './SarahBoard';
+import { SarahSchedule } from './SarahSchedule';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ interface ScoreData {
 
 const TABS = [
   { id: 'board',        label: 'Opportunity Board', icon: LayoutGrid },
+  { id: 'schedule',     label: 'Schedule',          icon: Clock },
   { id: 'live',         label: 'Live Calls',        icon: Phone },
   { id: 'recordings',   label: 'Recordings',        icon: Mic },
   { id: 'performance',  label: 'Performance',       icon: BarChart2 },
@@ -1473,6 +1475,7 @@ export function DavidHQ() {
             transition={{ duration: 0.18 }}
           >
             {activeTab === 'board'       && <SarahBoard />}
+            {activeTab === 'schedule'    && <SarahSchedule />}
             {activeTab === 'approvals'   && <PendingApprovalsTab />}
             {activeTab === 'live'        && <LiveCallsTab />}
             {activeTab === 'recordings'  && <RecordingsTab />}
