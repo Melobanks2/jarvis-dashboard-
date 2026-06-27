@@ -39,7 +39,9 @@ const PROFILES: Record<'psa' | 'rbp', Field[]> = {
   ],
 };
 
-const CONTRACT_API = '/api/contract';
+// Backend lives on the VPS dialer-server (Vercel Hobby is at its 12-function cap),
+// same host the pipeline/leads data comes from.
+const CONTRACT_API = 'https://api.jarviscommandcenter.space/dialer/contract';
 const GHL_DOCS_URL = 'https://app.gohighlevel.com/v2/location/AymErWPrH9U1ddRouslC/payments/documents-contracts';
 
 const money = (n: number | null) => (n ? `$${Math.round(n).toLocaleString()}` : '');
@@ -77,7 +79,7 @@ export function ContractCannon() {
 
   // Load templates + recent documents once.
   useEffect(() => {
-    fetch(`${CONTRACT_API}?action=templates`).then(r => r.json())
+    fetch(`${CONTRACT_API}/templates`).then(r => r.json())
       .then(d => { if (d.templates) { setTemplates(d.templates); if (!tplId && d.templates[0]) setTplId(d.templates[0].id); } })
       .catch(() => {});
     refreshDocs();
@@ -85,7 +87,7 @@ export function ContractCannon() {
   }, []);
 
   function refreshDocs() {
-    fetch(`${CONTRACT_API}?action=documents&limit=12`).then(r => r.json())
+    fetch(`${CONTRACT_API}/documents?limit=12`).then(r => r.json())
       .then(d => { if (d.documents) setDocs(d.documents); })
       .catch(() => {});
   }
@@ -117,7 +119,7 @@ export function ContractCannon() {
     if (!deal || !tpl) return;
     setFiring(true); setFired(null);
     try {
-      const r = await fetch(CONTRACT_API, {
+      const r = await fetch(`${CONTRACT_API}/fire`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
