@@ -65,7 +65,7 @@ interface Progress {
   lanes_done?: number;
 }
 
-interface Stats { callsMade: number; contacted: number; hot: number; totalSeconds: number }
+interface Stats { callsMade: number; contacted: number; hot: number; totalSeconds: number; voicemail: number; wrongNumber: number; notInterested: number; noAnswer: number }
 
 interface ListMeta {
   name: string;
@@ -1519,7 +1519,7 @@ export function MultiDialer() {
   const [selectedLane, setSelectedLane] = useState<number | null>(null);
 
   // Stats
-  const [stats, setStats] = useState<Stats>({ callsMade: 0, contacted: 0, hot: 0, totalSeconds: 0 });
+  const [stats, setStats] = useState<Stats>({ callsMade: 0, contacted: 0, hot: 0, totalSeconds: 0, voicemail: 0, wrongNumber: 0, notInterested: 0, noAnswer: 0 });
 
   // Persistent list state
   const [listId, setListId]     = useState<string>('');
@@ -1600,6 +1600,7 @@ export function MultiDialer() {
         }
         // Only seed if the live poll hasn't already produced higher numbers.
         setStats(s => ({
+          ...s,
           callsMade:    Math.max(s.callsMade, calls),
           contacted:    Math.max(s.contacted, contacted),
           hot:          Math.max(s.hot, hot),
@@ -1658,10 +1659,14 @@ export function MultiDialer() {
         // Backend keys: total_calls, contacted_count, hot_count, duration_seconds
         if (data.totals) {
           setStats(s => ({
-            callsMade:    data.totals.total_calls      ?? s.callsMade,
-            contacted:    data.totals.contacted_count  ?? s.contacted,
-            hot:          data.totals.hot_count        ?? s.hot,
-            totalSeconds: data.totals.duration_seconds ?? s.totalSeconds,
+            callsMade:     data.totals.total_calls          ?? s.callsMade,
+            contacted:     data.totals.contacted_count      ?? s.contacted,
+            hot:           data.totals.hot_count            ?? s.hot,
+            totalSeconds:  data.totals.duration_seconds     ?? s.totalSeconds,
+            voicemail:     data.totals.voicemail_count      ?? s.voicemail,
+            wrongNumber:   data.totals.wrong_number_count   ?? s.wrongNumber,
+            notInterested: data.totals.not_interested_count ?? s.notInterested,
+            noAnswer:      data.totals.no_answer_count      ?? s.noAnswer,
           }));
         }
       } catch { /* swallow */ }
@@ -2125,12 +2130,15 @@ export function MultiDialer() {
           {/* Autopilot / scheduler */}
           <AutopilotCard onToast={showToast} />
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Calls Made" value={stats.callsMade} color="#00e5ff" />
-            <StatCard label="Contacted"  value={stats.contacted} color="#4ade80" />
-            <StatCard label="Hot Leads"  value={stats.hot}       color="#ff3366" />
-            <StatCard label="Conv. Rate" value={`${conv}%`}      color="#a78bfa"
+          {/* Stats row — full disposition breakdown so you see exactly what's happening */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
+            <StatCard label="Calls Made"     value={stats.callsMade}     color="#00e5ff" />
+            <StatCard label="Conversations"  value={stats.contacted}     color="#4ade80" sub={`${conv}% of calls`} />
+            <StatCard label="Hot Leads"      value={stats.hot}           color="#ff3366" />
+            <StatCard label="Voicemail"      value={stats.voicemail}     color="#8888aa" />
+            <StatCard label="Wrong #"        value={stats.wrongNumber}   color="#fbbf24" />
+            <StatCard label="Not Interested" value={stats.notInterested} color="#fb923c" />
+            <StatCard label="Conv. Rate"     value={`${conv}%`}          color="#a78bfa"
               sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
           </div>
 
@@ -2156,8 +2164,8 @@ export function MultiDialer() {
             </div>
           )}
 
-          {/* 5 lane grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Lane grid — fewer columns + more gap so a connected call has room to breathe */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
             {lanes.map(lane => (
               <LaneCard key={lane.idx} lane={lane} now={now} isWinner={winnerLane === lane.idx}
                 isSelected={selectedLane === lane.idx}
