@@ -1,29 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import type { WorkStatus } from '@/components/ui/WorkBadge';
 
+// Internal status values kept stable for existing consumers (the 3D scene, dot maps).
+// active = Working, idle = Standby, offline = Off. Display labels live in the UI.
 export type AgentStatus = 'active' | 'idle' | 'offline';
 
+const API_BASE = 'https://api.jarviscommandcenter.space';
+
 export interface AgentInfo {
-  name: string;
   key: string;
+  name: string;
+  role: string;
   color: string;
   description: string;
   schedule: string;
   lastActivity: string | null;
-  runCount: number;
-  status: AgentStatus;
+  runCount: number;          // now carries PM2 restart count (health signal)
+  status: AgentStatus;       // re-derived from real PM2 state
+  pm2Status: string;         // raw: online | stopped | errored | missing
+  uptimeMs: number | null;
+  work: WorkStatus;          // working | standby | off (the real signal)
 }
 
-const AGENT_DEFS: Omit<AgentInfo, 'lastActivity' | 'runCount' | 'status'>[] = [
-  { name: 'Alpha Scraper',   key: 'ALPHA_SCRAPER',   color: '#60a5fa', description: 'Scrapes AlphaLeads VA, creates GHL contacts + opps',         schedule: 'Every 30 min' },
-  { name: 'Call Analyzer',   key: 'CALL_ANALYZER',   color: '#a78bfa', description: 'Analyzes transcripts, updates GHL tags, stages & notes',     schedule: 'Every hour'   },
-  { name: 'County Scraper',  key: 'COUNTY_SCRAPER',  color: '#fb923c', description: 'OC Comptroller Lis Pendens + MyEClerk login',                schedule: 'Daily 7am'    },
-  { name: 'Jarvis Caller',   key: 'JARVIS_CALLER',   color: '#4ade80', description: 'AI outbound caller with ElevenLabs + Claude conversation',   schedule: 'Mon-Fri noon' },
-  { name: 'Jarvis Bot',      key: 'JARVIS_BOT',      color: '#67e8f9', description: 'Telegram bot polling for real-time commands',                schedule: 'Always on'    },
-  { name: 'ASAP Scraper',    key: 'ASAP_SCRAPER',    color: '#fbbf24', description: 'Property data scraper for ASAP ARV database',               schedule: 'On demand'    },
+// Roster mapped to the backend /dialer/agents-health `key`s. Jarvis is rendered
+// separately by AIAgents (the 3D centerpiece), so it's intentionally not here.
+const AGENT_DEFS = [
+  { key: 'scout',          name: 'Scout',         role: 'Lead Generator', color: '#ff3366', description: 'Cold multi-line dialer — generates raised hands from VA lists.', schedule: 'On demand' },
+  { key: 'sarah',          name: 'Sarah',         role: 'Lead Qualifier', color: '#fbbf24', description: 'Calls raised-hand iSpeed leads one-by-one and qualifies them hot/warm/cold.', schedule: 'Mon–Sat 9a–8p' },
+  { key: 'lead_manager',   name: 'Call Analyzer', role: 'Lead QA',        color: '#a78bfa', description: 'Reviews call transcripts and updates GHL tags/stages/notes. (Future: Lead Manager — double-checks every call.)', schedule: 'Every hour' },
+  { key: 'alpha_scraper',  name: 'Alpha Scraper', role: 'Lead Source',    color: '#60a5fa', description: 'Scrapes AlphaLeads VA and feeds Scout fresh contact lists.', schedule: 'Every 30 min' },
+  { key: 'asap',           name: 'ASAP Scraper',  role: 'Deal Data',      color: '#fbbf24', description: 'Property/comp scraper for the ASAP ARV database.', schedule: 'On demand' },
+  { key: 'speed_to_lead',  name: 'Speed-to-Lead', role: 'Lead Intake',    color: '#67e8f9', description: 'Instant-dials each new iSpeed lead the moment it arrives.', schedule: 'Always on' },
+  { key: 'county_scraper', name: 'County Scraper',role: 'Lead Source',    color: '#fb923c', description: 'OC Comptroller Lis Pendens + MyEClerk lead source.', schedule: 'Daily 7am' },
 ];
+
+interface HealthAgent { key: string; status: string; online: boolean; restarts: number | null; uptimeMs: number | null; }
 
 export function useAgents(refreshKey: number) {
   const [agents,  setAgents]  = useState<AgentInfo[]>([]);
@@ -32,36 +45,40 @@ export function useAgents(refreshKey: number) {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    supabase
-      .from('jarvis_log')
-      .select('source, created_at, type')
-      .order('created_at', { ascending: false })
-      .limit(500)
-      .then(({ data }) => {
-        if (!active) return;
-        const logs = data || [];
-        const now = Date.now();
 
-        const result: AgentInfo[] = AGENT_DEFS.map(def => {
-          const agentLogs = logs.filter(l =>
-            l.source?.toUpperCase().replace(/[\s-]/g, '_') === def.key
-          );
-          const last = agentLogs[0];
-          const lastTime = last ? new Date(last.created_at).getTime() : null;
-          const min = lastTime ? (now - lastTime) / 60000 : Infinity;
-          const status: AgentStatus = min < 5 ? 'active' : min < 180 ? 'idle' : 'offline';
+    Promise.all([
+      fetch(`${API_BASE}/dialer/agents-health`).then(r => r.json()).catch(() => ({ agents: [] })),
+      fetch(`${API_BASE}/dialer/sarah-live`).then(r => r.json()).catch(() => ({ calls: [] })),
+    ]).then(([health, sarahLive]) => {
+      if (!active) return;
 
-          return {
-            ...def,
-            lastActivity: last?.created_at ?? null,
-            runCount: agentLogs.length,
-            status,
-          };
-        });
+      const byKey: Record<string, HealthAgent> = {};
+      for (const a of (health?.agents || [])) byKey[a.key] = a;
+      const sarahOnCall = Array.isArray(sarahLive?.calls) && sarahLive.calls.length > 0;
 
-        setAgents(result);
-        setLoading(false);
+      const result: AgentInfo[] = AGENT_DEFS.map(def => {
+        const h = byKey[def.key];
+        let work: WorkStatus = 'off';
+        if (h?.online) {
+          work = 'standby';
+          if (def.key === 'sarah' && sarahOnCall) work = 'working';
+        }
+        const status: AgentStatus = work === 'working' ? 'active' : work === 'standby' ? 'idle' : 'offline';
+        return {
+          ...def,
+          lastActivity: null,
+          runCount: h?.restarts ?? 0,
+          status,
+          pm2Status: h?.status ?? 'unknown',
+          uptimeMs: h?.uptimeMs ?? null,
+          work,
+        };
       });
+
+      setAgents(result);
+      setLoading(false);
+    });
+
     return () => { active = false; };
   }, [refreshKey]);
 

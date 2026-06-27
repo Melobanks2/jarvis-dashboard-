@@ -281,7 +281,7 @@ export function CommandCenter() {
                 </div>
                 <div className="text-right">
                   <div className="font-orbitron text-[12px] font-bold" style={{ color: a.color }}>{a.runCount}</div>
-                  <div className="text-[8px] text-dimtext">runs</div>
+                  <div className="text-[8px] text-dimtext">restarts</div>
                 </div>
               </div>
             ))}

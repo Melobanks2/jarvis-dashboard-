@@ -38,7 +38,7 @@ const JARVIS: AgentSceneDef = {
   status:       'active',
 };
 
-const STATUS_LABEL: Record<string, string> = { active: 'Online', idle: 'Idle', offline: 'Offline' };
+const STATUS_LABEL: Record<string, string> = { active: 'Working', idle: 'Standby', offline: 'Off' };
 const STATUS_COLOR: Record<string, string> = { active: '#4ade80', idle: '#fbbf24', offline: '#52526e' };
 
 export function AIAgents() {
@@ -61,9 +61,9 @@ export function AIAgents() {
         <div>
           <h2 className="text-[15px] font-semibold text-textb">Agent Fleet</h2>
           <p className="text-[10px] text-dimtext mt-0.5">
-            {agents.filter(a => a.status === 'active').length} active ·{' '}
-            {agents.filter(a => a.status === 'idle').length} idle ·{' '}
-            {agents.filter(a => a.status === 'offline').length} offline
+            {agents.filter(a => a.status === 'active').length} working ·{' '}
+            {agents.filter(a => a.status === 'idle').length} standby ·{' '}
+            {agents.filter(a => a.status === 'offline').length} off
           </p>
         </div>
         <p className="text-[9px] text-dimtext tracking-[1.5px] uppercase">Click any agent to inspect</p>
@@ -156,7 +156,7 @@ export function AIAgents() {
                   <span className="flex items-center gap-1.5">
                     <Activity size={11} style={{ color: selected.color }} />
                     <span style={{ color: selected.color }} className="font-semibold">{selected.runCount}</span>
-                    <span>runs logged</span>
+                    <span>PM2 restarts</span>
                   </span>
                   {selected.lastActivity && (
                     <span className="flex items-center gap-1.5">

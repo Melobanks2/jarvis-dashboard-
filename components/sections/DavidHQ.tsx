@@ -12,6 +12,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
 import { supabase, timeAgo, fmtDate, todayStart } from '@/lib/supabase';
+import { useApp } from '@/lib/AppContext';
+import { useAgents } from '@/lib/hooks/useAgents';
+import { WorkBadge } from '@/components/ui/WorkBadge';
 import { SarahBoard } from './SarahBoard';
 import { SarahSchedule } from './SarahSchedule';
 import { SarahMoney } from './SarahMoney';
@@ -1423,6 +1426,9 @@ function SectionHeader({ label, color }: { label: string; color: string }) {
 export function DavidHQ() {
   const [activeTab, setActiveTab] = useState<TabId>('board');
   const [pendingCount, setPendingCount] = useState(0);
+  const { refreshKey } = useApp();
+  const { agents } = useAgents(refreshKey);
+  const sarahWork = agents.find(a => a.key === 'sarah')?.work ?? 'unknown';
 
   useEffect(() => {
     supabase
@@ -1434,6 +1440,19 @@ export function DavidHQ() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Sarah identity + live status */}
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div>
+          <div className="text-[14px] font-semibold text-textb">Sarah · Lead Qualifier</div>
+          <div className="text-[10px] text-dimtext">Works raised-hand iSpeed leads one-by-one</div>
+        </div>
+        <WorkBadge
+          status={sarahWork}
+          sub={sarahWork === 'working' ? 'on a call' : sarahWork === 'standby' ? 'ready · not calling' : sarahWork === 'off' ? 'caller down' : undefined}
+          title="Sarah caller status"
+        />
+      </div>
+
       {/* Tab bar */}
       <div className="flex gap-1 mb-6 p-1 rounded-xl flex-wrap" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {TABS.map(tab => {

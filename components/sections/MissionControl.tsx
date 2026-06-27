@@ -31,7 +31,7 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
   }, []);
 
   const hot  = data?.stages['Hot Follow Up']?.length ?? 0;
-  const online = agents.filter(a => a.status === 'active').length;
+  const online = agents.filter(a => a.status !== 'offline').length;
 
   return (
     <motion.div

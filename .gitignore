@@ -19,3 +19,6 @@ __pycache__/
 
 # Doc contains a live Gemini API key — never commit
 GEMINI_LIVE_IMPLEMENTATION.md
+
+# Local Claude Code tooling
+.claude/

@@ -27,7 +27,7 @@ export function TopNav() {
   const { calls }  = useCalls(refreshKey);
   const { agents } = useAgents(refreshKey);
 
-  const online = agents.filter(a => a.status === 'active').length;
+  const online = agents.filter(a => a.status !== 'offline').length;
 
   return (
     <header

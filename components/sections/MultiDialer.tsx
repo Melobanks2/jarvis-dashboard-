@@ -14,6 +14,7 @@ import {
 import ScriptTraining from './ScriptTraining';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { WorkBadge } from '@/components/ui/WorkBadge';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -2080,19 +2081,13 @@ export function MultiDialer() {
               </span>
             </div>
           )}
-          {/* Service-health dot — distinguishes "VPS down" from "idle" */}
-          <div className="flex items-center gap-1.5" title={`Dialer service: ${health}`}>
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                background: health === 'up' ? '#4ade80' : health === 'down' ? '#ff3366' : '#52526e',
-                boxShadow: health === 'up' ? '0 0 8px #4ade80' : health === 'down' ? '0 0 8px #ff3366' : 'none',
-              }}
-            />
-            <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
-              {health === 'up' ? 'ONLINE' : health === 'down' ? 'OFFLINE' : '···'}
-            </span>
-          </div>
+          {/* Scout status — Working / Standby / Off (real job state, not just reachability) */}
+          {(() => {
+            const dialing = dialerState === 'dialing' || dialerState === 'connecting' || dialerState === 'connected' || dialerState === 'disposition';
+            const work = health === 'down' ? 'off' : dialing ? 'working' : health === 'up' ? 'standby' : 'unknown';
+            const sub = work === 'working' ? 'dialing' : work === 'standby' ? 'not dialing' : work === 'off' ? 'service down' : undefined;
+            return <WorkBadge status={work} sub={sub} title={`Scout — service ${health}`} />;
+          })()}
         </div>
       </div>
 
