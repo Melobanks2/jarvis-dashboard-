@@ -50,7 +50,7 @@ const SECTION_TITLES: Record<string, string> = {
   'intelligence-chat': 'Intelligence Chat',
   'knowledge-base':         'Knowledge Base',
   'marketing-intelligence': 'Marketing Intelligence',
-  'multi-dialer':           'Multi-Line Dialer',
+  'multi-dialer':           'Scout HQ — Multi-Line Dialer',
   'leads':                  'Leads',
 };
 
