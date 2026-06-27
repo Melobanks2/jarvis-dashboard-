@@ -153,7 +153,12 @@ export function SarahBoard() {
         <StatStrip m={metrics} callsToday={callsToday} />
       </motion.div>
 
-      {/* live + recent calls */}
+      {/* live in-call transcript — streams Sarah's current call in real time */}
+      <motion.div variants={FADE_UP}>
+        <LiveTranscriptPanel />
+      </motion.div>
+
+      {/* recent calls today */}
       <motion.div variants={FADE_UP}>
         <LivePanel live={live} />
       </motion.div>
@@ -229,6 +234,152 @@ function StatStrip({ m, callsToday }: { m: { total: number; hot: number; warm: n
   );
 }
 
+/* ───────────────────────── live in-call transcript ───────────────────────── */
+
+interface SarahLiveCall {
+  callId: string; name: string; address: string | null; phone: string | null;
+  stage: string | null; turnNum: number; human: boolean; durationSec: number; lastSpeaker: string | null;
+}
+interface SarahTurn { who: 'sarah' | 'seller'; speaker: string; text: string }
+interface SarahTranscript {
+  ok: boolean; callId: string; active: boolean; ended: boolean;
+  name?: string; address?: string | null; stage?: string | null; durationSec?: number;
+  turns: SarahTurn[]; offline?: boolean;
+}
+
+const STAGE_LABEL: Record<string, string> = {
+  dialing: 'Dialing…', opening: 'Greeting', listening: 'Listening', generating: 'Thinking…',
+  playing_response: 'Speaking', ending: 'Wrapping up',
+};
+
+function LiveTranscriptPanel() {
+  const [calls, setCalls]       = useState<SarahLiveCall[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [snap, setSnap]         = useState<SarahTranscript | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Poll the live-call list every 3s; auto-follow the first active call.
+  useEffect(() => {
+    let on = true;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${LEADS_API}/sarah-live`);
+        const j = await r.json();
+        if (!on) return;
+        const list: SarahLiveCall[] = j.calls || [];
+        setCalls(list);
+        setActiveId(prev => (prev && list.some(c => c.callId === prev)) ? prev : (list[0]?.callId ?? null));
+      } catch { if (on) setCalls([]); }
+    };
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => { on = false; clearInterval(id); };
+  }, []);
+
+  // Poll the active call's transcript every 2s.
+  useEffect(() => {
+    if (!activeId) { setSnap(null); return; }
+    let on = true;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${LEADS_API}/sarah-transcript?callId=${encodeURIComponent(activeId)}`);
+        const j = await r.json();
+        if (on) setSnap(j);
+      } catch { /* keep last snapshot */ }
+    };
+    tick();
+    const id = setInterval(tick, 2000);
+    return () => { on = false; clearInterval(id); };
+  }, [activeId]);
+
+  // Auto-scroll to newest turn.
+  const turnCount = snap?.turns?.length ?? 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [turnCount]);
+
+  const active  = calls.find(c => c.callId === activeId) || null;
+  const onCall  = !!active;
+  const stageTxt = active?.stage ? (STAGE_LABEL[active.stage] || active.stage) : null;
+
+  return (
+    <div className="rounded-lg border p-3" style={{ background: 'rgba(255,255,255,0.012)', borderColor: onCall ? 'rgba(248,113,113,0.28)' : 'rgba(255,255,255,0.06)' }}>
+      {/* header */}
+      <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+        <Radio size={13} style={{ color: onCall ? '#f87171' : '#52526e' }} className={onCall ? 'animate-pulse' : ''} />
+        <span className="text-[11px] font-semibold text-textb">Live Call</span>
+        {onCall ? (
+          <>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>on call</span>
+            <span className="text-[11px] text-textb font-medium ml-1 truncate max-w-[160px]">{active!.name}</span>
+            {active!.address && <span className="text-[9px] text-dimtext truncate max-w-[200px] hidden sm:inline">· {active!.address}</span>}
+            <span className="ml-auto flex items-center gap-2.5 text-[10px]">
+              {stageTxt && <span className="text-ngold">{stageTxt}</span>}
+              <span className="text-ncyan flex items-center gap-1"><Clock size={9} /> {fmtDuration(active!.durationSec)}</span>
+            </span>
+          </>
+        ) : (
+          <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: '#52526e' }}>idle</span>
+        )}
+      </div>
+
+      {/* multiple concurrent calls → quick switcher */}
+      {calls.length > 1 && (
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {calls.map(c => (
+            <button
+              key={c.callId}
+              onClick={() => setActiveId(c.callId)}
+              className="text-[9px] px-1.5 py-0.5 rounded-sm border transition-colors"
+              style={{
+                borderColor: c.callId === activeId ? 'rgba(248,113,113,0.4)' : 'rgba(255,255,255,0.08)',
+                color: c.callId === activeId ? '#f87171' : '#7a7a9a',
+                background: c.callId === activeId ? 'rgba(248,113,113,0.08)' : 'transparent',
+              }}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* transcript */}
+      {!onCall ? (
+        <div className="text-dimtext text-[10px] italic py-6 text-center">
+          Sarah is idle. Her live conversation streams here — both sides — the moment she connects with a seller.
+        </div>
+      ) : (
+        <div ref={scrollRef} className="flex flex-col gap-2 overflow-y-auto" style={{ minHeight: 120, maxHeight: 340 }}>
+          {(!snap || snap.turns.length === 0) ? (
+            <div className="text-dimtext text-[10px] italic py-6 text-center flex items-center justify-center gap-2">
+              <Loader2 size={12} className="animate-spin" /> Connected — waiting for the first words…
+            </div>
+          ) : snap.turns.map((t, i) => {
+            const isSarah = t.who === 'sarah';
+            return (
+              <div key={i} className={`flex ${isSarah ? 'justify-start' : 'justify-end'}`}>
+                <div
+                  className="max-w-[78%] rounded-lg px-2.5 py-1.5"
+                  style={{
+                    background: isSarah ? 'rgba(74,222,128,0.08)' : 'rgba(103,232,249,0.08)',
+                    border: `1px solid ${isSarah ? 'rgba(74,222,128,0.22)' : 'rgba(103,232,249,0.22)'}`,
+                  }}
+                >
+                  <div className="text-[8px] uppercase tracking-[0.5px] mb-0.5" style={{ color: isSarah ? '#4ade80' : '#67e8f9' }}>
+                    {isSarah ? 'Sarah' : 'Seller'}
+                  </div>
+                  <div className="text-[11.5px] text-jtext leading-snug whitespace-pre-wrap">{t.text}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────────────── live & recent panel ─────────────────────────── */
 
 function LivePanel({ live }: { live: { id: string; name: string; address: string | null; duration: number; phase: string; calledAt: string; isLive: boolean }[] }) {
@@ -237,7 +388,7 @@ function LivePanel({ live }: { live: { id: string; name: string; address: string
     <div className="rounded-lg border border-border2 p-3" style={{ background: 'rgba(255,255,255,0.012)' }}>
       <div className="flex items-center gap-2 mb-2.5">
         <Radio size={13} style={{ color: liveCount ? '#f87171' : '#52526e' }} className={liveCount ? 'animate-pulse' : ''} />
-        <span className="text-[11px] font-semibold text-textb">Live &amp; Recent Calls</span>
+        <span className="text-[11px] font-semibold text-textb">Recent Calls Today</span>
         <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: liveCount ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.05)', color: liveCount ? '#f87171' : '#52526e' }}>
           {liveCount ? `${liveCount} just landed` : 'idle'}
         </span>
