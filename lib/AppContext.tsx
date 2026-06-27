@@ -46,7 +46,7 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [activeSection,   setActiveSection]   = useState<Section>('multi-dialer');
+  const [activeSection,   setActiveSection]   = useState<Section>('command-center');
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const [sidebarCollapsed,setSidebarCollapsed]= useState(false);
   const [rightPanelOpen,  setRightPanelOpen]  = useState(true);
