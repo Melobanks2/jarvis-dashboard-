@@ -6,7 +6,7 @@ import {
   Shield, Clock, Mic, BarChart2, BookOpen,
   ThumbsUp, ThumbsDown, Star, Flag, MessageSquare,
   CheckCircle2, XCircle, Play, ChevronDown, ChevronUp,
-  RefreshCw, AlertTriangle, Phone, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, LayoutGrid,
+  RefreshCw, AlertTriangle, Phone, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, LayoutGrid, DollarSign,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
@@ -14,6 +14,7 @@ import {
 import { supabase, timeAgo, fmtDate, todayStart } from '@/lib/supabase';
 import { SarahBoard } from './SarahBoard';
 import { SarahSchedule } from './SarahSchedule';
+import { SarahMoney } from './SarahMoney';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ interface ScoreData {
 const TABS = [
   { id: 'board',        label: 'Opportunity Board', icon: LayoutGrid },
   { id: 'schedule',     label: 'Schedule',          icon: Clock },
+  { id: 'money',        label: 'Money',             icon: DollarSign },
   { id: 'live',         label: 'Live Calls',        icon: Phone },
   { id: 'recordings',   label: 'Recordings',        icon: Mic },
   { id: 'performance',  label: 'Performance',       icon: BarChart2 },
@@ -1476,6 +1478,7 @@ export function DavidHQ() {
           >
             {activeTab === 'board'       && <SarahBoard />}
             {activeTab === 'schedule'    && <SarahSchedule />}
+            {activeTab === 'money'       && <SarahMoney />}
             {activeTab === 'approvals'   && <PendingApprovalsTab />}
             {activeTab === 'live'        && <LiveCallsTab />}
             {activeTab === 'recordings'  && <RecordingsTab />}

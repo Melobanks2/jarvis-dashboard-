@@ -235,6 +235,11 @@ export function SarahBoard() {
         <StatStrip m={metrics} callsToday={callsToday} />
       </motion.div>
 
+      {/* hot — call these now */}
+      <motion.div variants={FADE_UP}>
+        <HotStrip leads={ispeed} />
+      </motion.div>
+
       {/* live in-call transcript — streams Sarah's current call in real time */}
       <motion.div variants={FADE_UP}>
         <LiveTranscriptPanel />
@@ -312,6 +317,60 @@ function StatStrip({ m, callsToday }: { m: { total: number; hot: number; warm: n
           {c.sub && <div className="text-[9px] text-dimtext mt-1">{c.sub}</div>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────── hot — call these now ─────────────────────────── */
+
+function HotStrip({ leads }: { leads: Lead[] }) {
+  const hot = leads.filter(l => l.temp === 'hot');
+  if (!hot.length) return null;
+  return (
+    <div className="rounded-lg border p-3" style={{ background: 'rgba(248,113,113,0.05)', borderColor: 'rgba(248,113,113,0.28)' }}>
+      <div className="flex items-center gap-2 mb-2.5">
+        <Flame size={14} style={{ color: '#f87171' }} />
+        <span className="text-[12px] font-semibold text-textb">Call these now</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>{hot.length} hot</span>
+        <span className="text-[9px] text-dimtext ml-auto">qualified hot — close while they're warm</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {hot.map(l => <HotRow key={l.id} lead={l} />)}
+      </div>
+    </div>
+  );
+}
+
+function HotRow({ lead }: { lead: Lead }) {
+  const [st, setSt] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
+  async function call() {
+    if (!lead.contactId || !lead.phone) { setSt('err'); return; }
+    setSt('busy');
+    try {
+      const r = await fetch(`${LEADS_API}/lead-action?action=callnow`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: lead.contactId, phone: lead.phone, name: lead.name, address: lead.address }),
+      });
+      if (!r.ok) throw new Error();
+      setSt('done');
+    } catch { setSt('err'); }
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(248,113,113,0.22)' }}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11.5px] font-medium text-textb truncate">{lead.name}</div>
+        <div className="text-[9px] text-dimtext truncate">{[lead.pain, lead.askingPrice, lead.address].filter(Boolean).join(' · ') || '—'}</div>
+      </div>
+      {lead.phone && <CopyBtn text={lead.phone} label="phone" size={11} />}
+      <button
+        onClick={call}
+        disabled={st === 'busy' || st === 'done'}
+        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border flex-shrink-0 disabled:opacity-60"
+        style={{ color: st === 'done' ? '#4ade80' : '#f87171', borderColor: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)' }}
+      >
+        {st === 'busy' ? <Loader2 size={11} className="animate-spin" /> : st === 'done' ? <Check size={11} /> : st === 'err' ? <X size={11} /> : <Phone size={11} />}
+        {st === 'done' ? 'Dialing' : st === 'err' ? 'Failed' : 'Call'}
+      </button>
     </div>
   );
 }
