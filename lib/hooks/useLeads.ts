@@ -31,13 +31,41 @@ export interface Lead {
   attempts: number | null;
   mortgage: string | null;
   status: string;
+  createdAt?: string | null;
   updatedAt: string | null;
+  // ── iSpeed lead economics (backend serves these only for source === 'ispeed') ──
+  daysInCrm?: number | null;
+  purchasePrice?: number | null;     // cost of the lead, USD
+  purchaseTier?: string | null;      // e.g. 'exclusive'
+  provider?: string | null;          // lead vendor
+  leadSource?: string | null;        // e.g. 'Google Ads PPC'
+  predictorGrade?: string | null;
+  purchasedAt?: number | null;       // epoch ms
+  daysSincePurchase?: number | null;
+  fundingSource?: string | null;
+  refundEligible?: string | null;
+  refundDeadline?: number | null;    // epoch ms
+  daysUntilDeadline?: number | null; // negative = past refund window
+  deadlineUrgent?: boolean | null;
   // merged from jarvis_calls
   callDuration?: number | null;
   calledAt?: string | null;
   summary?: string | null;
   transcript?: string | null;
   recordingUrl?: string | null;
+  callHistory?: CallRecord[];        // every logged attempt for this phone, newest first
+}
+
+// One past call attempt (normalized from a jarvis_calls row) for the detail view.
+export interface CallRecord {
+  id: string;
+  calledAt: string;
+  duration: number | null;
+  stageBefore: string | null;
+  stageAfter: string | null;
+  summary: string | null;
+  transcript: string | null;
+  recordingUrl: string | null;
 }
 
 export interface LeadStats {
@@ -123,19 +151,32 @@ export function useLeads(refreshKey: number) {
 
       const calls: CallRow[] = (callResp?.data || []).filter((c: CallRow) => c.phone !== TEST_PHONE);
 
-      // latest call per phone for merge
-      const callByPhone: Record<string, CallRow> = {};
+      // all calls per phone (newest first — query is ordered called_at desc),
+      // so [0] is the latest attempt and the array is the full call history.
+      const callsByPhone: Record<string, CallRow[]> = {};
       for (const c of calls) {
         const k = pkey(c.phone);
-        if (k && !callByPhone[k]) callByPhone[k] = c;
+        if (!k) continue;
+        (callsByPhone[k] = callsByPhone[k] || []).push(c);
       }
+      const toRecord = (c: CallRow): CallRecord => ({
+        id: c.id,
+        calledAt: c.called_at,
+        duration: c.call_duration,
+        stageBefore: c.stage_before,
+        stageAfter: c.stage_after,
+        summary: c.summary,
+        transcript: c.transcript_full,
+        recordingUrl: c.telnyx_recording_url || c.recording_url || c.elevenlabs_recording_url || null,
+      });
 
       if (leadResp?.error) {
         setError(leadResp.error);
         setLeads([]);
       } else {
         const merged: Lead[] = (leadResp.leads || []).map((l: Lead) => {
-          const c = callByPhone[pkey(l.phone)];
+          const hist = callsByPhone[pkey(l.phone)] || [];
+          const c = hist[0];
           return {
             ...l,
             callDuration: c?.call_duration ?? null,
@@ -143,6 +184,7 @@ export function useLeads(refreshKey: number) {
             summary:      c?.summary ?? null,
             transcript:   c?.transcript_full ?? null,
             recordingUrl: c?.telnyx_recording_url || c?.recording_url || c?.elevenlabs_recording_url || null,
+            callHistory:  hist.map(toRecord),
           };
         });
         setLeads(merged);

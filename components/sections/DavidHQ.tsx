@@ -6,12 +6,13 @@ import {
   Shield, Clock, Mic, BarChart2, BookOpen,
   ThumbsUp, ThumbsDown, Star, Flag, MessageSquare,
   CheckCircle2, XCircle, Play, ChevronDown, ChevronUp,
-  RefreshCw, AlertTriangle, Phone, TrendingUp, ArrowUpRight, ArrowDownRight, Minus,
+  RefreshCw, AlertTriangle, Phone, TrendingUp, ArrowUpRight, ArrowDownRight, Minus, LayoutGrid,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts';
 import { supabase, timeAgo, fmtDate, todayStart } from '@/lib/supabase';
+import { SarahBoard } from './SarahBoard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,10 +96,11 @@ interface ScoreData {
 // ─── Tab nav ──────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'approvals',    label: 'Pending Approvals', icon: Shield },
+  { id: 'board',        label: 'Opportunity Board', icon: LayoutGrid },
   { id: 'live',         label: 'Live Calls',        icon: Phone },
   { id: 'recordings',   label: 'Recordings',        icon: Mic },
   { id: 'performance',  label: 'Performance',       icon: BarChart2 },
+  { id: 'approvals',    label: 'Pending Approvals', icon: Shield },
   { id: 'training',     label: 'Training',          icon: BookOpen },
 ] as const;
 
@@ -1415,7 +1417,7 @@ function SectionHeader({ label, color }: { label: string; color: string }) {
 // ─── Main DavidHQ ─────────────────────────────────────────────────────────────
 
 export function DavidHQ() {
-  const [activeTab, setActiveTab] = useState<TabId>('approvals');
+  const [activeTab, setActiveTab] = useState<TabId>('board');
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -1470,6 +1472,7 @@ export function DavidHQ() {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
           >
+            {activeTab === 'board'       && <SarahBoard />}
             {activeTab === 'approvals'   && <PendingApprovalsTab />}
             {activeTab === 'live'        && <LiveCallsTab />}
             {activeTab === 'recordings'  && <RecordingsTab />}

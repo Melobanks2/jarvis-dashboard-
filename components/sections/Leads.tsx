@@ -44,6 +44,27 @@ const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 
 type SourceFilter = 'all' | Source;
 type View = 'board' | 'list';
+type TimeRange = 'all' | 'today' | '7d' | '30d';
+
+const RANGE_TABS: { key: TimeRange; label: string }[] = [
+  { key: 'all',   label: 'All' },
+  { key: 'today', label: 'Today' },
+  { key: '7d',    label: '7d' },
+  { key: '30d',   label: '30d' },
+];
+
+// Filter a lead by when it last moved / was created.
+function inRange(l: Lead, range: TimeRange): boolean {
+  if (range === 'all') return true;
+  const iso = l.updatedAt || l.createdAt;
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (range === 'today') {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    return t >= start.getTime();
+  }
+  return t >= Date.now() - (range === '7d' ? 7 : 30) * 86400000;
+}
 
 export function Leads() {
   const { refreshKey, refresh } = useApp();
@@ -51,6 +72,7 @@ export function Leads() {
 
   const [source, setSource] = useState<SourceFilter>('all');
   const [view, setView]     = useState<View>('board');
+  const [range, setRange]   = useState<TimeRange>('all');
 
   // Local mirror so board drag-drop can update stage optimistically.
   const [localLeads, setLocalLeads] = useState<Lead[]>([]);
@@ -58,10 +80,10 @@ export function Leads() {
 
   const activeStats = source === 'all' ? stats : statsBySource[source];
 
-  const bySource = useMemo(
-    () => (source === 'all' ? localLeads : localLeads.filter(l => l.source === source)),
-    [localLeads, source]
-  );
+  const bySource = useMemo(() => {
+    const srcFiltered = source === 'all' ? localLeads : localLeads.filter(l => l.source === source);
+    return srcFiltered.filter(l => inRange(l, range));
+  }, [localLeads, source, range]);
 
   const answerRate = useMemo(() => {
     // Answer rate = answered / DIALED, not answered/answered. The old denominator
@@ -152,6 +174,22 @@ export function Leads() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* time-range filter */}
+          <div className="flex items-center rounded-md border border-border2 overflow-hidden">
+            {RANGE_TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setRange(t.key)}
+                className="px-2.5 py-1.5 text-[10px] font-medium transition-colors"
+                style={{
+                  color: range === t.key ? '#0c0d14' : '#52526e',
+                  background: range === t.key ? '#00e5ff' : 'transparent',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           <button onClick={refresh} className="text-[10px] text-dimtext hover:text-ncyan transition-colors px-2">↻ Refresh</button>
           <div className="flex items-center rounded-md border border-border2 overflow-hidden">
             {([['board', LayoutGrid], ['list', ListIcon]] as const).map(([v, Icon]) => (
@@ -160,7 +198,7 @@ export function Leads() {
                 onClick={() => setView(v)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium capitalize transition-colors"
                 style={{
-                  color: view === v ? '#0c0d14' : '#7a7a9a',
+                  color: view === v ? '#0c0d14' : '#52526e',
                   background: view === v ? '#00e5ff' : 'transparent',
                 }}
               >
