@@ -161,11 +161,39 @@ function inRange(lead: Lead, range: TimeRange): boolean {
   return t >= Date.now() - days * 86400000;
 }
 
+/* ─────────────────── live-call → board glow (which lead is on the phone) ─────────────────── */
+
+const digits10 = (p?: string | null) => (p ? p.replace(/\D/g, '').slice(-10) : '');
+
+// Polls /dialer/sarah-live and returns the set of phone keys currently on a call,
+// so the board can glow whichever lead Sarah is actively dialing.
+function useSarahLiveKeys(): Set<string> {
+  const [keys, setKeys] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let on = true;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${LEADS_API}/sarah-live`);
+        const j = await r.json();
+        if (!on) return;
+        const s = new Set<string>();
+        for (const c of (j.calls || [])) { const k = digits10(c.phone); if (k) s.add(k); }
+        setKeys(s);
+      } catch { /* keep last */ }
+    };
+    tick();
+    const id = setInterval(tick, 3000);
+    return () => { on = false; clearInterval(id); };
+  }, []);
+  return keys;
+}
+
 /* ─────────────────────────────── main board ─────────────────────────────── */
 
 export function SarahBoard() {
   const { refreshKey, refresh } = useApp();
   const { leads, pipelines, live, callsToday, loading, error } = useLeads(refreshKey);
+  const liveKeys = useSarahLiveKeys();
 
   const [range, setRange] = useState<TimeRange>('all');
 
@@ -262,7 +290,7 @@ export function SarahBoard() {
       {/* board */}
       {!loading && (
         <motion.div variants={FADE_UP}>
-          <Board leads={ispeed} pipelines={ispeedPipelines} onMove={moveStage} />
+          <Board leads={ispeed} pipelines={ispeedPipelines} onMove={moveStage} liveKeys={liveKeys} />
         </motion.div>
       )}
     </motion.div>
@@ -566,7 +594,7 @@ function LivePanel({ live }: { live: { id: string; name: string; address: string
 
 /* ───────────────────────────────── board ───────────────────────────────── */
 
-function Board({ leads, pipelines, onMove }: { leads: Lead[]; pipelines: { id: string; stages: { id: string; name: string }[] }[]; onMove: (l: Lead, stageName: string) => void }) {
+function Board({ leads, pipelines, onMove, liveKeys }: { leads: Lead[]; pipelines: { id: string; stages: { id: string; name: string }[] }[]; onMove: (l: Lead, stageName: string) => void; liveKeys: Set<string> }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overKey, setOverKey] = useState<string | null>(null);
   // Store only the id + tab; the live lead is derived from `leads` on every render
@@ -655,6 +683,7 @@ function Board({ leads, pipelines, onMove }: { leads: Lead[]; pipelines: { id: s
                     >
                       <OppCard
                         lead={lead}
+                        onCall={liveKeys.has(digits10(lead.phone))}
                         onOpen={tab => setDetail({ id: lead.id, tab })}
                         onDragStart={() => setDragId(lead.id)}
                         onDragEnd={() => { setDragId(null); setOverKey(null); }}
@@ -702,7 +731,7 @@ function RefundChip({ lead }: { lead: Lead }) {
   );
 }
 
-function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen: (tab: 'detail' | 'history') => void; onDragStart: () => void; onDragEnd: () => void }) {
+function OppCard({ lead, onCall, onOpen, onDragStart, onDragEnd }: { lead: Lead; onCall?: boolean; onOpen: (tab: 'detail' | 'history') => void; onDragStart: () => void; onDragEnd: () => void }) {
   const t = TEMP[lead.temp];
   const attempts = attemptCount(lead);
   const last = lead.calledAt || lead.callHistory?.[0]?.calledAt || null;
@@ -719,11 +748,15 @@ function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen:
   }
 
   return (
-    <div
+    <motion.div
       onClick={handleClick}
       onDoubleClick={handleDouble}
+      animate={onCall
+        ? { boxShadow: ['0 0 0 1px rgba(248,113,113,0.45), 0 0 6px rgba(248,113,113,0.15)', '0 0 0 1px rgba(248,113,113,0.85), 0 0 16px rgba(248,113,113,0.5)', '0 0 0 1px rgba(248,113,113,0.45), 0 0 6px rgba(248,113,113,0.15)'] }
+        : { boxShadow: '0 0 0 0 rgba(0,0,0,0)' }}
+      transition={onCall ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
       className="rounded-lg border p-2.5 cursor-pointer transition-colors hover:border-white/20"
-      style={{ background: 'rgba(255,255,255,0.025)', borderColor: 'rgba(255,255,255,0.07)' }}
+      style={{ background: onCall ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.025)', borderColor: onCall ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.07)' }}
     >
       {/* header */}
       <div className="flex items-start justify-between gap-2">
@@ -745,6 +778,11 @@ function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen:
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {onCall && (
+            <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.18)', color: '#f87171' }}>
+              <Radio size={8} className="animate-pulse" /> ON CALL
+            </span>
+          )}
           <span
             className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm"
             style={{ background: `${t.c}1a`, color: t.c, border: `1px solid ${t.c}40` }}
@@ -800,7 +838,7 @@ function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen:
         {lead.askingPrice && <span style={{ color: '#4ade80' }}>{lead.askingPrice}</span>}
         {lead.provider && <span className="flex items-center gap-1 truncate max-w-[110px]"><Building2 size={9} /> {lead.provider}</span>}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
