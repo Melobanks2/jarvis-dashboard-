@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone, Clock, MapPin, FileText, Check, X, Send, Loader2, Radio,
   AlertTriangle, ChevronDown, History, DollarSign, CalendarClock,
-  Flame, Building2, Target, GripVertical,
+  Flame, Building2, Target, GripVertical, Copy,
 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead, Temp, CallRecord, LEADS_API } from '@/lib/hooks/useLeads';
@@ -53,6 +53,88 @@ function refundMeta(lead: Lead): RefundMeta | null {
 function attemptCount(lead: Lead) {
   if (lead.attempts != null) return lead.attempts;
   return lead.callHistory?.length ?? 0;
+}
+
+function fmtPhone(p?: string | null) {
+  if (!p) return '';
+  const d = p.replace(/\D/g, '').slice(-10);
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : p;
+}
+
+// One-click copy with a brief check confirmation. Stops propagation so copying
+// from a card doesn't also open the detail modal / start a drag.
+function CopyBtn({ text, label, size = 11 }: { text: string; label?: string; size?: number }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(text).then(() => {
+          setDone(true);
+          setTimeout(() => setDone(false), 1200);
+        }).catch(() => {});
+      }}
+      title={label ? `Copy ${label}` : 'Copy'}
+      aria-label={label ? `Copy ${label}` : 'Copy'}
+      className="flex-shrink-0 transition-colors hover:text-ncyan"
+      style={{ color: done ? '#4ade80' : '#52526e', lineHeight: 0 }}
+    >
+      {done ? <Check size={size} /> : <Copy size={size} />}
+    </button>
+  );
+}
+
+// A clean, paste-anywhere text block of the whole lead.
+function buildLeadText(lead: Lead): string {
+  const out: string[] = [lead.name];
+  if (lead.address) out.push(lead.address);
+  if (lead.phone)   out.push(fmtPhone(lead.phone));
+  out.push('');
+  const add = (k: string, v: string | number | null | undefined) => { if (v != null && v !== '') out.push(`${k}: ${v}`); };
+  add('Motivation', lead.pain);
+  add('Timeline', lead.timeline);
+  add('Asking', lead.askingPrice);
+  add('Condition', lead.condition);
+  add('ARV', lead.arv);
+  add('Market value', lead.marketValue);
+  add('Rehab', lead.rehabCost);
+  add('Occupancy', lead.occupancy);
+  add('Mortgage', lead.mortgage);
+  add('Deal type', lead.dealType);
+  add('Stage', lead.stageName);
+  add('Attempts', attemptCount(lead));
+  if (lead.source === 'ispeed') {
+    add('Lead cost', lead.purchasePrice != null ? `$${lead.purchasePrice}` : null);
+    add('Provider', lead.provider);
+    add('Lead source', lead.leadSource);
+    add('Refund in', lead.daysUntilDeadline != null ? `${lead.daysUntilDeadline}d` : null);
+  }
+  return out.join('\n');
+}
+
+// "Copy lead" button — copies the full formatted block.
+function CopyLeadBtn({ lead }: { lead: Lead }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(buildLeadText(lead)).then(() => {
+          setDone(true);
+          setTimeout(() => setDone(false), 1400);
+        }).catch(() => {});
+      }}
+      className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors flex-shrink-0"
+      style={{
+        color:       done ? '#4ade80' : '#67e8f9',
+        borderColor: done ? 'rgba(74,222,128,0.35)' : 'rgba(103,232,249,0.3)',
+        background:  done ? 'rgba(74,222,128,0.08)' : 'rgba(103,232,249,0.06)',
+      }}
+    >
+      {done ? <Check size={11} /> : <Copy size={11} />}
+      {done ? 'Copied' : 'Copy lead'}
+    </button>
+  );
 }
 
 const FADE_UP = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } };
@@ -589,8 +671,17 @@ function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen:
         <div className="min-w-0 flex-1">
           <div className="text-[12.5px] font-semibold text-textb truncate">{lead.name}</div>
           {lead.address && (
-            <div className="text-[10px] text-dimtext flex items-center gap-1 mt-0.5 truncate">
-              <MapPin size={9} className="flex-shrink-0" /> {lead.address}
+            <div className="text-[10px] text-dimtext flex items-center gap-1 mt-0.5">
+              <MapPin size={9} className="flex-shrink-0" />
+              <span className="truncate">{lead.address}</span>
+              <CopyBtn text={lead.address} label="address" size={10} />
+            </div>
+          )}
+          {lead.phone && (
+            <div className="text-[10px] text-dimtext flex items-center gap-1 mt-0.5">
+              <Phone size={9} className="flex-shrink-0" />
+              <span className="truncate">{fmtPhone(lead.phone)}</span>
+              <CopyBtn text={lead.phone} label="phone" size={10} />
             </div>
           )}
         </div>
@@ -656,12 +747,15 @@ function OppCard({ lead, onOpen, onDragStart, onDragEnd }: { lead: Lead; onOpen:
 
 /* ───────────────────────────── detail modal ───────────────────────────── */
 
-function DetailRow({ label, value, color }: { label: string; value: string | null | undefined; color?: string }) {
+function DetailRow({ label, value, color, copyable }: { label: string; value: string | null | undefined; color?: string; copyable?: boolean }) {
   if (!value) return null;
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <span className="text-[8px] text-dimtext uppercase tracking-[0.5px]">{label}</span>
-      <span className="text-[11.5px] text-textb" style={color ? { color } : undefined}>{value}</span>
+      <span className="text-[11.5px] text-textb flex items-center gap-1 min-w-0" style={color ? { color } : undefined}>
+        <span className="truncate">{value}</span>
+        {copyable && <CopyBtn text={value} label={label} size={10} />}
+      </span>
     </div>
   );
 }
@@ -725,10 +819,13 @@ function LeadDetailModal({ lead, initialTab, onClose }: { lead: Lead; initialTab
               <span className="text-[15px] font-semibold text-textb truncate">{lead.name}</span>
               <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm flex-shrink-0" style={{ background: `${t.c}1a`, color: t.c, border: `1px solid ${t.c}40` }}>{t.label}</span>
             </div>
-            {lead.address && <div className="text-[11px] text-dimtext mt-0.5 flex items-center gap-1"><MapPin size={10} /> {lead.address}</div>}
-            {lead.phone && <div className="text-[11px] text-jtext mt-0.5 flex items-center gap-1"><Phone size={10} /> {lead.phone}</div>}
+            {lead.address && <div className="text-[11px] text-dimtext mt-0.5 flex items-center gap-1"><MapPin size={10} className="flex-shrink-0" /> <span className="truncate">{lead.address}</span> <CopyBtn text={lead.address} label="address" /></div>}
+            {lead.phone && <div className="text-[11px] text-jtext mt-0.5 flex items-center gap-1"><Phone size={10} className="flex-shrink-0" /> {fmtPhone(lead.phone)} <CopyBtn text={lead.phone} label="phone" /></div>}
           </div>
-          <button onClick={onClose} className="text-dimtext hover:text-textb flex-shrink-0"><X size={16} /></button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <CopyLeadBtn lead={lead} />
+            <button onClick={onClose} className="text-dimtext hover:text-textb"><X size={16} /></button>
+          </div>
         </div>
 
         {/* refund banner */}
@@ -788,18 +885,22 @@ function DetailTab({
     <div>
       {/* qualification fields */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <DetailRow label="Motivation" value={lead.pain} color="#a78bfa" />
+        <DetailRow label="Motivation" value={lead.pain} color="#a78bfa" copyable />
         <DetailRow label="Timeline"   value={lead.timeline} />
-        <DetailRow label="Asking"     value={lead.askingPrice} color="#4ade80" />
+        <DetailRow label="Asking"     value={lead.askingPrice} color="#4ade80" copyable />
         <DetailRow label="Condition"  value={lead.condition} />
-        <DetailRow label="ARV"        value={lead.arv} />
+        <DetailRow label="ARV"        value={lead.arv} copyable />
         <DetailRow label="Rehab"      value={lead.rehabCost} />
-        <DetailRow label="Mkt Value"  value={lead.marketValue} />
+        <DetailRow label="Mkt Value"  value={lead.marketValue} copyable />
         <DetailRow label="Occupancy"  value={lead.occupancy} />
         <DetailRow label="Mortgage"   value={lead.mortgage} />
+        <DetailRow label="Deal type"  value={lead.dealType} />
+        <DetailRow label="Rating"     value={lead.rating} />
+        <DetailRow label="Value"      value={lead.value ? `$${lead.value.toLocaleString()}` : null} color="#4ade80" copyable />
         <DetailRow label="Stage"      value={lead.stageName} />
         <DetailRow label="Attempts"   value={String(attemptCount(lead))} />
         <DetailRow label="In CRM"     value={lead.daysInCrm != null ? `${lead.daysInCrm}d` : null} />
+        <DetailRow label="Status"     value={lead.status} />
       </div>
 
       {/* lead economics */}
@@ -812,6 +913,8 @@ function DetailTab({
           <DetailRow label="Lead Source" value={lead.leadSource} />
           <DetailRow label="Grade"       value={lead.predictorGrade} />
           <DetailRow label="Bought"      value={lead.purchasedAt ? epochDate(lead.purchasedAt) : null} />
+          <DetailRow label="Funding"     value={lead.fundingSource} />
+          <DetailRow label="Refund elig." value={lead.refundEligible} />
           <DetailRow label="Refund in"   value={lead.daysUntilDeadline != null ? `${lead.daysUntilDeadline}d` : null} color={lead.deadlineUrgent ? '#f87171' : undefined} />
         </div>
       </div>
