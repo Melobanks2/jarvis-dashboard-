@@ -16,31 +16,30 @@ interface Section { name: string; cap: number }
 interface Window { time: string; hour: number; tag: string; sections: Section[]; report?: boolean }
 
 const SCHEDULE: Window[] = [
-  { time: '9:00 AM',  hour: 9,  tag: 'Morning open',       sections: [
-    { name: 'Hot Follow Up', cap: 15 }, { name: 'Warm Follow Up', cap: 10 }, { name: 'New Leads', cap: 10 }, { name: 'Cold Follow Up', cap: 5 } ] },
+  { time: '9:00 AM',  hour: 9,  tag: 'Morning open',        sections: [
+    { name: 'New Leads', cap: 15 }, { name: 'Attempt 1', cap: 15 }, { name: 'Attempt 2', cap: 10 }, { name: 'Cold Follow Up', cap: 10 } ] },
   { time: '11:00 AM', hour: 11, tag: 'Mid-morning re-dial', sections: [
-    { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 } ] },
-  { time: '1:00 PM',  hour: 13, tag: 'Early afternoon',    sections: [
-    { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
-  { time: '3:00 PM',  hour: 15, tag: 'Afternoon push',     sections: [
-    { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
-  { time: '5:00 PM',  hour: 17, tag: 'Evening warm',       sections: [
-    { name: 'Warm Follow Up', cap: 10 }, { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
-  { time: '6:00 PM',  hour: 18, tag: 'Prime close window', sections: [
-    { name: 'Hot Follow Up', cap: 15 }, { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 } ] },
-  { time: '7:00 PM',  hour: 19, tag: 'Final close',        sections: [
-    { name: 'Hot Follow Up', cap: 15 }, { name: 'New Leads', cap: 10 }, { name: 'Attempt 1', cap: 10 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
-  { time: '8:00 PM',  hour: 20, tag: 'End-of-day report',  sections: [], report: true },
+    { name: 'New Leads', cap: 12 }, { name: 'Attempt 1', cap: 12 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
+  { time: '1:00 PM',  hour: 13, tag: 'Early afternoon',     sections: [
+    { name: 'New Leads', cap: 12 }, { name: 'Attempt 1', cap: 12 }, { name: 'Attempt 3-5', cap: 10 }, { name: 'Attempt 6+', cap: 8 } ] },
+  { time: '3:00 PM',  hour: 15, tag: 'Afternoon push',      sections: [
+    { name: 'New Leads', cap: 12 }, { name: 'Attempt 1', cap: 12 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
+  { time: '5:00 PM',  hour: 17, tag: 'Evening prime',       sections: [
+    { name: 'New Leads', cap: 15 }, { name: 'Attempt 1', cap: 15 }, { name: 'Attempt 2', cap: 10 }, { name: 'Attempt 3-5', cap: 10 } ] },
+  { time: '6:00 PM',  hour: 18, tag: 'Evening contact',     sections: [
+    { name: 'New Leads', cap: 15 }, { name: 'Attempt 1', cap: 15 }, { name: 'Attempt 2', cap: 10 }, { name: 'Cold Follow Up', cap: 10 } ] },
+  { time: '7:00 PM',  hour: 19, tag: 'Last push',           sections: [
+    { name: 'New Leads', cap: 15 }, { name: 'Attempt 1', cap: 12 }, { name: 'Attempt 3-5', cap: 10 }, { name: 'Attempt 6+', cap: 8 } ] },
+  { time: '8:00 PM',  hour: 20, tag: 'End-of-day report',   sections: [], report: true },
 ];
 
 const SEG_COLOR: Record<string, string> = {
-  'Hot Follow Up':  '#f87171',
-  'Warm Follow Up': '#fb923c',
   'Cold Follow Up': '#60a5fa',
   'New Leads':      '#67e8f9',
   'Attempt 1':      '#a78bfa',
   'Attempt 2':      '#a78bfa',
   'Attempt 3-5':    '#a78bfa',
+  'Attempt 6+':     '#7c7c9c',
 };
 const segColor = (n: string) => SEG_COLOR[n] || '#7a7a9a';
 
@@ -178,9 +177,9 @@ export function SarahSchedule() {
       <div className="rounded-lg border border-border2 px-3.5 py-3" style={{ background: 'rgba(255,255,255,0.012)' }}>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-textb mb-2"><Info size={12} className="text-ncyan" /> How Sarah works the list</div>
         <ul className="text-[11px] text-dimtext leading-relaxed list-disc pl-4 space-y-1">
-          <li>She calls a <span className="text-jtext">section at a time</span> (e.g. all Hot, then New Leads) — not a single fixed contact. Each section dials up to its cap, then she waits ~90 seconds and starts the next.</li>
-          <li>Cadence per lead: <span style={{ color: '#f87171' }}>Hot</span> twice a day (morning + evening close), <span style={{ color: '#fb923c' }}>Warm</span> every 2 days, <span style={{ color: '#60a5fa' }}>Cold</span> every 3 days, <span style={{ color: '#a78bfa' }}>New / Attempts</span> daily.</li>
-          <li>Hard rule: <span className="text-jtext">max 2 calls per lead per day</span> (Hot only); everyone else once per day.</li>
+          <li>Sarah is the <span className="text-jtext">qualifier</span> — she works New leads, the no-contact attempt ladder, and Cold. The moment a lead turns <span style={{ color: '#f87171' }}>Hot</span> or <span style={{ color: '#fb923c' }}>Warm</span>, it's handed to <span className="text-jtext">you</span> to make the offer — she stops auto-calling it.</li>
+          <li>She calls a <span className="text-jtext">section at a time</span> (e.g. all New, then Attempt 1) — each dials up to its cap, then ~90s before the next.</li>
+          <li>Attempt cadence: <span style={{ color: '#67e8f9' }}>New</span> &amp; <span style={{ color: '#a78bfa' }}>Attempt 1</span> twice a day, <span style={{ color: '#a78bfa' }}>Attempt 2</span> daily, <span style={{ color: '#a78bfa' }}>Attempt 3-5</span> every other day, <span style={{ color: '#7c7c9c' }}>Attempt 6+</span> weekly → then it ages to <span style={{ color: '#60a5fa' }}>Cold</span> (every 3 days).</li>
           <li>Never before 9 AM, after 8 PM, or on Sundays. All times America/New_York.</li>
         </ul>
       </div>
