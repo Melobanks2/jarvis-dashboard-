@@ -14,6 +14,7 @@ export type Section =
   | 'intelligence-chat'
   | 'agent-chat'
   | 'leads'
+  | 'contract-cannon'
   | 'settings'
   // Legacy sections (kept in type but removed from sidebar nav)
   | 'pipeline'
@@ -45,7 +46,7 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [activeSection,   setActiveSection]   = useState<Section>('command-center');
+  const [activeSection,   setActiveSection]   = useState<Section>('multi-dialer');
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const [sidebarCollapsed,setSidebarCollapsed]= useState(false);
   const [rightPanelOpen,  setRightPanelOpen]  = useState(true);

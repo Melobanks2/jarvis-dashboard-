@@ -26,6 +26,7 @@ import { MarketingIntelligence }  from '@/components/sections/MarketingIntellige
 import { MultiDialer }            from '@/components/sections/MultiDialer';
 import { Leads }                  from '@/components/sections/Leads';
 import { Acquisitions }           from '@/components/sections/Acquisitions';
+import { ContractCannon }         from '@/components/sections/ContractCannon';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -52,6 +53,7 @@ const SECTION_TITLES: Record<string, string> = {
   'marketing-intelligence': 'Marketing Intelligence',
   'multi-dialer':           'Scout HQ — Multi-Line Dialer',
   'leads':                  'Leads',
+  'contract-cannon':        'Contract Cannon',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -73,6 +75,7 @@ function SectionContent({ section }: { section: string }) {
     case 'marketing-intelligence':  return <MarketingIntelligence />;
     case 'multi-dialer':            return <MultiDialer />;
     case 'leads':                   return <Leads />;
+    case 'contract-cannon':         return <ContractCannon />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon
