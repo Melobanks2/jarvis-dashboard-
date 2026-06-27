@@ -142,15 +142,24 @@ export function ContractCannon() {
   const otherTemplates = templates.filter(t => t.kind === 'other');
 
   return (
-    <div className="space-y-5">
-      {/* Merge-field setup notice */}
-      <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-sm"
-           style={{ background: 'rgba(255,136,0,0.07)', border: '1px solid rgba(255,136,0,0.2)' }}>
-        <AlertTriangle size={14} style={{ color: '#ff8800', marginTop: 1 }} />
-        <p className="text-[10px] leading-relaxed" style={{ color: '#d8b88a' }}>
-          The numbers below show what each contract needs. Auto-filling them into the PDF needs
-          merge fields set up on your GHL templates (one-time). Until then, <b>Fire</b> sends the chosen
-          template to the seller as-is — review it first.
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,51,102,0.1)', border: '1px solid rgba(255,51,102,0.3)' }}>
+          <Rocket size={18} style={{ color: '#ff3366' }} />
+        </div>
+        <div>
+          <div className="text-[15px] font-semibold" style={{ color: '#e8e8f0' }}>Contract Cannon</div>
+          <div className="text-[10px]" style={{ color: '#52526e' }}>Fire GHL contracts from armed deals — review, then send for signature</div>
+        </div>
+      </div>
+
+      {/* Merge-field setup notice (slim) */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-sm"
+           style={{ background: 'rgba(255,136,0,0.06)', border: '1px solid rgba(255,136,0,0.18)' }}>
+        <AlertTriangle size={12} style={{ color: '#ff8800', flexShrink: 0 }} />
+        <p className="text-[10px]" style={{ color: '#d8b88a' }}>
+          Auto-fill of numbers needs merge fields on your GHL templates. Until then, Fire sends the template as-is — review first.
         </p>
       </div>
 
@@ -169,9 +178,9 @@ export function ContractCannon() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-start">
         {/* Armed deals */}
-        <GlassCard accent="green" className="lg:col-span-2">
+        <GlassCard accent="green" className="md:col-span-2">
           <SectionTitle accent="green" badge={`${armed.length}`}>Armed deals</SectionTitle>
           {pipeLoading ? (
             <div className="flex items-center gap-2 text-[10px] py-6 justify-center" style={{ color: '#52526e' }}>
@@ -203,7 +212,7 @@ export function ContractCannon() {
         </GlassCard>
 
         {/* Launch console */}
-        <GlassCard accent="gold" className="lg:col-span-3">
+        <GlassCard accent="gold" className="md:col-span-3">
           <SectionTitle accent="gold" badge={kind === 'rbp' ? 'NOVATION' : 'PSA'}>Launch console</SectionTitle>
 
           {stage === 'build' && (
