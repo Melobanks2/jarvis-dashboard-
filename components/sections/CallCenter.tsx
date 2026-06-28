@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Play, ChevronDown, ChevronUp, Phone, Clock, ArrowRight, Mic, Voicemail, PhoneOff, MessageSquare, VolumeX } from 'lucide-react';
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
-import { useCalls, CallRecord, callType, recordingUrl } from '@/lib/hooks/useCalls';
+import { useCalls, CallRecord, callType, callSource, recordingUrl } from '@/lib/hooks/useCalls';
 import { useApp } from '@/lib/AppContext';
 import { fmtTime, fmtDate } from '@/lib/supabase';
 
@@ -117,10 +117,55 @@ function PathTimeline({ steps }: { steps: string[] }) {
 const FADE_UP = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 
+type TypeFilter = 'all' | 'conversation' | 'voicemail' | 'no-answer';
+type SourceFilter = 'all' | 'scout' | 'sarah';
+const TYPE_OPTS: { key: TypeFilter; label: string }[] = [
+  { key: 'all', label: 'All' }, { key: 'conversation', label: 'Conversations' },
+  { key: 'voicemail', label: 'Voicemails' }, { key: 'no-answer', label: 'No answer' },
+];
+const SOURCE_OPTS: { key: SourceFilter; label: string }[] = [
+  { key: 'all', label: 'All agents' }, { key: 'scout', label: 'Scout — cold dialer' },
+  { key: 'sarah', label: 'Sarah — follow-up' },
+];
+
+function Seg<T extends string>({ label, opts, value, onChange, color }: {
+  label: string; opts: { key: T; label: string }[]; value: T; onChange: (v: T) => void; color: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[8px] text-dimtext font-orbitron tracking-[1px] uppercase">{label}</span>
+      <div className="flex flex-wrap gap-1">
+        {opts.map(o => {
+          const active = value === o.key;
+          return (
+            <button key={o.key} onClick={() => onChange(o.key)}
+              className="text-[9px] font-orbitron tracking-[0.5px] uppercase px-2 py-1 rounded-sm transition-colors"
+              style={{
+                background: active ? `${color}1a` : 'transparent',
+                color: active ? color : '#5a5a80',
+                border: `1px solid ${active ? color + '40' : 'rgba(255,255,255,0.08)'}`,
+              }}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CallCenter() {
   const { refreshKey } = useApp();
   const { calls, recordings, loading } = useCalls(refreshKey);
   const [tab, setTab] = useState<'today' | 'recordings'>('today');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+
+  const matches = (c: CallRecord) =>
+    (typeFilter === 'all'   || callType(c) === typeFilter) &&
+    (sourceFilter === 'all' || callSource(c) === sourceFilter);
+  const shownCalls      = calls.filter(matches);
+  const shownRecordings = recordings.filter(matches);
 
   const answered    = calls.filter(c => callType(c) === 'conversation').length;
   const voicemails  = calls.filter(c => callType(c) === 'voicemail').length;
@@ -162,21 +207,31 @@ export function CallCenter() {
           ))}
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4 pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <Seg label="Type"  opts={TYPE_OPTS}   value={typeFilter}   onChange={setTypeFilter}   color="#00e5ff" />
+          <Seg label="Agent" opts={SOURCE_OPTS} value={sourceFilter} onChange={setSourceFilter} color="#aa44ff" />
+        </div>
+
         {tab === 'today' && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {calls.length === 0 && !loading && (
-              <div className="col-span-full text-dimtext text-[11px] italic py-8 text-center">No calls yet today</div>
+            {shownCalls.length === 0 && !loading && (
+              <div className="col-span-full text-dimtext text-[11px] italic py-8 text-center">
+                {calls.length === 0 ? 'No calls yet today' : 'No calls match these filters'}
+              </div>
             )}
-            {calls.map(call => <CallCard key={call.id} call={call} />)}
+            {shownCalls.map(call => <CallCard key={call.id} call={call} />)}
           </div>
         )}
 
         {tab === 'recordings' && (
           <div className="flex flex-col gap-3">
-            {recordings.length === 0 && !loading && (
-              <div className="text-dimtext text-[11px] italic py-8 text-center">No recordings found</div>
+            {shownRecordings.length === 0 && !loading && (
+              <div className="text-dimtext text-[11px] italic py-8 text-center">
+                {recordings.length === 0 ? 'No recordings found' : 'No recordings match these filters'}
+              </div>
             )}
-            {recordings.map(rec => <RecordingCard key={rec.id} rec={rec} />)}
+            {shownRecordings.map(rec => <RecordingCard key={rec.id} rec={rec} />)}
           </div>
         )}
       </motion.div>

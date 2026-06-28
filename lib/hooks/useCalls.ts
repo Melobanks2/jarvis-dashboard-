@@ -30,6 +30,19 @@ export function recordingUrl(c: CallRecord): string | null {
   return c.recording_url || c.elevenlabs_recording_url || c.telnyx_recording_url || null;
 }
 
+// Which agent placed the call. The DB `caller` column is "david" for both, so
+// we infer: Scout = the cold multi-dialer (step-labelled "Sarah [greet]:"
+// transcript / qualification summary / has a recording); Sarah = the follow-up
+// caller (named CRM contact, "Jarvis:"/"David:" transcript, no recording).
+export function callSource(c: CallRecord): 'scout' | 'sarah' {
+  const tx = c.transcript_full || '';
+  const sum = (c.summary || '').toLowerCase();
+  if (/sarah\s*\[/i.test(tx)) return 'scout';
+  if (/sarah qualification call|mid-qualification/.test(sum)) return 'scout';
+  if (recordingUrl(c)) return 'scout';
+  return 'sarah';
+}
+
 // Was this a real two-way conversation, a voicemail, or no pickup? Derived from
 // the transcript (did a human actually speak?), the brain's explicit verdict in
 // the summary, then duration as a fallback. Used for the call-log badge.
