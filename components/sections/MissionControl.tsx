@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Flame, Activity, GitBranch } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useCalls } from '@/lib/hooks/useCalls';
+import { useCalls, callType } from '@/lib/hooks/useCalls';
 import { usePipeline } from '@/lib/hooks/usePipeline';
 import { useAgents } from '@/lib/hooks/useAgents';
 import { useFeed } from '@/lib/hooks/useFeed';
+import { useApp } from '@/lib/AppContext';
 import { StatusDot } from '@/components/ui/StatusDot';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { timeAgo } from '@/lib/supabase';
@@ -18,11 +19,19 @@ const TYPE_COLOR: Record<string, string> = {
   success: '#00ff88', error: '#ff3366', warning: '#ff8800', info: '#00aaff', call: '#00e5ff',
 };
 
+// At-a-glance conversation/voicemail/no-answer indicator for the call peek.
+const CALL_TYPE_COLOR: Record<string, { color: string; short: string }> = {
+  conversation: { color: '#00ff88', short: 'Convo' },
+  voicemail:    { color: '#ffd700', short: 'VM' },
+  'no-answer':  { color: '#5a5a80', short: 'No ans' },
+};
+
 export function MissionControl({ onClose, refreshKey }: { onClose: () => void; refreshKey: number }) {
   const { calls }   = useCalls(refreshKey);
   const { data }    = usePipeline(refreshKey);
   const { agents }  = useAgents(refreshKey);
   const { items }   = useFeed(refreshKey, 20);
+  const { setActiveSection } = useApp();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -86,13 +95,23 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
 
           <SectionBlock title="Today's Calls" color="#00e5ff">
             {calls.length === 0 && <div className="text-[9px] text-dimtext italic">No calls yet today</div>}
-            {calls.slice(0, 5).map(c => (
-              <div key={c.id} className="flex items-center gap-2 py-1.5 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,.05)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-ncyan flex-shrink-0" style={{ boxShadow: '0 0 6px #00e5ff' }} />
-                <span className="flex-1 text-[10px] text-textb truncate">{c.contact_name}</span>
-                <span className="text-[9px] text-dimtext flex-shrink-0">{Math.floor(c.call_duration / 60)}:{String(c.call_duration % 60).padStart(2,'0')}</span>
-              </div>
-            ))}
+            {calls.slice(0, 5).map(c => {
+              const tc = CALL_TYPE_COLOR[callType(c)];
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => { setActiveSection('call-center'); onClose(); }}
+                  title="Open Call Log to play & review"
+                  className="w-full flex items-center gap-2 py-1.5 border-b last:border-0 text-left hover:bg-white/[0.03] transition-colors"
+                  style={{ borderColor: 'rgba(255,255,255,.05)' }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tc.color, boxShadow: `0 0 6px ${tc.color}` }} />
+                  <span className="flex-1 text-[10px] text-textb truncate">{c.contact_name || 'Unknown'}</span>
+                  <span className="text-[8px] uppercase tracking-[0.5px] flex-shrink-0" style={{ color: tc.color }}>{tc.short}</span>
+                  <span className="text-[9px] text-dimtext flex-shrink-0 w-7 text-right">{Math.floor(c.call_duration / 60)}:{String(c.call_duration % 60).padStart(2,'0')}</span>
+                </button>
+              );
+            })}
           </SectionBlock>
         </div>
 

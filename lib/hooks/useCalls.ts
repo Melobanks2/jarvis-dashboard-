@@ -20,7 +20,49 @@ export interface CallRecord {
   recording_url: string;
   recording_duration: number;
   elevenlabs_recording_url: string;
+  telnyx_recording_url: string;
   transcript_full: string;
+  caller: string;
+}
+
+// Best playable audio URL for a call, or null if none was recorded.
+export function recordingUrl(c: CallRecord): string | null {
+  return c.recording_url || c.elevenlabs_recording_url || c.telnyx_recording_url || null;
+}
+
+// Was this a real two-way conversation, a voicemail, or no pickup? Derived from
+// the transcript (did a human actually speak?), the brain's explicit verdict in
+// the summary, then duration as a fallback. Used for the call-log badge.
+export function callType(c: CallRecord): 'conversation' | 'voicemail' | 'no-answer' {
+  const blob = `${c.summary || ''} ${c.notes || ''}`.toLowerCase();
+  const tx = c.transcript_full || '';
+
+  // Explicit brain verdicts (multi-dialer) win outright.
+  if (/verdict:\s*voicemail/i.test(blob)) return 'voicemail';
+  if (/verdict:\s*(no[_ ]response|no[_ ]answer)/i.test(blob)) return 'no-answer';
+
+  // What did the human/machine actually say? Pull the seller's lines from the
+  // "Seller:"-labelled turns (both callers use this format).
+  const sellerLines = tx.split(/\n+/)
+    .map(l => l.trim())
+    .filter(l => /^(seller|contact|human|owner|prospect)\s*[:[]/i.test(l))
+    .map(l => l.replace(/^(seller|contact|human|owner|prospect)\s*[:[]\s*/i, '').trim())
+    .filter(Boolean);
+  const sellerText = sellerLines.join(' ').toLowerCase();
+  const vmPhrase = /not available|leave a message|after the (tone|beep)|you'?ve reached|the (person|number|party)|mailbox|press \d|voicemail/;
+
+  if (sellerLines.length > 0) {
+    // A lone voicemail-greeting line → voicemail; real back-and-forth → conversation.
+    if (vmPhrase.test(sellerText) && sellerLines.length <= 2) return 'voicemail';
+    return 'conversation';
+  }
+
+  // Nobody spoke. Verdict implying engagement → conversation; a long open line
+  // where the AI monologued → almost certainly a machine; else no pickup.
+  if (/verdict:\s*(hot|warm|cold)\b/i.test(blob)) return 'conversation';
+  if (/voicemail|left a message|answering machine/.test(blob) && !/no answer or voicemail/.test(blob)) return 'voicemail';
+  if ((c.call_duration || 0) >= 20) return 'voicemail';
+  return 'no-answer';
 }
 
 export interface DayCount {
@@ -86,7 +128,7 @@ export function useCalls(refreshKey: number) {
 
       setCalls(today.data || []);
       setRecentCalls(recent.data || []);
-      setRecordings((recent.data || []).filter(c => c.recording_url || c.elevenlabs_recording_url));
+      setRecordings((recent.data || []).filter(c => recordingUrl(c)));
 
       // Build weekly chart data — last 7 days
       const days: DayCount[] = [];

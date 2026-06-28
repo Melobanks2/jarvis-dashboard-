@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Bot, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users, PhoneOutgoing, Rocket,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users, PhoneOutgoing, Rocket, History,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
@@ -13,6 +13,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'david-hq',         label: 'Sarah HQ',          Icon: Shield,          color: '#fbbf24', desc: 'Qualify & track leads' },
   { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#fbbf24', desc: 'Agent management' },
   { section: 'acquisitions',     label: 'Acquisitions',      Icon: PhoneOutgoing,   color: '#4ade80', desc: 'Power-dialer — work my leads' },
+  { section: 'call-center',      label: 'Call Log',          Icon: History,         color: '#67e8f9', desc: 'Play & review every call' },
   { section: 'contract-cannon',  label: 'Contract Cannon',   Icon: Rocket,          color: '#ff3366', desc: 'Fire GHL contracts' },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#4ade80', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#fbbf24', desc: 'Revenue targets' },

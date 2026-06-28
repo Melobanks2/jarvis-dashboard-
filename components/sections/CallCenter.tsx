@@ -2,16 +2,70 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, ChevronDown, ChevronUp, Phone, Clock, ArrowRight, Mic } from 'lucide-react';
+import { Play, ChevronDown, ChevronUp, Phone, Clock, ArrowRight, Mic, Voicemail, PhoneOff, MessageSquare, VolumeX } from 'lucide-react';
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
-import { useCalls, CallRecord } from '@/lib/hooks/useCalls';
+import { useCalls, CallRecord, callType, recordingUrl } from '@/lib/hooks/useCalls';
 import { useApp } from '@/lib/AppContext';
 import { fmtTime, fmtDate } from '@/lib/supabase';
 
 function fmtDuration(sec: number) {
   const m = Math.floor(sec / 60), s = sec % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// tags_applied can arrive as a real array OR a Postgres array string ("{a,b}").
+// Normalize so .map never blows up.
+function parseTags(v: unknown): string[] {
+  if (Array.isArray(v)) return v as string[];
+  if (typeof v === 'string' && v.trim()) {
+    return v.replace(/^\{|\}$/g, '').split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+  }
+  return [];
+}
+
+// Conversation / voicemail / no-answer badge styling.
+const TYPE_META = {
+  conversation: { label: 'Conversation', color: '#00ff88', Icon: MessageSquare },
+  voicemail:    { label: 'Voicemail',    color: '#ffd700', Icon: Voicemail },
+  'no-answer':  { label: 'No answer',     color: '#5a5a80', Icon: PhoneOff },
+} as const;
+
+function CallTypeBadge({ call }: { call: CallRecord }) {
+  const { label, color, Icon } = TYPE_META[callType(call)];
+  return (
+    <span className="text-[8px] font-orbitron tracking-[0.5px] uppercase px-1.5 py-0.5 rounded-sm flex items-center gap-1"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}30` }}>
+      <Icon size={9} /> {label}
+    </span>
+  );
+}
+
+// Inline audio: click Play → an <audio> element appears and plays in-place.
+// No recording (e.g. the follow-up caller currently saves none) → muted hint.
+function InlineAudio({ call }: { call: CallRecord }) {
+  const [open, setOpen] = useState(false);
+  const url = recordingUrl(call);
+  if (!url) {
+    return (
+      <span className="flex items-center gap-1 text-[9px] text-dimtext/70" title="This call was not recorded">
+        <VolumeX size={10} /> No recording
+      </span>
+    );
+  }
+  return (
+    <div className="w-full">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-2 py-1 border border-ncyan/30 rounded-sm text-ncyan text-[9px] hover:bg-ncyan/10 transition-colors"
+      >
+        <Play size={10} /> {open ? 'Hide player' : 'Play'}
+      </button>
+      {open && (
+        <audio src={url} controls autoPlay preload="none" className="w-full mt-2 h-8" />
+      )}
+    </div>
+  );
 }
 
 const STAGE_COLORS: Record<string, string> = {
@@ -68,8 +122,8 @@ export function CallCenter() {
   const { calls, recordings, loading } = useCalls(refreshKey);
   const [tab, setTab] = useState<'today' | 'recordings'>('today');
 
-  const answered    = calls.filter(c => c.call_duration > 10).length;
-  const voicemails  = calls.filter(c => c.call_duration > 0 && c.call_duration <= 10).length;
+  const answered    = calls.filter(c => callType(c) === 'conversation').length;
+  const voicemails  = calls.filter(c => callType(c) === 'voicemail').length;
   const hotDiscovered = calls.filter(c => c.stage_after === 'Hot Follow Up' && c.stage_before !== 'Hot Follow Up').length;
 
   return (
@@ -140,9 +194,12 @@ function CallCard({ call }: { call: CallRecord }) {
           <div className="font-orbitron text-[11px] font-bold text-textb">{call.contact_name || 'Unknown'}</div>
           {call.address && <div className="text-[9px] text-dimtext mt-0.5 truncate max-w-[200px]">{call.address}</div>}
         </div>
-        <span className="font-orbitron text-[11px] text-ncyan flex items-center gap-1">
-          <Clock size={9} /> {fmtDuration(call.call_duration)}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-orbitron text-[11px] text-ncyan flex items-center gap-1">
+            <Clock size={9} /> {fmtDuration(call.call_duration)}
+          </span>
+          <CallTypeBadge call={call} />
+        </div>
       </div>
 
       {/* Stage flow */}
@@ -156,19 +213,23 @@ function CallCard({ call }: { call: CallRecord }) {
       <PathTimeline steps={parsePath(call.transcript_full)} />
 
       {/* Tags */}
-      {call.tags_applied?.length > 0 && (
+      {(() => { const tags = parseTags(call.tags_applied); return tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {call.tags_applied.slice(0, 4).map(t => (
+          {tags.slice(0, 4).map(t => (
             <span key={t} className="text-[8px] px-1.5 py-0.5 rounded-sm bg-bg3 text-dimtext border border-border2">{t}</span>
           ))}
         </div>
-      )}
+      ); })()}
 
       {call.summary && (
         <div className="text-[9px] text-dimtext italic line-clamp-2">{call.summary}</div>
       )}
 
-      <div className="text-[8px] text-dimtext mt-2">{fmtTime(call.called_at)}</div>
+      {/* Inline playback — listen to the call right here */}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-[8px] text-dimtext">{fmtTime(call.called_at)}</span>
+        <InlineAudio call={call} />
+      </div>
     </GlassCard>
   );
 }
@@ -183,22 +244,17 @@ function RecordingCard({ rec }: { rec: CallRecord }) {
     <GlassCard accent="cyan" padding="p-4">
       <div className="flex items-start gap-3 mb-3">
         <div className="flex-1">
-          <div className="font-orbitron text-[11px] font-bold text-textb mb-0.5">{rec.contact_name || 'Unknown'}</div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="font-orbitron text-[11px] font-bold text-textb">{rec.contact_name || 'Unknown'}</div>
+            <CallTypeBadge call={rec} />
+          </div>
           <div className="flex items-center gap-3 text-[9px] text-dimtext">
             <span>{fmtDate(rec.called_at)} {fmtTime(rec.called_at)}</span>
             {rec.recording_duration && <span className="flex items-center gap-1"><Clock size={8} /> {fmtDuration(rec.recording_duration)}</span>}
           </div>
         </div>
 
-        {rec.recording_url && (
-          <a
-            href={rec.recording_url}
-            target="_blank"
-            className="flex items-center gap-1.5 px-2 py-1 border border-ncyan/30 rounded-sm text-ncyan text-[9px] hover:bg-ncyan/10 transition-colors"
-          >
-            <Play size={10} /> Play
-          </a>
-        )}
+        <InlineAudio call={rec} />
       </div>
 
       <div className="flex items-center gap-2 mb-2">
