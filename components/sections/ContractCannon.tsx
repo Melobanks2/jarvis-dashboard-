@@ -126,6 +126,10 @@ export function ContractCannon() {
           action: 'fire',
           templateId: tpl.id,
           contactId: deal.contactId,
+          opportunityId: deal.id,
+          // Deal terms — backend writes these to the opportunity's contract_*
+          // custom fields so the template's merge tags render with real numbers.
+          fields: vals,
           meta: { seller: deal.name, address: deal.address, templateName: tpl.name },
         }),
       });
