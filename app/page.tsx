@@ -27,6 +27,7 @@ import { MultiDialer }            from '@/components/sections/MultiDialer';
 import { Leads }                  from '@/components/sections/Leads';
 import { Acquisitions }           from '@/components/sections/Acquisitions';
 import { ContractCannon }         from '@/components/sections/ContractCannon';
+import { NovationTracker }        from '@/components/sections/NovationTracker';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -54,6 +55,7 @@ const SECTION_TITLES: Record<string, string> = {
   'multi-dialer':           'Scout HQ — Multi-Line Dialer',
   'leads':                  'Leads',
   'contract-cannon':        'Contract Cannon',
+  'novation-deal':          'Novation Deal',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -76,6 +78,7 @@ function SectionContent({ section }: { section: string }) {
     case 'multi-dialer':            return <MultiDialer />;
     case 'leads':                   return <Leads />;
     case 'contract-cannon':         return <ContractCannon />;
+    case 'novation-deal':           return <NovationTracker />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon

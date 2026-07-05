@@ -15,6 +15,7 @@ export type Section =
   | 'agent-chat'
   | 'leads'
   | 'contract-cannon'
+  | 'novation-deal'
   | 'settings'
   // Legacy sections (kept in type but removed from sidebar nav)
   | 'pipeline'
