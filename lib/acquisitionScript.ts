@@ -99,15 +99,18 @@ export function parseScript(raw: string): ScriptPhase[] {
 
 // Chris's live-dial script, verbatim from ours-script.pdf.
 export const DEFAULT_SCRIPT_RAW = `# Intro
-Hey, is this [FIRST NAME]?
+Hey — is this [FIRST NAME]?
 
-Hey [FIRST NAME], this is Chris with [COMPANY] — you filled out a form on our site (or spoke with our agent) about selling the place over on [STREET]. Did I catch you at a bad time?
-> Pause — let them answer.
+Hey [FIRST NAME], it's Chris. So you actually spoke with one of my colleagues a little while back about your place over on [STREET] — I'm the one calling to get you an offer on it.
+> Pick up a conversation that's already in motion — not a cold pitch. No company name, no "you filled out a form."
 
-Cool. So the reason for the call — I want to see if your property qualifies for an As-Is offer from us. By the end of this call one of two things happens: I either get you an approval with an offer, or I tell you no and give you the reason why. Sound fair?
+That's really all I'm calling about — to see if you're still open to an offer on the property. You still interested in that?
+> Easy yes. Let them say "yeah," then pause and let them talk.
+
+Perfect. So here's how it'll go — by the end of this call, one of two things happens: I either get you an approval with a real offer, or I tell you no and give you the reason why. Sound fair?
 > Wait for the yes before you move on.
 
-Quick heads up on how we work — we buy As-Is, we cover all closing costs, and there are no commissions. Cool?
+And quick heads up on how we work — we buy as-is, we cover all the closing costs, and there are no commissions. Cool?
 
 # Motivation Dig
 So catch me up — what's going on with the place? What's making you think about selling?
