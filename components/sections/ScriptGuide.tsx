@@ -9,6 +9,7 @@ import {
   CalendarClock, ShieldCheck,
 } from 'lucide-react';
 import { parseScript, DEFAULT_SCRIPT_RAW, type ScriptPhase } from '@/lib/acquisitionScript';
+import { OfferCalculator } from './OfferCalculator';
 
 const RAW_KEY   = 'acq_script_raw';
 const NOTES_KEY = 'acq_script_notes';
@@ -274,7 +275,7 @@ export function ScriptGuide() {
       </div>
 
       {/* Teleprompter + checklist */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Teleprompter */}
         <div className="rounded-lg flex flex-col" style={{ background: hold ? 'rgba(24,18,4,0.7)' : 'rgba(12,12,24,0.7)', border: `1px solid ${beatAccent}${hold ? '66' : '44'}`, minHeight: 340 }}>
           {/* phase header + step dots */}
@@ -344,6 +345,10 @@ export function ScriptGuide() {
           </div>
         </div>
 
+        {/* Right column: offer calculator + qualify checklist */}
+        <div className="flex flex-col gap-4">
+        <OfferCalculator />
+
         {/* Qualify checklist */}
         <div className="rounded-lg p-4 flex flex-col gap-3" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-center justify-between">
@@ -368,6 +373,7 @@ export function ScriptGuide() {
               />
             </div>
           ))}
+        </div>
         </div>
       </div>
 
