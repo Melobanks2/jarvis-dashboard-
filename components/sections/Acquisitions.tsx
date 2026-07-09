@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, PhoneCall, ThumbsUp, Pencil, Flame, Zap, Snowflake,
   CalendarClock, XCircle, MapPin, DollarSign, Home, Clock, FileText, Trophy, RotateCcw,
+  ScrollText,
 } from 'lucide-react';
+import { ScriptGuide } from './ScriptGuide';
 
 // Personal power-dialer backend (served by the VPS, like the Leads board).
 const ACQ_API = 'https://api.jarviscommandcenter.space/dialer/personal';
@@ -71,6 +73,7 @@ function Bar({ done, total, color, height = 8 }: { done: number; total: number; 
 }
 
 export function Acquisitions() {
+  const [view, setView] = useState<'dialer' | 'script'>('dialer');
   const [pipeline, setPipeline] = useState('all');
   const [tiers, setTiers] = useState<string[]>(['callbacks', 'hot', 'warm']);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -174,7 +177,7 @@ export function Acquisitions() {
           </h2>
           <p className="text-[11px] text-dimtext">Press play and work your leads — Sarah qualifies, you close.</p>
         </div>
-        {state && status !== 'idle' && (
+        {view === 'dialer' && state && status !== 'idle' && (
           <div className="text-right">
             <div className="text-[10px] uppercase tracking-wider text-dimtext">Session progress</div>
             <div className="text-[18px] font-bold text-ngreen">{state.totalDone}<span className="text-dimtext text-[12px]">/{state.total}</span></div>
@@ -182,10 +185,32 @@ export function Acquisitions() {
         )}
       </div>
 
-      {msg && <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>{msg}</div>}
+      {/* View tabs */}
+      <div className="flex gap-2">
+        {([
+          { key: 'dialer', label: 'Live Dialer', Icon: PhoneCall },
+          { key: 'script', label: 'My Script',   Icon: ScrollText },
+        ] as const).map(t => {
+          const on = view === t.key;
+          const { Icon } = t;
+          return (
+            <button key={t.key} onClick={() => setView(t.key)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold transition-all"
+              style={on
+                ? { background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }
+                : { background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <Icon size={13} /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {view === 'script' && <ScriptGuide />}
+
+      {view === 'dialer' && msg && <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>{msg}</div>}
 
       {/* ── IDLE: pick filters + Play ── */}
-      {status === 'idle' && (
+      {view === 'dialer' && status === 'idle' && (
         <SetupCard
           pipeline={pipeline} setPipeline={setPipeline}
           tiers={tiers} toggleTier={toggleTier}
@@ -194,7 +219,7 @@ export function Acquisitions() {
       )}
 
       {/* ── ACTIVE SESSION ── */}
-      {state && status !== 'idle' && (
+      {view === 'dialer' && state && status !== 'idle' && (
         <>
           <ProgressPanel state={state} status={status} onPause={pause} onResume={resume} busy={busy} />
 
