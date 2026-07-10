@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, PhoneCall, ThumbsUp, Pencil, Flame, Zap, Snowflake,
   CalendarClock, XCircle, MapPin, DollarSign, Home, Clock, FileText, Trophy, RotateCcw,
-  ScrollText,
+  ScrollText, ListChecks,
 } from 'lucide-react';
 import { ScriptGuide } from './ScriptGuide';
+import { AcqLists } from './AcqLists';
 
 // Personal power-dialer backend (served by the VPS, like the Leads board).
 const ACQ_API = 'https://api.jarviscommandcenter.space/dialer/personal';
@@ -73,7 +74,7 @@ function Bar({ done, total, color, height = 8 }: { done: number; total: number; 
 }
 
 export function Acquisitions() {
-  const [view, setView] = useState<'dialer' | 'script'>('dialer');
+  const [view, setView] = useState<'dialer' | 'lists' | 'script'>('dialer');
   const [pipeline, setPipeline] = useState('all');
   const [tiers, setTiers] = useState<string[]>(['callbacks', 'hot', 'warm']);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -165,6 +166,13 @@ export function Acquisitions() {
     setSessionId(null); setState(null); setMsg(null);
   }
 
+  // A dial list was loaded from the Lists tab → take over the Live Dialer.
+  function handleListSession(sid: string) {
+    window.localStorage.setItem(STORE_KEY, sid);
+    setSessionId(sid);
+    setView('dialer');
+  }
+
   const status = state?.status ?? (sessionId ? 'unknown' : 'idle');
 
   return (
@@ -189,6 +197,7 @@ export function Acquisitions() {
       <div className="flex gap-2">
         {([
           { key: 'dialer', label: 'Live Dialer', Icon: PhoneCall },
+          { key: 'lists',  label: 'Lists',       Icon: ListChecks },
           { key: 'script', label: 'My Script',   Icon: ScrollText },
         ] as const).map(t => {
           const on = view === t.key;
@@ -206,6 +215,8 @@ export function Acquisitions() {
       </div>
 
       {view === 'script' && <ScriptGuide />}
+
+      {view === 'lists' && <AcqLists onSessionStarted={handleListSession} />}
 
       {view === 'dialer' && msg && <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>{msg}</div>}
 
