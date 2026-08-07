@@ -16,6 +16,7 @@ export type Section =
   | 'leads'
   | 'contract-cannon'
   | 'novation-deal'
+  | 'ispeed-refunds'
   | 'settings'
   // Legacy sections (kept in type but removed from sidebar nav)
   | 'pipeline'

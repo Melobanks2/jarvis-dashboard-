@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, LayoutDashboard, Bot, GitBranch, Target, Lightbulb,
-  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users, PhoneOutgoing, Rocket, History, FileSignature,
+  MessageSquare, Settings, Map, Sparkles, ChevronLeft, ChevronRight, Shield, BookOpen, BarChart2, PhoneCall, Users, PhoneOutgoing, Rocket, History, FileSignature, Receipt,
 } from 'lucide-react';
 import { useApp, Section } from '@/lib/AppContext';
 
@@ -16,6 +16,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'call-center',      label: 'Call Log',          Icon: History,         color: '#67e8f9', desc: 'Play & review every call' },
   { section: 'contract-cannon',  label: 'Contract Cannon',   Icon: Rocket,          color: '#ff3366', desc: 'Fire GHL contracts' },
   { section: 'novation-deal',    label: 'Novation Deal',     Icon: FileSignature,   color: '#00ff88', desc: '720 W Taylor Rd — road to close' },
+  { section: 'ispeed-refunds',   label: 'iSpeed Refunds',    Icon: Receipt,         color: '#4ade80', desc: 'Refund windows & recovery' },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#4ade80', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#fbbf24', desc: 'Revenue targets' },
   { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#a78bfa', desc: 'Feature backlog' },
