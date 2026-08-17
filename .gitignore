@@ -22,3 +22,7 @@ GEMINI_LIVE_IMPLEMENTATION.md
 
 # Local Claude Code tooling
 .claude/
+
+# Local-only password gate. Do NOT commit until DASHBOARD_USER/DASHBOARD_PASS
+# are set in the Vercel project, or every deployed route returns 401.
+middleware.ts

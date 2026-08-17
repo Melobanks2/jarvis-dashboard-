@@ -35,7 +35,7 @@ function Particles({ pulse = 0 }: { pulse?: number }) {
     <Points ref={ref} positions={positions}>
       <PointMaterial
         transparent
-        color="#4ade80"
+        color="#4da3ff"
         size={0.018}
         sizeAttenuation
         depthWrite={false}
@@ -74,7 +74,7 @@ function NeuralLines() {
 
   return (
     <lineSegments ref={ref} geometry={geometry}>
-      <lineBasicMaterial color="#4ade80" transparent opacity={0.055} depthWrite={false} />
+      <lineBasicMaterial color="#4da3ff" transparent opacity={0.055} depthWrite={false} />
     </lineSegments>
   );
 }
@@ -109,9 +109,9 @@ export function JarvisOrb({ pulse = 0, className, style }: { pulse?: number; cla
         <ambientLight intensity={0.2} />
         <Particles pulse={pulse} />
         <NeuralLines />
-        <Ring radius={2.42} tilt={Math.PI / 4.5}  speed={0.22}  color="#4ade80" opacity={0.16} />
-        <Ring radius={2.72} tilt={-Math.PI / 6}   speed={-0.14} color="#67e8f9" opacity={0.12} />
-        <Ring radius={3.05} tilt={Math.PI / 2.8}  speed={0.09}  color="#a78bfa" opacity={0.10} />
+        <Ring radius={2.42} tilt={Math.PI / 4.5}  speed={0.22}  color="#4da3ff" opacity={0.16} />
+        <Ring radius={2.72} tilt={-Math.PI / 6}   speed={-0.14} color="#64d2ff" opacity={0.12} />
+        <Ring radius={3.05} tilt={Math.PI / 2.8}  speed={0.09}  color="#bf5af2" opacity={0.10} />
       </Canvas>
     </motion.div>
   );

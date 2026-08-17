@@ -96,14 +96,10 @@ export default function Home() {
   // Sidebar placeholder width on desktop: 56px collapsed, 220px expanded
   const sidebarW = sidebarCollapsed ? 56 : 220;
 
+  // Root stays transparent so the body's ambient color field shows through —
+  // the Liquid Glass cards blur it. An opaque background here kills the effect.
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: '#0c0d14' }}>
-
-      {/* Ambient glow */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 45%, rgba(74,222,128,0.025) 0%, transparent 70%)' }}
-      />
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
 
       <TopNav />
       <SectionsDrawer />
@@ -138,7 +134,7 @@ export default function Home() {
               <motion.div
                 key={activeSection}
                 className="absolute inset-0 flex flex-col overflow-hidden"
-                style={{ background: 'rgba(11,12,19,0.97)', backdropFilter: 'blur(20px)' }}
+                style={{ background: 'rgba(5,7,13,0.60)', backdropFilter: 'blur(28px) saturate(160%)', WebkitBackdropFilter: 'blur(28px) saturate(160%)' }}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
@@ -151,7 +147,7 @@ export default function Home() {
                 >
                   <motion.button
                     onClick={() => setActiveSection('command-center')}
-                    className="flex items-center gap-1.5 text-dimtext hover:text-ngreen transition-colors"
+                    className="flex items-center gap-1.5 text-dimtext hover:text-nblue transition-colors"
                     whileHover={{ x: -2 }}
                   >
                     <ArrowLeft size={13} />
@@ -165,8 +161,8 @@ export default function Home() {
                     <motion.button
                       onClick={() => setMissionControl(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium rounded-md"
-                      style={{ color: '#4ade80', background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.18)' }}
-                      whileHover={{ background: 'rgba(74,222,128,0.10)' }}
+                      style={{ color: '#0a84ff', background: 'rgba(10,132,255,0.08)', border: '1px solid rgba(10,132,255,0.22)' }}
+                      whileHover={{ background: 'rgba(10,132,255,0.14)' }}
                     >
                       <Maximize2 size={10} /> Mission Control
                     </motion.button>

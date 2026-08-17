@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DIALER_API } from '@/lib/config';
 
 // Pipeline data is served by the VPS dialer-server (Vercel Hobby is at its 12-function cap).
 // Same endpoint the Leads board uses; here we group leads by a CLEAN canonical stage name
 // because the raw GHL stage names are emoji-decorated with typos (e.g. "⛹🏿‍♀️🔥Hot fallow ups").
-const PIPELINE_API = 'https://api.jarviscommandcenter.space/dialer/leads';
+const PIPELINE_API = `${DIALER_API}/dialer/leads`;
 const AUTO_REFRESH_MS = 60 * 1000;
 const DAY_MS = 86_400_000;
 

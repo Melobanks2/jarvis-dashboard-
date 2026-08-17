@@ -52,9 +52,9 @@ export function TopNav() {
         <div className="flex items-center gap-2">
           <div
             className="w-5 h-5 rounded-md flex items-center justify-center"
-            style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.25)' }}
+            style={{ background: 'rgba(10,132,255,0.16)', border: '1px solid rgba(10,132,255,0.28)' }}
           >
-            <div className="w-2 h-2 rounded-full bg-ngreen" style={{ boxShadow: '0 0 6px rgba(74,222,128,0.6)' }} />
+            <div className="w-2 h-2 rounded-full bg-nblue" />
           </div>
           <span className="font-orbitron text-[13px] font-bold tracking-[3px] text-textb">JARVIS</span>
         </div>
@@ -62,16 +62,16 @@ export function TopNav() {
 
       {/* Center: status pills */}
       <div className="flex-1 flex items-center justify-center gap-3">
-        <Pill label="Agents Online" value={String(online)} color="#4ade80" active />
-        <Pill label="Calls Today"   value={String(calls.length)} color="#67e8f9" />
-        <Pill label="Hot Sellers"   value="—"  color="#f87171" />
+        <Pill label="Agents Online" value={String(online)} color="#30d158" active />
+        <Pill label="Calls Today"   value={String(calls.length)} color="#64d2ff" />
+        <Pill label="Hot Sellers"   value="—"  color="#ff453a" />
       </div>
 
       {/* Right: actions + clock */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        <NavBtn icon={<Zap size={11} />}      label="Sarah HQ"        color="#4ade80" onClick={() => setActiveSection('david-hq')} />
-        <NavBtn icon={<Maximize2 size={11} />} label="Mission Control" color="#a78bfa" onClick={() => setMissionControl(true)} />
-        <NavBtn icon={<Search size={11} />}   label="Leads"           color="#60a5fa" onClick={() => setActiveSection('lead-intelligence')} />
+        <NavBtn icon={<Zap size={11} />}      label="Sarah HQ"        color="#30d158" onClick={() => setActiveSection('david-hq')} />
+        <NavBtn icon={<Maximize2 size={11} />} label="Mission Control" color="#bf5af2" onClick={() => setMissionControl(true)} />
+        <NavBtn icon={<Search size={11} />}   label="Leads"           color="#0a84ff" onClick={() => setActiveSection('lead-intelligence')} />
         <div className="w-px h-4 bg-white/10 mx-1" />
         <Clock />
       </div>

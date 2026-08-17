@@ -15,12 +15,13 @@ import ScriptTraining from './ScriptTraining';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import { WorkBadge } from '@/components/ui/WorkBadge';
+import { DIALER_API } from '@/lib/config';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const API_BASE =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DIALER_API) ||
-  'https://api.jarviscommandcenter.space';
+  DIALER_API;
 const LANE_COUNT = 5;
 const DAILY_GOAL = 200;
 
@@ -226,9 +227,9 @@ const genSessionId = () => `dialer_${Date.now()}_${Math.random().toString(36).sl
 
 const LANE_COLOR: Record<LaneState, string> = {
   idle:      '#52526e',
-  ringing:   '#fbbf24',
-  connected: '#4ade80',
-  voicemail: '#ff3366',
+  ringing:   '#ff9f0a',
+  connected: '#30d158',
+  voicemail: '#ff453a',
   no_answer: '#52526e',
   ended:     '#3a3a52',
 };
@@ -243,13 +244,13 @@ const LANE_LABEL: Record<LaneState, string> = {
 };
 
 const DISPOSITIONS: { id: Disposition; label: string; color: string; icon: React.ElementType }[] = [
-  { id: 'hot',          label: 'Hot',          color: '#ff3366', icon: Flame       },
-  { id: 'warm',         label: 'Warm',         color: '#ff8800', icon: TrendingUp  },
-  { id: 'cold',         label: 'Cold',         color: '#60a5fa', icon: Snowflake   },
+  { id: 'hot',          label: 'Hot',          color: '#ff453a', icon: Flame       },
+  { id: 'warm',         label: 'Warm',         color: '#ff9f0a', icon: TrendingUp  },
+  { id: 'cold',         label: 'Cold',         color: '#0a84ff', icon: Snowflake   },
   { id: 'no_answer',    label: 'No Answer',    color: '#52526e', icon: PhoneOff    },
-  { id: 'wrong_number', label: 'Wrong Number', color: '#fbbf24', icon: AlertCircle },
-  { id: 'refund',       label: 'Refund',       color: '#a78bfa', icon: RotateCcw   },
-  { id: 'callback',     label: 'Callback',     color: '#22d3ee', icon: Calendar    },
+  { id: 'wrong_number', label: 'Wrong Number', color: '#ff9f0a', icon: AlertCircle },
+  { id: 'refund',       label: 'Refund',       color: '#bf5af2', icon: RotateCcw   },
+  { id: 'callback',     label: 'Callback',     color: '#64d2ff', icon: Calendar    },
 ];
 
 // ── Utility helpers for call review ────────────────────────────────────────────
@@ -301,7 +302,7 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
     : amd === 'human' ? 'Human'
     : amd && amd !== 'not_sure' ? amd
     : null;
-  const amdColor = amd.includes('machine') ? '#ff3366' : amd === 'human' ? '#4ade80' : '#8888aa';
+  const amdColor = amd.includes('machine') ? '#ff453a' : amd === 'human' ? '#30d158' : '#8888aa';
 
   const showTimer = lane.state === 'connected' || lane.state === 'ringing';
 
@@ -314,9 +315,9 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
       className="rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden cursor-pointer"
       title="Show this line's live transcript"
       style={{
-        background: isSelected ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.03)',
-        border: isSelected ? '1px solid rgba(0,229,255,0.5)' : `1px solid ${color}${lane.state === 'idle' ? '22' : '55'}`,
-        boxShadow: isSelected ? '0 0 16px rgba(0,229,255,0.25)' : isWinner ? `0 0 24px ${color}44` : 'none',
+        background: isSelected ? 'rgba(100,210,255,0.05)' : 'rgba(255,255,255,0.03)',
+        border: isSelected ? '1px solid rgba(100,210,255,0.5)' : `1px solid ${color}${lane.state === 'idle' ? '22' : '55'}`,
+        boxShadow: isSelected ? '0 0 16px rgba(100,210,255,0.25)' : isWinner ? `0 0 24px ${color}44` : 'none',
       }}
     >
       {/* status light */}
@@ -395,7 +396,7 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
             )}
           </div>
           {isWinner && lane.state === 'connected' && (
-            <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#4ade80' }}>
+            <span className="text-[8px] font-orbitron tracking-[1px] uppercase" style={{ color: '#30d158' }}>
               ● Winner
             </span>
           )}
@@ -408,8 +409,8 @@ function LaneCard({ lane, now, isWinner, isSelected, onSelect }: {
 function DavidCard({ status, lane }: { status: DavidStatus; lane: number | null }) {
   const config = {
     idle:       { color: '#52526e', label: 'IDLE',        sub: 'standing by' },
-    qualifying: { color: '#fbbf24', label: 'QUALIFYING',  sub: 'Sarah qualifying lead…' },
-    on_call:    { color: '#4ade80', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'Sarah active' },
+    qualifying: { color: '#ff9f0a', label: 'QUALIFYING',  sub: 'Sarah qualifying lead…' },
+    on_call:    { color: '#30d158', label: `ON CALL · LINE ${lane != null ? lane + 1 : '?'}`, sub: 'Sarah active' },
   }[status];
 
   const pulsing = status !== 'idle';
@@ -501,19 +502,19 @@ function TranscriptPanel({ lane, pinned }: { lane: Lane | null; pinned: boolean 
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Radio size={12} style={{ color: callActive ? '#4ade80' : '#52526e' }} />
+          <Radio size={12} style={{ color: callActive ? '#30d158' : '#52526e' }} />
           <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#52526e' }}>
             Live Transcript
           </span>
           {lane && (
             <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
-              style={{ background: 'rgba(0,229,255,0.1)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.2)' }}>
+              style={{ background: 'rgba(100,210,255,0.1)', color: '#64d2ff', border: '1px solid rgba(100,210,255,0.2)' }}>
               Line {lane.idx + 1}{lane.lead?.name ? ` · ${lane.lead.name}` : ''}{pinned ? '' : ' · auto'}
             </span>
           )}
         </div>
         <span className="text-[8px] font-orbitron tracking-[1px] uppercase"
-          style={{ color: callActive ? '#4ade80' : '#3a3a52' }}>
+          style={{ color: callActive ? '#30d158' : '#3a3a52' }}>
           {callActive ? 'Deepgram · live' : 'Deepgram'}
         </span>
       </div>
@@ -534,12 +535,12 @@ function TranscriptPanel({ lane, pinned }: { lane: Lane | null; pinned: boolean 
                 <div
                   className="max-w-[82%] rounded-xl px-2.5 py-1.5"
                   style={{
-                    background: isSarah ? 'rgba(74,222,128,0.10)' : 'rgba(0,229,255,0.10)',
-                    border: `1px solid ${isSarah ? 'rgba(74,222,128,0.28)' : 'rgba(0,229,255,0.28)'}`,
+                    background: isSarah ? 'rgba(48,209,88,0.10)' : 'rgba(100,210,255,0.10)',
+                    border: `1px solid ${isSarah ? 'rgba(48,209,88,0.28)' : 'rgba(100,210,255,0.28)'}`,
                   }}
                 >
                   <div className="text-[8px] font-orbitron tracking-[1px] uppercase mb-0.5"
-                    style={{ color: isSarah ? '#4ade80' : '#00e5ff' }}>
+                    style={{ color: isSarah ? '#30d158' : '#64d2ff' }}>
                     {isSarah ? '● Sarah' : '● Seller'}
                   </div>
                   <div className="text-[11px] leading-relaxed" style={{ color: isSarah ? '#d6f5e2' : '#cfeffb' }}>{t.text}</div>
@@ -562,7 +563,7 @@ function GoalBar({ value, target }: { value: number; target: number }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Target size={12} style={{ color: '#a78bfa' }} />
+          <Target size={12} style={{ color: '#bf5af2' }} />
           <span className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
             Daily Goal
           </span>
@@ -574,7 +575,7 @@ function GoalBar({ value, target }: { value: number; target: number }) {
       <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <motion.div
           className="h-full rounded-full"
-          style={{ background: 'linear-gradient(90deg, #a78bfa, #00e5ff)' }}
+          style={{ background: 'linear-gradient(90deg, #bf5af2, #64d2ff)' }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.5 }}
         />
@@ -595,7 +596,7 @@ function DialerProgress({ progress }: { progress: Progress }) {
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CheckCircle size={12} style={{ color: '#00e5ff' }} />
+          <CheckCircle size={12} style={{ color: '#64d2ff' }} />
           <span className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
             Progress
           </span>
@@ -607,7 +608,7 @@ function DialerProgress({ progress }: { progress: Progress }) {
       <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <motion.div
           className="h-full rounded-full"
-          style={{ background: 'linear-gradient(90deg, #00e5ff, #00f0ff)' }}
+          style={{ background: 'linear-gradient(90deg, #64d2ff, #00f0ff)' }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.5 }}
         />
@@ -645,15 +646,15 @@ function SummaryModal({
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <StatCard label="Calls Made"  value={summary.calls}     color="#00e5ff" />
-          <StatCard label="Contacted"   value={summary.contacted} color="#4ade80" sub={`${conv}% conv`} />
-          <StatCard label="Hot Leads"   value={summary.hot}       color="#ff3366" />
-          <StatCard label="Talk Time"   value={fmt(summary.talk)} color="#a78bfa" sub={`${fmt(summary.session)} session`} />
+          <StatCard label="Calls Made"  value={summary.calls}     color="#64d2ff" />
+          <StatCard label="Contacted"   value={summary.contacted} color="#30d158" sub={`${conv}% conv`} />
+          <StatCard label="Hot Leads"   value={summary.hot}       color="#ff453a" />
+          <StatCard label="Talk Time"   value={fmt(summary.talk)} color="#bf5af2" sub={`${fmt(summary.session)} session`} />
         </div>
         <button
           onClick={onClose}
           className="w-full py-2.5 rounded-xl font-orbitron text-[10px] tracking-[1.5px] uppercase"
-          style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
+          style={{ background: 'rgba(48,209,88,0.12)', color: '#30d158', border: '1px solid rgba(48,209,88,0.25)' }}
         >
           Close
         </button>
@@ -677,14 +678,14 @@ interface CallReviewRecord {
 }
 
 const OUTCOME_COLORS: Record<string, string> = {
-  hot:           '#ff3366',
-  warm:          '#ff8800',
-  cold:          '#60a5fa',
+  hot:           '#ff453a',
+  warm:          '#ff9f0a',
+  cold:          '#0a84ff',
   voicemail:     '#52526e',
   no_answer:     '#52526e',
-  wrong_number:  '#fbbf24',
-  refund:        '#a78bfa',
-  callback:      '#22d3ee',
+  wrong_number:  '#ff9f0a',
+  refund:        '#bf5af2',
+  callback:      '#64d2ff',
 };
 
 function callOutcomeFromRecord(c: { stage_after?: string | null; call_duration?: number | null }): string {
@@ -789,7 +790,7 @@ function CallReview() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-orbitron text-[12px] font-bold tracking-[2px] uppercase" style={{ color: '#e8e8f0' }}>
-          <List size={14} style={{ color: '#a78bfa', display: 'inline', marginRight: 6 }} />
+          <List size={14} style={{ color: '#bf5af2', display: 'inline', marginRight: 6 }} />
           CALL REVIEW
         </h3>
         <button
@@ -797,9 +798,9 @@ function CallReview() {
           disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-orbitron tracking-[1px] uppercase"
           style={{
-            background: 'rgba(167,139,250,0.08)',
-            color: '#a78bfa',
-            border: '1px solid rgba(167,139,250,0.2)',
+            background: 'rgba(191,90,242,0.08)',
+            color: '#bf5af2',
+            border: '1px solid rgba(191,90,242,0.2)',
           }}
         >
           <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
@@ -829,9 +830,9 @@ function CallReview() {
                 onClick={() => setDateRange(r)}
                 className="px-2.5 py-1.5 rounded-lg text-[9px] font-orbitron tracking-[1px] uppercase"
                 style={{
-                  background: dateRange === r ? 'rgba(0,229,255,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: dateRange === r ? '#00e5ff' : '#52526e',
-                  border: `1px solid ${dateRange === r ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                  background: dateRange === r ? 'rgba(100,210,255,0.12)' : 'rgba(255,255,255,0.03)',
+                  color: dateRange === r ? '#64d2ff' : '#52526e',
+                  border: `1px solid ${dateRange === r ? 'rgba(100,210,255,0.3)' : 'rgba(255,255,255,0.05)'}`,
                 }}
               >
                 {r === 'today' ? 'Today' : r === '7days' ? '7D' : r === '30days' ? '30D' : 'All'}
@@ -842,7 +843,7 @@ function CallReview() {
         <div className="flex gap-1.5 flex-wrap">
           {(['all', 'hot', 'warm', 'cold', 'voicemail'] as const).map(o => {
             const active = outcomeFilter === o;
-            const color = o === 'all' ? '#a78bfa' : (OUTCOME_COLORS[o] || '#52526e');
+            const color = o === 'all' ? '#bf5af2' : (OUTCOME_COLORS[o] || '#52526e');
             const count = o === 'all' ? calls.length : calls.filter(c => c.outcome === o).length;
             return (
               <button
@@ -869,7 +870,7 @@ function CallReview() {
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
         >
           <div className="flex items-center gap-2">
-            <Loader2 size={16} className="animate-spin" style={{ color: '#a78bfa' }} />
+            <Loader2 size={16} className="animate-spin" style={{ color: '#bf5af2' }} />
             <span className="text-[10px]" style={{ color: '#52526e' }}>Loading call records…</span>
           </div>
         </div>
@@ -971,14 +972,14 @@ function CallReview() {
                     onClick={e => { e.stopPropagation(); handlePlayPause(call.id, call.recording_url); }}
                     className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all"
                     style={{
-                      background: isPlaying ? 'rgba(255,51,102,0.15)' : 'rgba(167,139,250,0.1)',
-                      border: `1px solid ${isPlaying ? 'rgba(255,51,102,0.3)' : 'rgba(167,139,250,0.2)'}`,
+                      background: isPlaying ? 'rgba(255,69,58,0.15)' : 'rgba(191,90,242,0.1)',
+                      border: `1px solid ${isPlaying ? 'rgba(255,69,58,0.3)' : 'rgba(191,90,242,0.2)'}`,
                     }}
                     title={isPlaying ? 'Stop' : 'Play recording'}
                   >
                     {isPlaying
-                      ? <Square size={10} style={{ color: '#ff3366' }} />
-                      : <Play size={10} style={{ color: '#a78bfa' }} />
+                      ? <Square size={10} style={{ color: '#ff453a' }} />
+                      : <Play size={10} style={{ color: '#bf5af2' }} />
                     }
                   </button>
                 )}
@@ -1007,7 +1008,7 @@ function CallReview() {
                           Full Transcript
                         </span>
                         {hasRecording && (
-                          <span className="text-[8px] flex items-center gap-1 ml-auto" style={{ color: '#a78bfa' }}>
+                          <span className="text-[8px] flex items-center gap-1 ml-auto" style={{ color: '#bf5af2' }}>
                             <Headphones size={8} />
                             Recording available
                           </span>
@@ -1024,11 +1025,11 @@ function CallReview() {
                             // Color-code speaker lines (Sarah vs Seller)
                             const lower = line.toLowerCase().trim();
                             let speakerColor = '#52526e';
-                            let labelColor = '#00e5ff';
+                            let labelColor = '#64d2ff';
                             if (lower.startsWith('sarah:') || lower.startsWith('david:') || lower.startsWith('agent:')) {
-                              speakerColor = '#4ade80'; labelColor = '#4ade80';
+                              speakerColor = '#30d158'; labelColor = '#30d158';
                             } else if (lower.startsWith('seller:') || lower.startsWith('lead:') || lower.startsWith('contact:')) {
-                              speakerColor = '#fbbf24'; labelColor = '#fbbf24';
+                              speakerColor = '#ff9f0a'; labelColor = '#ff9f0a';
                             } else if (lower.startsWith('system:') || lower.startsWith('note:')) {
                               speakerColor = '#52526e'; labelColor = '#52526e';
                             }
@@ -1162,9 +1163,9 @@ function PerformanceAnalytics() {
     return acc;
   }, {});
   const dispositionData = [
-    { name: 'Hot',       count: outcomeCounts.hot       || 0, fill: '#ff3366' },
-    { name: 'Warm',      count: outcomeCounts.warm      || 0, fill: '#ffb020' },
-    { name: 'Cold',      count: outcomeCounts.cold      || 0, fill: '#3ba1ff' },
+    { name: 'Hot',       count: outcomeCounts.hot       || 0, fill: '#ff453a' },
+    { name: 'Warm',      count: outcomeCounts.warm      || 0, fill: '#ff9f0a' },
+    { name: 'Cold',      count: outcomeCounts.cold      || 0, fill: '#0a84ff' },
     { name: 'Voicemail', count: outcomeCounts.voicemail || 0, fill: '#52526e' },
   ];
 
@@ -1193,9 +1194,9 @@ function PerformanceAnalytics() {
               onClick={() => setTimeRange(range)}
               className="px-3 py-1.5 rounded-lg text-[9px] font-orbitron tracking-[1px] uppercase transition-all"
               style={{
-                background: timeRange === range ? 'rgba(0,229,255,0.12)' : 'rgba(255,255,255,0.03)',
-                color: timeRange === range ? '#00e5ff' : '#52526e',
-                border: `1px solid ${timeRange === range ? 'rgba(0,229,255,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                background: timeRange === range ? 'rgba(100,210,255,0.12)' : 'rgba(255,255,255,0.03)',
+                color: timeRange === range ? '#64d2ff' : '#52526e',
+                border: `1px solid ${timeRange === range ? 'rgba(100,210,255,0.3)' : 'rgba(255,255,255,0.05)'}`,
               }}
             >
               {range === 'today' ? 'Today' : range === '7days' ? '7 Days' : range === '30days' ? '30 Days' : 'All Time'}
@@ -1207,14 +1208,14 @@ function PerformanceAnalytics() {
       {/* Top KPI Cards — full outcome breakdown */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { icon: Phone,      label: 'Total Calls',   value: stats.callsMade,              color: '#00e5ff' },
-          { icon: TrendingUp, label: 'Conversations', value: stats.contacted, sub: `${conversionRate.toFixed(0)}% of logged calls`, color: '#4ade80' },
-          { icon: Flame,      label: 'Hot',           value: outcomeCounts.hot  || 0,      color: '#ff3366' },
-          { icon: Flame,      label: 'Warm',          value: outcomeCounts.warm || 0,      color: '#ffb020' },
-          { icon: Snowflake,  label: 'Cold',          value: outcomeCounts.cold || 0,      color: '#3ba1ff' },
+          { icon: Phone,      label: 'Total Calls',   value: stats.callsMade,              color: '#64d2ff' },
+          { icon: TrendingUp, label: 'Conversations', value: stats.contacted, sub: `${conversionRate.toFixed(0)}% of logged calls`, color: '#30d158' },
+          { icon: Flame,      label: 'Hot',           value: outcomeCounts.hot  || 0,      color: '#ff453a' },
+          { icon: Flame,      label: 'Warm',          value: outcomeCounts.warm || 0,      color: '#ff9f0a' },
+          { icon: Snowflake,  label: 'Cold',          value: outcomeCounts.cold || 0,      color: '#0a84ff' },
           { icon: PhoneOff,   label: 'Voicemails',    value: outcomeCounts.voicemail || 0, color: '#8888aa' },
-          { icon: Clock,      label: 'Talk Time',     value: fmt(talkSeconds), sub: `avg ${fmt(avgDuration)} / conv`, color: '#a78bfa' },
-          { icon: Database,   label: 'Est. Telnyx Cost', value: `$${(stats.contacted * 0.018).toFixed(2)}`, sub: '~1.8¢ per connected call', color: '#fbbf24' },
+          { icon: Clock,      label: 'Talk Time',     value: fmt(talkSeconds), sub: `avg ${fmt(avgDuration)} / conv`, color: '#bf5af2' },
+          { icon: Database,   label: 'Est. Telnyx Cost', value: `$${(stats.contacted * 0.018).toFixed(2)}`, sub: '~1.8¢ per connected call', color: '#ff9f0a' },
         ].map((k, i) => (
           <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -1230,7 +1231,7 @@ function PerformanceAnalytics() {
       {/* Call Volume & Connections Chart */}
       <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={14} style={{ color: '#00e5ff' }} />
+          <BarChart3 size={14} style={{ color: '#64d2ff' }} />
           <span className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
             Call Volume & Connections
           </span>
@@ -1245,8 +1246,8 @@ function PerformanceAnalytics() {
               labelStyle={{ color: '#c4c4d6' }}
             />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            <Line type="monotone" dataKey="totalCalls" name="Total Calls" stroke="#00e5ff" strokeWidth={2} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="connected" name="Connected" stroke="#4ade80" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="totalCalls" name="Total Calls" stroke="#64d2ff" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="connected" name="Connected" stroke="#30d158" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -1256,7 +1257,7 @@ function PerformanceAnalytics() {
         {/* Disposition Breakdown Bar Chart */}
         <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 size={14} style={{ color: '#a78bfa' }} />
+            <BarChart3 size={14} style={{ color: '#bf5af2' }} />
             <span className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#c4c4d6' }}>
               Disposition Breakdown
             </span>
@@ -1285,7 +1286,7 @@ function PerformanceAnalytics() {
             <div className="text-[9px] font-orbitron tracking-[1px] uppercase mb-2" style={{ color: '#52526e' }}>
               Conversion Rate
             </div>
-            <div className="text-[36px] font-orbitron font-black" style={{ color: '#4ade80' }}>
+            <div className="text-[36px] font-orbitron font-black" style={{ color: '#30d158' }}>
               {conversionRate.toFixed(1)}%
             </div>
             <div className="text-[9px] mt-1" style={{ color: '#8888aa' }}>connected / dialed</div>
@@ -1294,7 +1295,7 @@ function PerformanceAnalytics() {
                 className="h-full rounded-full"
                 style={{
                   width: `${Math.min(100, conversionRate)}%`,
-                  background: 'linear-gradient(90deg, #4ade80, #28d17c)',
+                  background: 'linear-gradient(90deg, #30d158, #28d17c)',
                 }}
               />
             </div>
@@ -1304,7 +1305,7 @@ function PerformanceAnalytics() {
             <div className="text-[9px] font-orbitron tracking-[1px] uppercase mb-2" style={{ color: '#52526e' }}>
               Handoff Rate
             </div>
-            <div className="text-[36px] font-orbitron font-black" style={{ color: '#ffb020' }}>
+            <div className="text-[36px] font-orbitron font-black" style={{ color: '#ff9f0a' }}>
               {handoffRate.toFixed(1)}%
             </div>
             <div className="text-[9px] mt-1" style={{ color: '#8888aa' }}>of connected → Jarvis</div>
@@ -1313,7 +1314,7 @@ function PerformanceAnalytics() {
                 className="h-full rounded-full"
                 style={{
                   width: `${Math.min(100, handoffRate)}%`,
-                  background: 'linear-gradient(90deg, #ffb020, #ff8800)',
+                  background: 'linear-gradient(90deg, #ff9f0a, #ff9f0a)',
                 }}
               />
             </div>
@@ -1373,7 +1374,7 @@ function AutopilotCard({ onToast }: { onToast: (text: string, kind?: ToastKind) 
   const enabled  = sched?.enabled ?? false;
   const blocked  = sched?.accountBlocked ?? false;
   const breakerOpen = !!sched?.breaker?.open;
-  const accent   = blocked || breakerOpen ? '#ff3366' : enabled ? '#4ade80' : '#52526e';
+  const accent   = blocked || breakerOpen ? '#ff453a' : enabled ? '#30d158' : '#52526e';
 
   const flags = sched?.doneToday;
   const fmtHour = (h: number) => {
@@ -1402,7 +1403,7 @@ function AutopilotCard({ onToast }: { onToast: (text: string, kind?: ToastKind) 
           onClick={runIngest}
           disabled={running}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-orbitron tracking-[1px] uppercase disabled:opacity-40"
-          style={{ background: 'rgba(0,229,255,0.08)', color: '#00e5ff', border: '1px solid rgba(0,229,255,0.2)' }}
+          style={{ background: 'rgba(100,210,255,0.08)', color: '#64d2ff', border: '1px solid rgba(100,210,255,0.2)' }}
         >
           {running ? <RefreshCw size={11} className="animate-spin" /> : <Power size={11} />}
           {running ? 'Running…' : 'Run ingest now'}
@@ -1416,7 +1417,7 @@ function AutopilotCard({ onToast }: { onToast: (text: string, kind?: ToastKind) 
             <span className="flex items-center gap-2">
               {(['ingest', 'summary', 'audit', 'cleanup'] as const).map(k => (
                 <span key={k} className="flex items-center gap-1" title={`${k} ${flags[k] ? 'done' : 'pending'} today`}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: flags[k] ? '#4ade80' : '#3a3a52' }} />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: flags[k] ? '#30d158' : '#3a3a52' }} />
                   {k}
                 </span>
               ))}
@@ -1439,9 +1440,9 @@ type ToastKind = 'error' | 'success' | 'info';
 interface ToastMsg { id: number; kind: ToastKind; text: string }
 
 const TOAST_STYLE: Record<ToastKind, { color: string; icon: React.ElementType }> = {
-  error:   { color: '#ff3366', icon: AlertTriangle },
-  success: { color: '#4ade80', icon: CheckCircle   },
-  info:    { color: '#00e5ff', icon: AlertCircle   },
+  error:   { color: '#ff453a', icon: AlertTriangle },
+  success: { color: '#30d158', icon: CheckCircle   },
+  info:    { color: '#64d2ff', icon: AlertCircle   },
 };
 
 function ToastStack({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id: number) => void }) {
@@ -2075,10 +2076,10 @@ export function MultiDialer() {
               <div
                 className="w-2 h-2 rounded-full"
                 style={{
-                  background: dialerState === 'connected' ? '#4ade80'
-                    : dialerState === 'dialing' ? '#fbbf24'
+                  background: dialerState === 'connected' ? '#30d158'
+                    : dialerState === 'dialing' ? '#ff9f0a'
                     : '#52526e',
-                  boxShadow: dialerState === 'connected' ? '0 0 8px #4ade80' : 'none',
+                  boxShadow: dialerState === 'connected' ? '0 0 8px #30d158' : 'none',
                 }}
               />
               <span className="text-[10px] font-orbitron" style={{ color: '#8888aa' }}>
@@ -2110,9 +2111,9 @@ export function MultiDialer() {
               onClick={() => setTab(t.id)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-orbitron tracking-[1.5px] uppercase transition-all"
               style={{
-                background: isActive ? 'rgba(74,222,128,0.1)' : 'transparent',
-                color: isActive ? '#4ade80' : '#52526e',
-                border: isActive ? '1px solid rgba(74,222,128,0.2)' : '1px solid transparent',
+                background: isActive ? 'rgba(48,209,88,0.1)' : 'transparent',
+                color: isActive ? '#30d158' : '#52526e',
+                border: isActive ? '1px solid rgba(48,209,88,0.2)' : '1px solid transparent',
               }}
             >
               <Icon size={12} />
@@ -2132,13 +2133,13 @@ export function MultiDialer() {
 
           {/* Stats row — full disposition breakdown so you see exactly what's happening */}
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-            <StatCard label="Calls Made"     value={stats.callsMade}     color="#00e5ff" />
-            <StatCard label="Conversations"  value={stats.contacted}     color="#4ade80" sub={`${conv}% of calls`} />
-            <StatCard label="Hot Leads"      value={stats.hot}           color="#ff3366" />
+            <StatCard label="Calls Made"     value={stats.callsMade}     color="#64d2ff" />
+            <StatCard label="Conversations"  value={stats.contacted}     color="#30d158" sub={`${conv}% of calls`} />
+            <StatCard label="Hot Leads"      value={stats.hot}           color="#ff453a" />
             <StatCard label="Voicemail"      value={stats.voicemail}     color="#8888aa" />
-            <StatCard label="Wrong #"        value={stats.wrongNumber}   color="#fbbf24" />
-            <StatCard label="Not Interested" value={stats.notInterested} color="#fb923c" />
-            <StatCard label="Conv. Rate"     value={`${conv}%`}          color="#a78bfa"
+            <StatCard label="Wrong #"        value={stats.wrongNumber}   color="#ff9f0a" />
+            <StatCard label="Not Interested" value={stats.notInterested} color="#ff9f0a" />
+            <StatCard label="Conv. Rate"     value={`${conv}%`}          color="#bf5af2"
               sub={stats.totalSeconds > 0 ? `${fmt(stats.totalSeconds)} talk` : undefined} />
           </div>
 
@@ -2153,9 +2154,9 @@ export function MultiDialer() {
           {/* Paused banner — session context is kept; Resume to continue */}
           {dialerState === 'paused' && (
             <div className="rounded-xl px-4 py-2.5 flex items-center gap-2"
-              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
-              <Pause size={13} style={{ color: '#fbbf24' }} />
-              <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#fbbf24' }}>
+              style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.25)' }}>
+              <Pause size={13} style={{ color: '#ff9f0a' }} />
+              <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#ff9f0a' }}>
                 Paused
               </span>
               <span className="text-[10px]" style={{ color: '#8888aa' }}>
@@ -2202,7 +2203,7 @@ export function MultiDialer() {
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium disabled:opacity-50"
-                style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
+                style={{ background: 'rgba(48,209,88,0.08)', color: '#30d158', border: '1px solid rgba(48,209,88,0.2)' }}
               >
                 {uploading ? <RefreshCw size={11} className="animate-spin" /> : <Plus size={12} />}
                 {uploading ? 'Uploading…' : 'New list (CSV)'}
@@ -2231,30 +2232,30 @@ export function MultiDialer() {
                           onClick={() => switchList(l.listId)}
                           className="flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all"
                           style={{
-                            background: active ? 'rgba(0,229,255,0.06)' : 'transparent',
-                            border: `1px solid ${active ? 'rgba(0,229,255,0.3)' : 'transparent'}`,
+                            background: active ? 'rgba(100,210,255,0.06)' : 'transparent',
+                            border: `1px solid ${active ? 'rgba(100,210,255,0.3)' : 'transparent'}`,
                           }}
                         >
-                          <Database size={13} style={{ color: active ? '#00e5ff' : '#52526e', flexShrink: 0 }} />
+                          <Database size={13} style={{ color: active ? '#64d2ff' : '#52526e', flexShrink: 0 }} />
                           <div className="flex-1 min-w-0">
                             <div className="text-[11px] font-medium truncate" style={{ color: active ? '#e8e8f0' : '#c4c4d6' }}>
                               {l.name}
-                              {l.pass > 1 && <span className="ml-1.5 text-[8px]" style={{ color: '#a78bfa' }}>·P{l.pass}</span>}
+                              {l.pass > 1 && <span className="ml-1.5 text-[8px]" style={{ color: '#bf5af2' }}>·P{l.pass}</span>}
                             </div>
                             <div className="text-[9px] mt-0.5" style={{ color: '#52526e' }}>
                               {l.called.toLocaleString()}/{l.total.toLocaleString()} called · {l.remaining.toLocaleString()} left · {l.hot} hot
                             </div>
                             <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #00e5ff, #4ade80)' }} />
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #64d2ff, #30d158)' }} />
                             </div>
                           </div>
                           <button
                             onClick={e => { e.stopPropagation(); deleteListById(l.listId); }}
                             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)' }}
+                            style={{ background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)' }}
                             title="Delete this list permanently"
                           >
-                            <Trash2 size={11} style={{ color: '#ff3366' }} />
+                            <Trash2 size={11} style={{ color: '#ff453a' }} />
                           </button>
                         </div>
                       );
@@ -2268,17 +2269,17 @@ export function MultiDialer() {
             {listMeta ? (
               <div
                 className="rounded-2xl p-4 flex flex-col gap-3"
-                style={{ background: 'rgba(0,229,255,0.03)', border: '1px solid rgba(0,229,255,0.12)' }}
+                style={{ background: 'rgba(100,210,255,0.03)', border: '1px solid rgba(100,210,255,0.12)' }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Database size={14} style={{ color: '#00e5ff' }} />
-                    <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#00e5ff' }}>
+                    <Database size={14} style={{ color: '#64d2ff' }} />
+                    <span className="text-[10px] font-orbitron tracking-[1px] uppercase" style={{ color: '#64d2ff' }}>
                       Active List
                     </span>
                     {listMeta.pass > 1 && (
                       <span className="text-[8px] px-1.5 py-0.5 rounded font-orbitron"
-                        style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
+                        style={{ background: 'rgba(191,90,242,0.15)', color: '#bf5af2', border: '1px solid rgba(191,90,242,0.3)' }}>
                         Pass {listMeta.pass}
                       </span>
                     )}
@@ -2286,7 +2287,7 @@ export function MultiDialer() {
                   <button
                     onClick={() => deleteListById(listId)}
                     className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px]"
-                    style={{ background: 'rgba(255,51,102,0.06)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.15)' }}
+                    style={{ background: 'rgba(255,69,58,0.06)', color: '#ff453a', border: '1px solid rgba(255,69,58,0.15)' }}
                     title="Delete this list permanently"
                   >
                     <Trash2 size={10} />
@@ -2299,11 +2300,11 @@ export function MultiDialer() {
                     {listMeta.name}
                   </div>
                   <div className="text-[10px] mt-1" style={{ color: '#8888aa' }}>
-                    <span style={{ color: '#00e5ff' }}>{listMeta.called.toLocaleString()}</span>
+                    <span style={{ color: '#64d2ff' }}>{listMeta.called.toLocaleString()}</span>
                     {' / '}
                     {listMeta.total.toLocaleString()} called
                     {' · '}
-                    <span style={{ color: listMeta.remaining > 0 ? '#fbbf24' : '#4ade80' }}>
+                    <span style={{ color: listMeta.remaining > 0 ? '#ff9f0a' : '#30d158' }}>
                       {listMeta.remaining.toLocaleString()} remaining
                     </span>
                   </div>
@@ -2315,14 +2316,14 @@ export function MultiDialer() {
                       className="h-full rounded-full transition-all duration-500"
                       style={{
                         width: `${Math.min(100, (listMeta.called / listMeta.total) * 100)}%`,
-                        background: 'linear-gradient(90deg, #00e5ff, #4ade80)',
+                        background: 'linear-gradient(90deg, #64d2ff, #30d158)',
                       }}
                     />
                   </div>
                 )}
 
                 {listMeta.remaining === 0 && (
-                  <div className="flex items-center gap-1.5 text-[10px]" style={{ color: '#4ade80' }}>
+                  <div className="flex items-center gap-1.5 text-[10px]" style={{ color: '#30d158' }}>
                     <CheckCircle size={11} />
                     All leads dialed — upload a new CSV to start a fresh list
                   </div>
@@ -2345,7 +2346,7 @@ export function MultiDialer() {
                   onClick={() => fileRef.current?.click()}
                   disabled={uploading}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium disabled:opacity-50"
-                  style={{ background: 'rgba(74,222,128,0.08)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}
+                  style={{ background: 'rgba(48,209,88,0.08)', color: '#30d158', border: '1px solid rgba(48,209,88,0.2)' }}
                 >
                   {uploading ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />}
                   {uploading ? 'Uploading…' : 'Upload CSV'}
@@ -2361,10 +2362,10 @@ export function MultiDialer() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 className="rounded-2xl p-4 flex flex-col gap-3"
-                style={{ background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.2)' }}
+                style={{ background: 'rgba(191,90,242,0.04)', border: '1px solid rgba(191,90,242,0.2)' }}
               >
                 <div className="flex items-center justify-between">
-                  <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#a78bfa' }}>
+                  <div className="text-[10px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#bf5af2' }}>
                     Disposition · {activeLead.name}
                   </div>
                   <span className="text-[8px]" style={{ color: '#52526e' }}>press 1–{DISPOSITIONS.length}</span>
@@ -2406,7 +2407,7 @@ export function MultiDialer() {
                       initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                       className="flex items-center gap-2 overflow-hidden"
                     >
-                      <Calendar size={14} style={{ color: '#22d3ee', flexShrink: 0 }} />
+                      <Calendar size={14} style={{ color: '#64d2ff', flexShrink: 0 }} />
                       <input
                         type="datetime-local"
                         value={callbackTime}
@@ -2418,7 +2419,7 @@ export function MultiDialer() {
                         onClick={() => callbackTime && handleDisposition('callback', new Date(callbackTime).toLocaleString('en-US', { timeZone: 'America/New_York' }))}
                         disabled={!callbackTime}
                         className="px-3 py-2 rounded-lg text-[10px] font-orbitron tracking-[1px] uppercase disabled:opacity-40"
-                        style={{ background: 'rgba(34,211,238,0.12)', color: '#22d3ee', border: '1px solid rgba(34,211,238,0.3)' }}
+                        style={{ background: 'rgba(34,211,238,0.12)', color: '#64d2ff', border: '1px solid rgba(34,211,238,0.3)' }}
                       >
                         Confirm
                       </button>
@@ -2436,7 +2437,7 @@ export function MultiDialer() {
                 onClick={handleStart}
                 disabled={!listId && (leads.length === 0 || remaining === 0)}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
+                style={{ background: 'rgba(48,209,88,0.12)', color: '#30d158', border: '1px solid rgba(48,209,88,0.25)' }}
               >
                 <Play size={14} />
                 {dialerState === 'paused' ? 'Resume' : 'Start Dialing'}
@@ -2447,7 +2448,7 @@ export function MultiDialer() {
               <button
                 onClick={handlePause}
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
-                style={{ background: 'rgba(251,191,36,0.08)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}
+                style={{ background: 'rgba(255,159,10,0.08)', color: '#ff9f0a', border: '1px solid rgba(255,159,10,0.2)' }}
               >
                 <Pause size={14} />
                 Pause
@@ -2458,7 +2459,7 @@ export function MultiDialer() {
               <button
                 onClick={handleStop}
                 className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-orbitron text-[11px] tracking-[1.5px] uppercase"
-                style={{ background: 'rgba(255,51,102,0.08)', color: '#ff3366', border: '1px solid rgba(255,51,102,0.2)' }}
+                style={{ background: 'rgba(255,69,58,0.08)', color: '#ff453a', border: '1px solid rgba(255,69,58,0.2)' }}
               >
                 <Square size={14} />
                 Stop Dialing
@@ -2489,11 +2490,11 @@ export function MultiDialer() {
                         key={`${absIdx}-${lead.phone}`}
                         className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
                         style={{
-                          background: isCurrentBatch ? 'rgba(251,191,36,0.05)' : 'transparent',
-                          borderLeft: isCurrentBatch ? '2px solid rgba(251,191,36,0.4)' : isCompleted ? '2px solid rgba(74,222,128,0.2)' : '2px solid transparent',
+                          background: isCurrentBatch ? 'rgba(255,159,10,0.05)' : 'transparent',
+                          borderLeft: isCurrentBatch ? '2px solid rgba(255,159,10,0.4)' : isCompleted ? '2px solid rgba(48,209,88,0.2)' : '2px solid transparent',
                         }}
                       >
-                        <div className="text-[9px] w-4" style={{ color: isCompleted ? '#4ade80' : '#3a3a52' }}>{absIdx + 1}</div>
+                        <div className="text-[9px] w-4" style={{ color: isCompleted ? '#30d158' : '#3a3a52' }}>{absIdx + 1}</div>
                         <div className="flex-1 text-[10px] truncate" style={{ color: isCurrentBatch ? '#c4c4d6' : '#52526e' }}>
                           {lead.name || '—'}
                         </div>

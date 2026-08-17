@@ -19,10 +19,10 @@ function MapSkeleton() {
 }
 
 const STATUS_CFG = {
-  completed: { label: 'Completed', color: '#4ade80', icon: <CheckCircle2 size={13} /> },
-  running:   { label: 'Running',   color: '#67e8f9', icon: <Loader2 size={13} className="animate-spin" /> },
+  completed: { label: 'Completed', color: '#30d158', icon: <CheckCircle2 size={13} /> },
+  running:   { label: 'Running',   color: '#64d2ff', icon: <Loader2 size={13} className="animate-spin" /> },
   queued:    { label: 'Queued',    color: '#52526e', icon: <Clock size={13} /> },
-  failed:    { label: 'Failed',    color: '#f87171', icon: <AlertCircle size={13} /> },
+  failed:    { label: 'Failed',    color: '#ff453a', icon: <AlertCircle size={13} /> },
 };
 
 export function AsapScraper() {
@@ -46,26 +46,26 @@ export function AsapScraper() {
         <StatCard icon={<Database size={15} />} label="Properties Scraped"
           value={dbRows.toLocaleString()}
           sub={totalTarget > 0 ? `of ~${totalTarget.toLocaleString()} targeted` : 'run scraper to populate'}
-          color="#67e8f9" />
+          color="#64d2ff" />
         <StatCard icon={<Camera size={15} />} label="Photos Collected"
           value={photoFiles.toLocaleString()}
           sub={`${photoPct}% of records`}
-          color="#4ade80" />
+          color="#30d158" />
         <StatCard icon={<Users size={15} />} label="Owner Data"
           value={ownerData.toLocaleString()}
           sub="DealMachine enriched"
-          color="#a78bfa" />
+          color="#bf5af2" />
         <StatCard icon={<Home size={15} />} label="Cities Active"
           value={`${totals?.cities_done ?? 0} / ${cities.length}`}
           sub={totals?.cities_running ? `${totals.cities_running} running now` : 'none running'}
-          color="#fbbf24" />
+          color="#ff9f0a" />
       </div>
 
       {/* Overall progress bar */}
       {(totalTarget > 0 || dbRows > 0) && (
         <div
           className="rounded-xl p-5"
-          style={{ background: 'rgba(18,19,32,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -76,7 +76,7 @@ export function AsapScraper() {
             </div>
             <span
               className="font-orbitron text-[28px] font-bold"
-              style={{ color: overallPct >= 80 ? '#4ade80' : overallPct >= 40 ? '#fbbf24' : '#67e8f9' }}
+              style={{ color: overallPct >= 80 ? '#30d158' : overallPct >= 40 ? '#ff9f0a' : '#64d2ff' }}
             >
               {overallPct}%
             </span>
@@ -84,7 +84,7 @@ export function AsapScraper() {
           <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <motion.div
               className="absolute top-0 left-0 h-full rounded-full"
-              style={{ background: 'linear-gradient(90deg, #67e8f9, #4ade80)' }}
+              style={{ background: 'linear-gradient(90deg, #64d2ff, #30d158)' }}
               initial={{ width: 0 }}
               animate={{ width: `${overallPct}%` }}
               transition={{ duration: 1.4, ease: 'easeOut' }}
@@ -98,7 +98,7 @@ export function AsapScraper() {
         {/* US Map */}
         <div
           className="lg:col-span-3 rounded-xl overflow-hidden"
-          style={{ background: 'rgba(18,19,32,0.8)', border: '1px solid rgba(255,255,255,0.06)', padding: '20px' }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)', padding: '20px' }}
         >
           <p className="text-[10px] font-semibold text-dimtext uppercase tracking-[1.5px] mb-3">Geographic Coverage</p>
           <AsapMap cities={cities} />
@@ -115,7 +115,7 @@ export function AsapScraper() {
         {/* City list */}
         <div
           className="lg:col-span-2 rounded-xl overflow-hidden flex flex-col"
-          style={{ background: 'rgba(18,19,32,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="px-5 py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <p className="text-[10px] font-semibold text-dimtext uppercase tracking-[1.5px]">City Progress</p>
@@ -190,14 +190,14 @@ export function AsapScraper() {
       {/* Data quality breakdown */}
       <div
         className="rounded-xl p-5"
-        style={{ background: 'rgba(18,19,32,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}
       >
         <p className="text-[10px] font-semibold text-dimtext uppercase tracking-[1.5px] mb-5">Data Quality</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-          <QualityBar label="Records in DB"  value={dbRows}          total={totalTarget || dbRows} color="#67e8f9" desc="Properties scraped" />
-          <QualityBar label="With Photos"    value={photosCollected} total={dbRows}                color="#4ade80" desc="Records with photos" />
-          <QualityBar label="Owner Enriched" value={ownerData}       total={dbRows}                color="#a78bfa" desc="DealMachine data" />
-          <QualityBar label="Total Photos"   value={photoFiles}      total={photoFiles}            color="#fbbf24" desc="Individual files" noBar />
+          <QualityBar label="Records in DB"  value={dbRows}          total={totalTarget || dbRows} color="#64d2ff" desc="Properties scraped" />
+          <QualityBar label="With Photos"    value={photosCollected} total={dbRows}                color="#30d158" desc="Records with photos" />
+          <QualityBar label="Owner Enriched" value={ownerData}       total={dbRows}                color="#bf5af2" desc="DealMachine data" />
+          <QualityBar label="Total Photos"   value={photoFiles}      total={photoFiles}            color="#ff9f0a" desc="Individual files" noBar />
         </div>
       </div>
 
@@ -207,7 +207,7 @@ export function AsapScraper() {
 
 function StatCard({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: string; sub: string; color: string }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'rgba(18,19,32,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center gap-2 mb-2">
         <span style={{ color }}>{icon}</span>
         <span className="text-[9px] font-semibold uppercase tracking-[1px] text-dimtext">{label}</span>

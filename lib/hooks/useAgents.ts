@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import type { WorkStatus } from '@/components/ui/WorkBadge';
+import { DIALER_API } from '@/lib/config';
 
 // Internal status values kept stable for existing consumers (the 3D scene, dot maps).
 // active = Working, idle = Standby, offline = Off. Display labels live in the UI.
 export type AgentStatus = 'active' | 'idle' | 'offline';
 
-const API_BASE = 'https://api.jarviscommandcenter.space';
+const API_BASE = DIALER_API;
 
 export interface AgentInfo {
   key: string;
@@ -27,13 +28,13 @@ export interface AgentInfo {
 // Roster mapped to the backend /dialer/agents-health `key`s. Jarvis is rendered
 // separately by AIAgents (the 3D centerpiece), so it's intentionally not here.
 const AGENT_DEFS = [
-  { key: 'scout',          name: 'Scout',         role: 'Lead Generator', color: '#ff3366', description: 'Cold multi-line dialer — generates raised hands from VA lists.', schedule: 'On demand' },
-  { key: 'sarah',          name: 'Sarah',         role: 'Lead Qualifier', color: '#fbbf24', description: 'Calls raised-hand iSpeed leads one-by-one and qualifies them hot/warm/cold.', schedule: 'Mon–Sat 9a–8p' },
-  { key: 'lead_manager',   name: 'Call Analyzer', role: 'Lead QA',        color: '#a78bfa', description: 'Reviews call transcripts and updates GHL tags/stages/notes. (Future: Lead Manager — double-checks every call.)', schedule: 'Every hour' },
-  { key: 'alpha_scraper',  name: 'Alpha Scraper', role: 'Lead Source',    color: '#60a5fa', description: 'Scrapes AlphaLeads VA and feeds Scout fresh contact lists.', schedule: 'Every 30 min' },
-  { key: 'asap',           name: 'ASAP Scraper',  role: 'Deal Data',      color: '#fbbf24', description: 'Property/comp scraper for the ASAP ARV database.', schedule: 'On demand' },
-  { key: 'speed_to_lead',  name: 'Speed-to-Lead', role: 'Lead Intake',    color: '#67e8f9', description: 'Instant-dials each new iSpeed lead the moment it arrives.', schedule: 'Always on' },
-  { key: 'county_scraper', name: 'County Scraper',role: 'Lead Source',    color: '#fb923c', description: 'OC Comptroller Lis Pendens + MyEClerk lead source.', schedule: 'Daily 7am' },
+  { key: 'scout',          name: 'Scout',         role: 'Lead Generator', color: '#ff453a', description: 'Cold multi-line dialer — generates raised hands from VA lists.', schedule: 'On demand' },
+  { key: 'sarah',          name: 'Sarah',         role: 'Lead Qualifier', color: '#ff9f0a', description: 'Calls raised-hand iSpeed leads one-by-one and qualifies them hot/warm/cold.', schedule: 'Mon–Sat 9a–8p' },
+  { key: 'lead_manager',   name: 'Call Analyzer', role: 'Lead QA',        color: '#bf5af2', description: 'Reviews call transcripts and updates GHL tags/stages/notes. (Future: Lead Manager — double-checks every call.)', schedule: 'Every hour' },
+  { key: 'alpha_scraper',  name: 'Alpha Scraper', role: 'Lead Source',    color: '#0a84ff', description: 'Scrapes AlphaLeads VA and feeds Scout fresh contact lists.', schedule: 'Every 30 min' },
+  { key: 'asap',           name: 'ASAP Scraper',  role: 'Deal Data',      color: '#ff9f0a', description: 'Property/comp scraper for the ASAP ARV database.', schedule: 'On demand' },
+  { key: 'speed_to_lead',  name: 'Speed-to-Lead', role: 'Lead Intake',    color: '#64d2ff', description: 'Instant-dials each new iSpeed lead the moment it arrives.', schedule: 'Always on' },
+  { key: 'county_scraper', name: 'County Scraper',role: 'Lead Source',    color: '#ff9f0a', description: 'OC Comptroller Lis Pendens + MyEClerk lead source.', schedule: 'Daily 7am' },
 ];
 
 interface HealthAgent { key: string; status: string; online: boolean; restarts: number | null; uptimeMs: number | null; }

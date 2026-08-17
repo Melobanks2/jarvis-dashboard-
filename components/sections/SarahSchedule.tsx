@@ -34,11 +34,11 @@ const SCHEDULE: Window[] = [
 ];
 
 const SEG_COLOR: Record<string, string> = {
-  'Cold Follow Up': '#60a5fa',
-  'New Leads':      '#67e8f9',
-  'Attempt 1':      '#a78bfa',
-  'Attempt 2':      '#a78bfa',
-  'Attempt 3-5':    '#a78bfa',
+  'Cold Follow Up': '#0a84ff',
+  'New Leads':      '#64d2ff',
+  'Attempt 1':      '#bf5af2',
+  'Attempt 2':      '#bf5af2',
+  'Attempt 3-5':    '#bf5af2',
   'Attempt 6+':     '#7c7c9c',
 };
 const segColor = (n: string) => SEG_COLOR[n] || '#7a7a9a';
@@ -93,7 +93,7 @@ export function SarahSchedule() {
         </div>
         <div className="text-right">
           <div className="text-[10px] text-dimtext">Today · {DAYS[day]}</div>
-          <div className="text-[12px] font-medium" style={{ color: isSunday ? '#7a7a9a' : '#4ade80' }}>
+          <div className="text-[12px] font-medium" style={{ color: isSunday ? '#7a7a9a' : '#30d158' }}>
             {isSunday ? 'Off today' : `${String(curHour).padStart(2, '0')}:${String(curMin).padStart(2, '0')} ET`}
           </div>
         </div>
@@ -102,9 +102,9 @@ export function SarahSchedule() {
       {/* next-up banner */}
       <div
         className="flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5"
-        style={{ background: isSunday ? 'rgba(255,255,255,0.02)' : 'rgba(74,222,128,0.05)', borderColor: isSunday ? 'rgba(255,255,255,0.07)' : 'rgba(74,222,128,0.22)' }}
+        style={{ background: isSunday ? 'rgba(255,255,255,0.02)' : 'rgba(48,209,88,0.05)', borderColor: isSunday ? 'rgba(255,255,255,0.07)' : 'rgba(48,209,88,0.22)' }}
       >
-        {isSunday ? <Moon size={14} className="text-dimtext flex-shrink-0" /> : <ArrowRight size={14} style={{ color: '#4ade80' }} className="flex-shrink-0" />}
+        {isSunday ? <Moon size={14} className="text-dimtext flex-shrink-0" /> : <ArrowRight size={14} style={{ color: '#30d158' }} className="flex-shrink-0" />}
         <span className="text-[12px]" style={{ color: isSunday ? '#7a7a9a' : '#9febb4' }}>{nextLabel}</span>
         <span className="ml-auto text-[10px] text-dimtext flex-shrink-0">up to {dailyCapacity} dials/day</span>
       </div>
@@ -116,7 +116,7 @@ export function SarahSchedule() {
           const isActive = st === 'active';
           const isNext   = st === 'next';
           const isDone   = st === 'done';
-          const accent   = w.report ? '#fbbf24' : isActive ? '#4ade80' : isNext ? '#67e8f9' : '#52526e';
+          const accent   = w.report ? '#ff9f0a' : isActive ? '#30d158' : isNext ? '#64d2ff' : '#52526e';
           const total    = w.sections.reduce((a, s) => a + s.cap, 0);
           return (
             <div key={w.time} className="flex gap-3">
@@ -138,8 +138,8 @@ export function SarahSchedule() {
               <div
                 className="flex-1 rounded-lg border mb-2.5 px-3.5 py-2.5 transition-colors"
                 style={{
-                  borderColor: isActive ? 'rgba(74,222,128,0.35)' : isNext ? 'rgba(103,232,249,0.25)' : 'rgba(255,255,255,0.06)',
-                  background: isActive ? 'rgba(74,222,128,0.05)' : 'rgba(255,255,255,0.012)',
+                  borderColor: isActive ? 'rgba(48,209,88,0.35)' : isNext ? 'rgba(100,210,255,0.25)' : 'rgba(255,255,255,0.06)',
+                  background: isActive ? 'rgba(48,209,88,0.05)' : 'rgba(255,255,255,0.012)',
                   opacity: isDone ? 0.55 : 1,
                 }}
               >
@@ -147,8 +147,8 @@ export function SarahSchedule() {
                   <Clock size={12} style={{ color: accent }} className="flex-shrink-0" />
                   <span className="text-[13px] font-semibold text-textb">{w.time}</span>
                   <span className="text-[10px] text-dimtext">{w.tag}</span>
-                  {isActive && <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>RUNNING NOW</span>}
-                  {isNext   && <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(103,232,249,0.12)', color: '#67e8f9' }}>NEXT</span>}
+                  {isActive && <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(48,209,88,0.15)', color: '#30d158' }}>RUNNING NOW</span>}
+                  {isNext   && <span className="text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(100,210,255,0.12)', color: '#64d2ff' }}>NEXT</span>}
                   {isDone   && <span className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,255,255,0.05)', color: '#52526e' }}>done</span>}
                   {!w.report && <span className="ml-auto text-[10px] text-dimtext flex items-center gap-1"><Phone size={9} /> up to {total}</span>}
                 </div>
@@ -177,9 +177,9 @@ export function SarahSchedule() {
       <div className="rounded-lg border border-border2 px-3.5 py-3" style={{ background: 'rgba(255,255,255,0.012)' }}>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-textb mb-2"><Info size={12} className="text-ncyan" /> How Sarah works the list</div>
         <ul className="text-[11px] text-dimtext leading-relaxed list-disc pl-4 space-y-1">
-          <li>Sarah is the <span className="text-jtext">qualifier</span> — she works New leads, the no-contact attempt ladder, and Cold. The moment a lead turns <span style={{ color: '#f87171' }}>Hot</span> or <span style={{ color: '#fb923c' }}>Warm</span>, it's handed to <span className="text-jtext">you</span> to make the offer — she stops auto-calling it.</li>
+          <li>Sarah is the <span className="text-jtext">qualifier</span> — she works New leads, the no-contact attempt ladder, and Cold. The moment a lead turns <span style={{ color: '#ff453a' }}>Hot</span> or <span style={{ color: '#ff9f0a' }}>Warm</span>, it's handed to <span className="text-jtext">you</span> to make the offer — she stops auto-calling it.</li>
           <li>She calls a <span className="text-jtext">section at a time</span> (e.g. all New, then Attempt 1) — each dials up to its cap, then ~90s before the next.</li>
-          <li>Attempt cadence: <span style={{ color: '#67e8f9' }}>New</span> &amp; <span style={{ color: '#a78bfa' }}>Attempt 1</span> twice a day, <span style={{ color: '#a78bfa' }}>Attempt 2</span> daily, <span style={{ color: '#a78bfa' }}>Attempt 3-5</span> every other day, <span style={{ color: '#7c7c9c' }}>Attempt 6+</span> weekly → then it ages to <span style={{ color: '#60a5fa' }}>Cold</span> (every 3 days).</li>
+          <li>Attempt cadence: <span style={{ color: '#64d2ff' }}>New</span> &amp; <span style={{ color: '#bf5af2' }}>Attempt 1</span> twice a day, <span style={{ color: '#bf5af2' }}>Attempt 2</span> daily, <span style={{ color: '#bf5af2' }}>Attempt 3-5</span> every other day, <span style={{ color: '#7c7c9c' }}>Attempt 6+</span> weekly → then it ages to <span style={{ color: '#0a84ff' }}>Cold</span> (every 3 days).</li>
           <li>Never before 9 AM, after 8 PM, or on Sundays. All times America/New_York.</li>
         </ul>
       </div>

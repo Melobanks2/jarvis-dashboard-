@@ -5,15 +5,20 @@ import clsx from 'clsx';
 
 type Accent = 'green' | 'gold' | 'cyan' | 'blue' | 'purple' | 'orange' | 'red';
 
+// Apple system colors on dark. Blue is the identity accent; the rest are
+// semantic (green = positive, red = urgent, orange = warning).
 const ACCENT_COLOR: Record<Accent, string> = {
-  green:  '#00ff88',
-  gold:   '#ffd700',
-  cyan:   '#00e5ff',
-  blue:   '#00aaff',
-  purple: '#aa44ff',
-  orange: '#ff8800',
-  red:    '#ff3366',
+  green:  '#30d158',
+  gold:   '#ff9f0a',
+  cyan:   '#64d2ff',
+  blue:   '#0a84ff',
+  purple: '#bf5af2',
+  orange: '#ff9f0a',
+  red:    '#ff453a',
 };
+
+// iOS-style spring — quick, settles without wobble.
+const SPRING = { type: 'spring', stiffness: 420, damping: 32 } as const;
 
 interface Props extends Omit<HTMLMotionProps<'div'>, 'children'> {
   children: React.ReactNode;
@@ -22,39 +27,53 @@ interface Props extends Omit<HTMLMotionProps<'div'>, 'children'> {
   padding?: string;
 }
 
-export function GlassCard({ children, accent = 'green', hover = true, padding = 'p-4', className, ...rest }: Props) {
-  const c = ACCENT_COLOR[accent];
+// Liquid Glass panel: translucent wash + backdrop blur + saturation boost,
+// specular top edge, continuous 22px radius. The ambient field painted by
+// body::before is what the blur refracts — without it this reads flat.
+export function GlassCard({ children, accent = 'blue', hover = true, padding = 'p-5', className, ...rest }: Props) {
   return (
     <motion.div
-      className={clsx(
-        'relative overflow-hidden rounded-sm border border-border2',
-        padding,
-        hover && 'cursor-default',
-        className
-      )}
-      style={{ background: 'rgba(12,12,24,0.85)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
-      whileHover={hover ? { y: -2, boxShadow: `0 8px 32px ${c}18` } : undefined}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      className={clsx('glass relative overflow-hidden rounded-[22px]', padding, className)}
+      whileHover={hover ? { backgroundColor: 'rgba(255,255,255,0.085)', y: -1 } : undefined}
+      transition={SPRING}
       {...rest}
     >
-      {/* Accent top line */}
-      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${c} 30%,${c} 70%,transparent)`, opacity: 0.55 }} />
-      {/* Corner TL */}
-      <div className="absolute top-0 left-0 w-3.5 h-3.5" style={{ borderTop: `1px solid ${c}`, borderLeft: `1px solid ${c}`, opacity: 0.45 }} />
-      {/* Corner BR */}
-      <div className="absolute bottom-0 right-0 w-3.5 h-3.5" style={{ borderBottom: `1px solid ${c}`, borderRight: `1px solid ${c}`, opacity: 0.45 }} />
+      {/* Soft light falling on the upper half of the pane. Absolutely
+          positioned so it never participates in the card's flex/grid layout —
+          children stay direct descendants and layout classNames pass through. */}
+      <div className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[22px]"
+        style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.05), transparent)' }} />
       {children}
     </motion.div>
   );
 }
 
-export function SectionTitle({ children, accent = 'green', badge }: { children: React.ReactNode; accent?: Accent; badge?: string }) {
+export function SectionTitle({ children, accent = 'blue', badge }: { children: React.ReactNode; accent?: Accent; badge?: string }) {
   const c = ACCENT_COLOR[accent];
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <span className="w-1 h-4 rounded-sm" style={{ background: c, boxShadow: `0 0 8px ${c}` }} />
-      <span className="font-orbitron text-[10px] font-bold tracking-[3px] uppercase" style={{ color: c }}>{children}</span>
-      {badge && <span className="ml-auto text-[9px] text-dimtext border border-border2 px-2 py-0.5 rounded-sm bg-bg3 font-orbitron tracking-wider">{badge}</span>}
+    <div className="flex items-baseline gap-2.5 mb-4">
+      <span className="text-[16px] font-semibold tracking-[-0.02em] text-textb">{children}</span>
+      {badge && (
+        <span className="ml-auto text-[12px] text-dimtext border border-border rounded-full px-2.5 py-0.5"
+          style={{ background: 'rgba(255,255,255,0.05)' }}>
+          {badge}
+        </span>
+      )}
     </div>
+  );
+}
+
+// Pill button/badge in the same material language.
+export function GlassPill({ children, color, onClick, className }: {
+  children: React.ReactNode; color?: string; onClick?: () => void; className?: string;
+}) {
+  const Tag = onClick ? 'button' : 'span';
+  return (
+    <Tag onClick={onClick}
+      className={clsx('inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[12px] bg-white/[0.06]',
+        onClick && 'tap hover:bg-white/10 cursor-pointer', className)}
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)', color: color || 'rgba(235,235,245,0.62)' }}>
+      {children}
+    </Tag>
   );
 }

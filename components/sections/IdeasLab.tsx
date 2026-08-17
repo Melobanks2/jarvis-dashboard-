@@ -17,23 +17,23 @@ interface Idea {
 }
 
 const COLUMNS = [
-  { key: 'idea',      label: 'Backlog',      color: '#60a5fa' },
-  { key: 'prompt',    label: 'In Review',    color: '#a78bfa' },
-  { key: 'building',  label: 'Building',     color: '#fbbf24' },
-  { key: 'completed', label: 'Shipped',      color: '#4ade80' },
+  { key: 'idea',      label: 'Backlog',      color: '#0a84ff' },
+  { key: 'prompt',    label: 'In Review',    color: '#bf5af2' },
+  { key: 'building',  label: 'Building',     color: '#ff9f0a' },
+  { key: 'completed', label: 'Shipped',      color: '#30d158' },
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
-  high:   '#f87171',
-  medium: '#fb923c',
+  high:   '#ff453a',
+  medium: '#ff9f0a',
   low:    '#52526e',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  automation:  '#60a5fa',
-  crm:         '#4ade80',
-  cost_saving: '#fbbf24',
-  revenue:     '#a78bfa',
+  automation:  '#0a84ff',
+  crm:         '#30d158',
+  cost_saving: '#ff9f0a',
+  revenue:     '#bf5af2',
   personal:    '#52526e',
 };
 
@@ -73,8 +73,8 @@ export function IdeasLab() {
         <motion.button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg"
-          style={{ background: 'rgba(167,139,250,0.10)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.20)' }}
-          whileHover={{ background: 'rgba(167,139,250,0.16)' }}
+          style={{ background: 'rgba(191,90,242,0.10)', color: '#bf5af2', border: '1px solid rgba(191,90,242,0.20)' }}
+          whileHover={{ background: 'rgba(191,90,242,0.16)' }}
           whileTap={{ scale: 0.97 }}
         >
           <Plus size={13} /> New Idea
@@ -92,7 +92,7 @@ export function IdeasLab() {
           >
             <div
               className="rounded-xl p-5"
-              style={{ background: 'rgba(18,19,32,0.9)', border: '1px solid rgba(167,139,250,0.18)' }}
+              style={{ background: 'rgba(18,19,32,0.9)', border: '1px solid rgba(191,90,242,0.18)' }}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 <input
@@ -131,7 +131,7 @@ export function IdeasLab() {
                 <button
                   onClick={handleAdd}
                   className="px-4 py-2 text-[11px] font-medium rounded-lg"
-                  style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.25)' }}
+                  style={{ background: 'rgba(191,90,242,0.15)', color: '#bf5af2', border: '1px solid rgba(191,90,242,0.25)' }}
                 >
                   Save Idea
                 </button>

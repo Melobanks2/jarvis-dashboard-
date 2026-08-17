@@ -10,11 +10,11 @@ import type { AsapCity } from '@/lib/hooks/useAsapCities';
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 
 const STATUS_COLOR: Record<string, string> = {
-  completed: '#4ade80',
-  complete:  '#4ade80',   // legacy DB value
-  running:   '#67e8f9',
+  completed: '#30d158',
+  complete:  '#30d158',   // legacy DB value
+  running:   '#64d2ff',
   queued:    '#52526e',
-  failed:    '#f87171',
+  failed:    '#ff453a',
 };
 
 // Approximate long/lat for each target city
@@ -383,7 +383,7 @@ export default function AsapMap({ cities }: { cities: AsapCity[] }) {
           style={{
             left: tooltip.x + 12,
             top:  tooltip.y - 40,
-            background: 'rgba(18,19,32,0.95)',
+            background: 'rgba(16,20,30,0.94)',
             border: '1px solid rgba(255,255,255,0.10)',
             backdropFilter: 'blur(12px)',
             minWidth: 140,

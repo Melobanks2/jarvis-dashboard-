@@ -30,7 +30,7 @@ const AgentsScene = dynamic(
 const JARVIS: AgentSceneDef = {
   key:          'JARVIS',
   name:         'Jarvis',
-  color:        '#4ade80',
+  color:        '#30d158',
   description:  'Central AI orchestrator. Coordinates all agents, manages Telegram communications, analyzes calls, and drives wholesale operations end-to-end.',
   schedule:     'Always Active',
   lastActivity: null,
@@ -39,7 +39,7 @@ const JARVIS: AgentSceneDef = {
 };
 
 const STATUS_LABEL: Record<string, string> = { active: 'Working', idle: 'Standby', offline: 'Off' };
-const STATUS_COLOR: Record<string, string> = { active: '#4ade80', idle: '#fbbf24', offline: '#52526e' };
+const STATUS_COLOR: Record<string, string> = { active: '#30d158', idle: '#ff9f0a', offline: '#52526e' };
 
 export function AIAgents() {
   const { refreshKey } = useApp();
@@ -74,7 +74,7 @@ export function AIAgents() {
         className="relative rounded-2xl overflow-hidden"
         style={{
           height: 500,
-          background: 'radial-gradient(ellipse 80% 70% at 50% 40%, rgba(74,222,128,0.04) 0%, rgba(11,12,22,0.95) 65%)',
+          background: 'radial-gradient(ellipse 80% 70% at 50% 40%, rgba(48,209,88,0.04) 0%, rgba(11,12,22,0.95) 65%)',
           border: '1px solid rgba(255,255,255,0.06)',
         }}
       >

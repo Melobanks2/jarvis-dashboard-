@@ -230,11 +230,11 @@ function fmtPrice(n?: number): string {
 }
 
 const OUTCOME_COLOR: Record<string, string> = {
-  CLOSED:            '#4ade80',
-  'NOVATION DEAL':   '#fbbf24',
-  'WARM FOLLOW UP':  '#67e8f9',
-  'COLD FOLLOW UP':  '#60a5fa',
-  'NO DEAL':         '#f87171',
+  CLOSED:            '#30d158',
+  'NOVATION DEAL':   '#ff9f0a',
+  'WARM FOLLOW UP':  '#64d2ff',
+  'COLD FOLLOW UP':  '#0a84ff',
+  'NO DEAL':         '#ff453a',
 };
 
 // ─── Tab Bar ─────────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ function PreCallStrategyTab({ briefs, callLogs }: { briefs: PrecallBrief[]; call
         <SectionTitle accent="gold">Lead Intel</SectionTitle>
         {!hasBriefs && (
           <div className="mb-2 px-2 py-1 rounded text-[9px] font-orbitron tracking-wider"
-            style={{ background: 'rgba(251,191,36,0.08)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+            style={{ background: 'rgba(255,159,10,0.08)', color: '#ff9f0a', border: '1px solid rgba(255,159,10,0.2)' }}>
             DEMO DATA — Connect david_precall_briefs table for live data
           </div>
         )}
@@ -312,10 +312,10 @@ function PreCallStrategyTab({ briefs, callLogs }: { briefs: PrecallBrief[]; call
             <div className="text-[9px] text-dimtext uppercase tracking-[1.5px] mb-2">Offer Ladder</div>
             <div className="space-y-1">
               {[
-                { label: 'Start (60%)',    val: fmtPrice(start60), color: '#4ade80' },
-                { label: 'Step 2 (65%)',   val: fmtPrice(step65),  color: '#67e8f9' },
-                { label: 'Max (70%)',      val: fmtPrice(max70),   color: '#fbbf24' },
-                { label: 'Novation',       val: fmtPrice(novation) + ' (if qual)', color: '#a78bfa' },
+                { label: 'Start (60%)',    val: fmtPrice(start60), color: '#30d158' },
+                { label: 'Step 2 (65%)',   val: fmtPrice(step65),  color: '#64d2ff' },
+                { label: 'Max (70%)',      val: fmtPrice(max70),   color: '#ff9f0a' },
+                { label: 'Novation',       val: fmtPrice(novation) + ' (if qual)', color: '#bf5af2' },
               ].map(r => (
                 <div key={r.label} className="flex items-center gap-2">
                   <ArrowRight size={10} style={{ color: r.color }} />
@@ -330,7 +330,7 @@ function PreCallStrategyTab({ briefs, callLogs }: { briefs: PrecallBrief[]; call
             <div className="space-y-0.5">
               {['"That\'s too low"', '"I need to think about it"', '"My neighbor sold for more"'].map(o => (
                 <div key={o} className="flex items-start gap-1.5">
-                  <AlertCircle size={9} className="mt-0.5 flex-shrink-0" style={{ color: '#fb923c' }} />
+                  <AlertCircle size={9} className="mt-0.5 flex-shrink-0" style={{ color: '#ff9f0a' }} />
                   <span className="text-[10px] text-jtext">{o}</span>
                 </div>
               ))}
@@ -338,14 +338,14 @@ function PreCallStrategyTab({ briefs, callLogs }: { briefs: PrecallBrief[]; call
           </div>
           <div className="flex gap-3">
             <div className="flex-1 rounded-sm px-3 py-2 text-center"
-              style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+              style={{ background: 'rgba(48,209,88,0.08)', border: '1px solid rgba(48,209,88,0.2)' }}>
               <div className="text-[8px] text-dimtext uppercase tracking-wider mb-0.5">Call Path</div>
               <div className="text-[10px] font-bold text-ngreen">CASH ONLY</div>
             </div>
             <div className="flex-1 rounded-sm px-3 py-2 text-center"
-              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
+              style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
               <div className="text-[8px] text-dimtext uppercase tracking-wider mb-0.5">Novation Pivot</div>
-              <div className="text-[10px] font-bold" style={{ color: '#f87171' }}>NO</div>
+              <div className="text-[10px] font-bold" style={{ color: '#ff453a' }}>NO</div>
             </div>
           </div>
         </div>
@@ -355,10 +355,10 @@ function PreCallStrategyTab({ briefs, callLogs }: { briefs: PrecallBrief[]; call
       <GlassCard accent="gold" padding="p-4" className="lg:col-span-2">
         <SectionTitle accent="gold">Strategy Logic</SectionTitle>
         <div className="flex gap-3 items-start">
-          <BrainCircuit size={16} className="flex-shrink-0 mt-0.5" style={{ color: '#fbbf24' }} />
+          <BrainCircuit size={16} className="flex-shrink-0 mt-0.5" style={{ color: '#ff9f0a' }} />
           <p className="text-[11px] text-jtext leading-relaxed">
             David is starting at <span className="text-textb font-semibold">${start60.toLocaleString()} (60%)</span> because
-            the seller has 38% equity and a 45-day timeline. Novation is <span className="text-[#f87171] font-semibold">not</span> being
+            the seller has 38% equity and a 45-day timeline. Novation is <span className="text-[#ff453a] font-semibold">not</span> being
             considered because the timeline is too short — Novation requires 60+ days. Pull-down tactics will be applied
             before any bump to 65%. The seller is a solo decision-maker, so David will push for a commitment on the first call
             rather than scheduling a callback. Underwriter escalation is available if seller shows movement but stalls at the 65% mark.
@@ -395,8 +395,8 @@ function LiveCallTab() {
       {/* No active call banner */}
       <GlassCard accent="cyan" padding="p-3">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#67e8f9', boxShadow: '0 0 6px rgba(103,232,249,0.8)' }} />
-          <span className="text-[10px] font-orbitron tracking-[2px] uppercase" style={{ color: '#67e8f9' }}>
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#64d2ff', boxShadow: '0 0 6px rgba(100,210,255,0.8)' }} />
+          <span className="text-[10px] font-orbitron tracking-[2px] uppercase" style={{ color: '#64d2ff' }}>
             Demo Mode — No Active Call
           </span>
           <span className="text-[9px] text-dimtext ml-2">Live data populates here during a real call via GHL webhook</span>
@@ -416,23 +416,23 @@ function LiveCallTab() {
                 <motion.div
                   key={step}
                   className="flex items-center gap-3 px-3 py-2 rounded-sm"
-                  style={{ background: current ? 'rgba(103,232,249,0.08)' : 'transparent',
-                    border: current ? '1px solid rgba(103,232,249,0.2)' : '1px solid transparent' }}
+                  style={{ background: current ? 'rgba(100,210,255,0.08)' : 'transparent',
+                    border: current ? '1px solid rgba(100,210,255,0.2)' : '1px solid transparent' }}
                   animate={current ? { opacity: [1, 0.7, 1] } : {}}
                   transition={{ repeat: Infinity, duration: 2 }}
                 >
                   <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{
-                      background: done ? 'rgba(74,222,128,0.15)' : current ? 'rgba(103,232,249,0.15)' : 'rgba(82,82,110,0.2)',
-                      border: `1px solid ${done ? '#4ade80' : current ? '#67e8f9' : '#52526e'}`,
+                      background: done ? 'rgba(48,209,88,0.15)' : current ? 'rgba(100,210,255,0.15)' : 'rgba(82,82,110,0.2)',
+                      border: `1px solid ${done ? '#30d158' : current ? '#64d2ff' : '#52526e'}`,
                     }}>
-                    {done ? <CheckCircle size={11} style={{ color: '#4ade80' }} />
-                      : current ? <Loader2 size={10} className="animate-spin" style={{ color: '#67e8f9' }} />
+                    {done ? <CheckCircle size={11} style={{ color: '#30d158' }} />
+                      : current ? <Loader2 size={10} className="animate-spin" style={{ color: '#64d2ff' }} />
                       : <span className="text-[8px] text-dimtext">{idx}</span>}
                   </div>
-                  <span className="text-[11px]" style={{ color: done ? '#4ade80' : current ? '#67e8f9' : '#52526e' }}>{step}</span>
+                  <span className="text-[11px]" style={{ color: done ? '#30d158' : current ? '#64d2ff' : '#52526e' }}>{step}</span>
                   {done && <span className="ml-auto text-[9px] text-dimtext">✓</span>}
-                  {current && <span className="ml-auto text-[9px]" style={{ color: '#67e8f9' }}>in progress...</span>}
+                  {current && <span className="ml-auto text-[9px]" style={{ color: '#64d2ff' }}>in progress...</span>}
                 </motion.div>
               );
             })}
@@ -445,7 +445,7 @@ function LiveCallTab() {
             <SectionTitle accent="cyan">Live Decision Log</SectionTitle>
             <div className="space-y-2">
               {LIVE_DECISIONS.map((d, i) => (
-                <div key={i} className="border-l-2 pl-2" style={{ borderColor: 'rgba(103,232,249,0.3)' }}>
+                <div key={i} className="border-l-2 pl-2" style={{ borderColor: 'rgba(100,210,255,0.3)' }}>
                   <div className="text-[9px] font-orbitron text-dimtext">{d.time}</div>
                   <div className="text-[10px] text-jtext mt-0.5">{d.text}</div>
                 </div>
@@ -457,10 +457,10 @@ function LiveCallTab() {
             <SectionTitle accent="gold">Owner Feedback</SectionTitle>
             <div className="grid grid-cols-2 gap-1.5 mb-3">
               {[
-                { icon: <ThumbsUp size={10} />, label: 'Good', color: '#4ade80' },
-                { icon: <AlertTriangle size={10} />, label: 'Slow down', color: '#fb923c' },
-                { icon: <RefreshCw size={10} />, label: 'Change approach', color: '#67e8f9' },
-                { icon: <DollarSign size={10} />, label: 'Try Novation', color: '#a78bfa' },
+                { icon: <ThumbsUp size={10} />, label: 'Good', color: '#30d158' },
+                { icon: <AlertTriangle size={10} />, label: 'Slow down', color: '#ff9f0a' },
+                { icon: <RefreshCw size={10} />, label: 'Change approach', color: '#64d2ff' },
+                { icon: <DollarSign size={10} />, label: 'Try Novation', color: '#bf5af2' },
               ].map(btn => (
                 <motion.button
                   key={btn.label}
@@ -480,12 +480,12 @@ function LiveCallTab() {
                 onKeyDown={e => e.key === 'Enter' && sendFeedback()}
                 placeholder="Type live feedback..."
                 className="flex-1 bg-bg3 border border-border2 rounded-sm px-2 py-1.5 text-[10px] text-textb outline-none"
-                style={{ caretColor: '#fbbf24' }}
+                style={{ caretColor: '#ff9f0a' }}
               />
               <motion.button
                 onClick={sendFeedback}
                 className="px-2.5 py-1.5 rounded-sm"
-                style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}
+                style={{ background: 'rgba(255,159,10,0.15)', border: '1px solid rgba(255,159,10,0.3)', color: '#ff9f0a' }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Send size={10} />
@@ -493,7 +493,7 @@ function LiveCallTab() {
             </div>
             {feedbackSent && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="mt-1.5 text-[9px]" style={{ color: '#4ade80' }}>
+                className="mt-1.5 text-[9px]" style={{ color: '#30d158' }}>
                 ✓ Feedback sent to David
               </motion.div>
             )}
@@ -512,19 +512,19 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
   const isDemo = adaptations.length === 0;
 
   const CAT_COLOR: Record<string, string> = {
-    'Objection Response': '#4ade80',
-    'Hold Timing':        '#67e8f9',
-    'Qualification':      '#60a5fa',
-    'Novation Trigger':   '#a78bfa',
-    'Offer Ladder':       '#fbbf24',
-    'Call Flow':          '#fb923c',
+    'Objection Response': '#30d158',
+    'Hold Timing':        '#64d2ff',
+    'Qualification':      '#0a84ff',
+    'Novation Trigger':   '#bf5af2',
+    'Offer Ladder':       '#ff9f0a',
+    'Call Flow':          '#ff9f0a',
   };
 
   return (
     <div className="space-y-4">
       <GlassCard accent="green" padding="p-3">
         <div className="flex items-center gap-2">
-          <TrendingUp size={13} style={{ color: '#4ade80' }} />
+          <TrendingUp size={13} style={{ color: '#30d158' }} />
           <span className="text-[10px] text-jtext">
             {isDemo
               ? 'Demo data — Connect david_adaptations table for live adaptation tracking'
@@ -535,7 +535,7 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
 
       <div className="space-y-3">
         {data.map(a => {
-          const color = CAT_COLOR[a.category] ?? '#fbbf24';
+          const color = CAT_COLOR[a.category] ?? '#ff9f0a';
           const isOpen = expanded === a.id;
           return (
             <GlassCard key={a.id} accent="gold" padding="p-0" hover={false}>
@@ -554,7 +554,7 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
                       <span className="text-[9px] text-dimtext">{timeAgo(a.created_at)}</span>
                       {a.owner_approved && (
                         <span className="text-[9px] font-orbitron tracking-wider px-1.5 py-0.5 rounded-sm"
-                          style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                          style={{ background: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.25)', color: '#30d158' }}>
                           APPROVED
                         </span>
                       )}
@@ -584,7 +584,7 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
                         <div className="mt-3">
                           <div className="text-[9px] text-dimtext uppercase tracking-[1.5px] mb-1">Before</div>
                           <div className="px-3 py-2 rounded-sm text-[10px] text-jtext"
-                            style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}>
+                            style={{ background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.2)' }}>
                             {a.before_text}
                           </div>
                         </div>
@@ -593,7 +593,7 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
                         <div>
                           <div className="text-[9px] text-dimtext uppercase tracking-[1.5px] mb-1">After</div>
                           <div className="px-3 py-2 rounded-sm text-[10px] text-jtext"
-                            style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                            style={{ background: 'rgba(48,209,88,0.06)', border: '1px solid rgba(48,209,88,0.2)' }}>
                             {a.after_text}
                           </div>
                         </div>
@@ -607,13 +607,13 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
                           {a.performance_before && (
                             <div>
                               <div className="text-[9px] text-dimtext">Before Performance</div>
-                              <div className="text-[13px] font-bold" style={{ color: '#f87171' }}>{a.performance_before}</div>
+                              <div className="text-[13px] font-bold" style={{ color: '#ff453a' }}>{a.performance_before}</div>
                             </div>
                           )}
                           {a.performance_after && (
                             <div>
                               <div className="text-[9px] text-dimtext">After Performance</div>
-                              <div className="text-[13px] font-bold" style={{ color: '#4ade80' }}>{a.performance_after}</div>
+                              <div className="text-[13px] font-bold" style={{ color: '#30d158' }}>{a.performance_after}</div>
                             </div>
                           )}
                         </div>
@@ -621,15 +621,15 @@ function LearningUpdatesTab({ adaptations }: { adaptations: Adaptation[] }) {
                       <div className="flex gap-2 pt-1">
                         <motion.button
                           className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-[9px] font-medium"
-                          style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}
-                          whileHover={{ background: 'rgba(74,222,128,0.18)' }}
+                          style={{ background: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.25)', color: '#30d158' }}
+                          whileHover={{ background: 'rgba(48,209,88,0.18)' }}
                         >
                           <CheckCircle size={9} /> Approve
                         </motion.button>
                         <motion.button
                           className="flex items-center gap-1 px-3 py-1.5 rounded-sm text-[9px] font-medium"
-                          style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', color: '#f87171' }}
-                          whileHover={{ background: 'rgba(248,113,113,0.15)' }}
+                          style={{ background: 'rgba(255,69,58,0.08)', border: '1px solid rgba(255,69,58,0.2)', color: '#ff453a' }}
+                          whileHover={{ background: 'rgba(255,69,58,0.15)' }}
                         >
                           <RotateCcw size={9} /> Roll Back
                         </motion.button>
@@ -721,7 +721,7 @@ function MockSimulatorTab() {
       if (line.startsWith('[DECISION POINT')) {
         return (
           <div key={i} className="my-2 px-3 py-2 rounded-sm text-[9px] italic"
-            style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}>
+            style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)', color: '#ff9f0a' }}>
             {line}
           </div>
         );
@@ -729,7 +729,7 @@ function MockSimulatorTab() {
       if (line.startsWith('DAVID:')) {
         return (
           <div key={i} className="my-1.5">
-            <span className="text-[9px] font-bold" style={{ color: '#4ade80' }}>DAVID: </span>
+            <span className="text-[9px] font-bold" style={{ color: '#30d158' }}>DAVID: </span>
             <span className="text-[10px] text-textb">{line.replace('DAVID: ', '')}</span>
           </div>
         );
@@ -740,7 +740,7 @@ function MockSimulatorTab() {
         const rest = line.slice(colonIdx + 1);
         return (
           <div key={i} className="my-1.5">
-            <span className="text-[9px] font-bold" style={{ color: '#67e8f9' }}>{speaker}: </span>
+            <span className="text-[9px] font-bold" style={{ color: '#64d2ff' }}>{speaker}: </span>
             <span className="text-[10px] text-jtext">{rest}</span>
           </div>
         );
@@ -777,7 +777,7 @@ function MockSimulatorTab() {
                   value={config[f.key as keyof SimConfig]}
                   onChange={e => setConfig(c => ({ ...c, [f.key]: e.target.value }))}
                   className="w-full mt-0.5 bg-bg3 border border-border2 rounded-sm px-2 py-1.5 text-[10px] text-textb outline-none"
-                  style={{ caretColor: '#a78bfa' }}
+                  style={{ caretColor: '#bf5af2' }}
                 />
               </div>
             ))}
@@ -794,7 +794,7 @@ function MockSimulatorTab() {
                   value={config[f.key as keyof SimConfig]}
                   onChange={e => setConfig(c => ({ ...c, [f.key]: e.target.value }))}
                   className="w-full mt-0.5 bg-bg3 border border-border2 rounded-sm px-2 py-1.5 text-[10px] text-textb outline-none appearance-none"
-                  style={{ caretColor: '#a78bfa' }}
+                  style={{ caretColor: '#bf5af2' }}
                 >
                   {f.options.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
@@ -805,9 +805,9 @@ function MockSimulatorTab() {
               onClick={runMock}
               disabled={loading}
               className="w-full py-2.5 rounded-sm text-[10px] font-bold font-orbitron tracking-[2px] flex items-center justify-center gap-2 mt-2"
-              style={{ background: loading ? 'rgba(167,139,250,0.1)' : 'rgba(167,139,250,0.15)',
-                border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa' }}
-              whileHover={!loading ? { background: 'rgba(167,139,250,0.22)' } : {}}
+              style={{ background: loading ? 'rgba(191,90,242,0.1)' : 'rgba(191,90,242,0.15)',
+                border: '1px solid rgba(191,90,242,0.35)', color: '#bf5af2' }}
+              whileHover={!loading ? { background: 'rgba(191,90,242,0.22)' } : {}}
               whileTap={!loading ? { scale: 0.98 } : {}}
             >
               {loading ? <><Loader2 size={11} className="animate-spin" /> GENERATING...</> : <><Play size={11} /> START MOCK CALL</>}
@@ -826,15 +826,15 @@ function MockSimulatorTab() {
               <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
                 <Play size={24} style={{ color: '#52526e' }} />
                 <div className="text-[11px] text-dimtext">Configure the scenario and click Start Mock Call</div>
-                <div className="text-[9px] text-dimtext">David's internal decisions show in <span style={{ color: '#fbbf24' }}>gold brackets</span></div>
+                <div className="text-[9px] text-dimtext">David's internal decisions show in <span style={{ color: '#ff9f0a' }}>gold brackets</span></div>
               </div>
             ) : (
               <div ref={transcriptRef}
                 className="h-80 overflow-y-auto pr-1 space-y-0.5 scrollbar-thin"
-                style={{ scrollbarColor: 'rgba(167,139,250,0.3) transparent' }}>
+                style={{ scrollbarColor: 'rgba(191,90,242,0.3) transparent' }}>
                 {loading ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3">
-                    <Loader2 size={20} className="animate-spin" style={{ color: '#a78bfa' }} />
+                    <Loader2 size={20} className="animate-spin" style={{ color: '#bf5af2' }} />
                     <div className="text-[10px] text-dimtext font-orbitron tracking-[2px]">RUNNING SIMULATION...</div>
                     <div className="text-[9px] text-dimtext">Claude is generating your seller persona and call flow</div>
                   </div>
@@ -859,7 +859,7 @@ function MockSimulatorTab() {
                   <div key={s.label} className="space-y-1">
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] text-dimtext">{s.label}</span>
-                      <span className="text-[10px] font-bold" style={{ color: s.val >= 8 ? '#4ade80' : s.val >= 6 ? '#fbbf24' : '#f87171' }}>
+                      <span className="text-[10px] font-bold" style={{ color: s.val >= 8 ? '#30d158' : s.val >= 6 ? '#ff9f0a' : '#ff453a' }}>
                         {s.val}/10
                       </span>
                     </div>
@@ -868,21 +868,21 @@ function MockSimulatorTab() {
                         initial={{ width: 0 }}
                         animate={{ width: `${s.val * 10}%` }}
                         transition={{ duration: 0.6, delay: 0.1 }}
-                        style={{ background: s.val >= 8 ? '#4ade80' : s.val >= 6 ? '#fbbf24' : '#f87171' }} />
+                        style={{ background: s.val >= 8 ? '#30d158' : s.val >= 6 ? '#ff9f0a' : '#ff453a' }} />
                     </div>
                   </div>
                 ))}
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] text-dimtext">Close Probability</span>
-                    <span className="text-[13px] font-bold" style={{ color: '#fbbf24' }}>{score.close_probability}%</span>
+                    <span className="text-[13px] font-bold" style={{ color: '#ff9f0a' }}>{score.close_probability}%</span>
                   </div>
                   <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                     <motion.div className="h-full rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${score.close_probability}%` }}
                       transition={{ duration: 0.8 }}
-                      style={{ background: '#fbbf24' }} />
+                      style={{ background: '#ff9f0a' }} />
                   </div>
                 </div>
               </div>
@@ -892,7 +892,7 @@ function MockSimulatorTab() {
                   <div className="space-y-1">
                     {score.suggestions.map((s, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <Star size={9} className="mt-0.5 flex-shrink-0" style={{ color: '#fbbf24' }} />
+                        <Star size={9} className="mt-0.5 flex-shrink-0" style={{ color: '#ff9f0a' }} />
                         <span className="text-[10px] text-jtext">{s}</span>
                       </div>
                     ))}
@@ -918,7 +918,7 @@ function CallHistoryTab({ callLogs }: { callLogs: CallLog[] }) {
     <div className="space-y-4">
       {isDemo && (
         <GlassCard accent="gold" padding="p-3">
-          <div className="text-[9px] font-orbitron tracking-wider" style={{ color: '#fbbf24' }}>
+          <div className="text-[9px] font-orbitron tracking-wider" style={{ color: '#ff9f0a' }}>
             DEMO DATA — Connect david_call_logs table for live history
           </div>
         </GlassCard>
@@ -947,7 +947,7 @@ function CallHistoryTab({ callLogs }: { callLogs: CallLog[] }) {
                         </span>
                         {call.contract_sent && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-sm"
-                            style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }}>
+                            style={{ background: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.25)', color: '#30d158' }}>
                             CONTRACT SENT ✓
                           </span>
                         )}
@@ -955,7 +955,7 @@ function CallHistoryTab({ callLogs }: { callLogs: CallLog[] }) {
                       <div className="text-[10px] text-dimtext mt-0.5">{call.address}</div>
                       <div className="flex items-center gap-4 mt-1.5">
                         {call.final_price && (
-                          <span className="text-[11px] font-bold" style={{ color: '#fbbf24' }}>{fmtPrice(call.final_price)}</span>
+                          <span className="text-[11px] font-bold" style={{ color: '#ff9f0a' }}>{fmtPrice(call.final_price)}</span>
                         )}
                         <span className="text-[9px] text-dimtext">{fmtDuration(call.call_duration)}</span>
                         <span className="text-[9px] text-dimtext">{call.objections_handled} objections</span>
@@ -1026,7 +1026,7 @@ function TelegramLogTab() {
     <div className="space-y-4">
       {isDemo && (
         <GlassCard accent="cyan" padding="p-3">
-          <div className="text-[9px] font-orbitron tracking-wider" style={{ color: '#67e8f9' }}>
+          <div className="text-[9px] font-orbitron tracking-wider" style={{ color: '#64d2ff' }}>
             DEMO DATA — Live Telegram events from jarvis_log table will appear here
           </div>
         </GlassCard>
@@ -1035,7 +1035,7 @@ function TelegramLogTab() {
         {data.map(log => {
           const isDeal    = log.type === 'DEAL AGREED';
           const isNovation= log.type === 'NOVATION CHECK';
-          const color     = isDeal ? '#4ade80' : isNovation ? '#a78bfa' : '#67e8f9';
+          const color     = isDeal ? '#30d158' : isNovation ? '#bf5af2' : '#64d2ff';
           const approved  = log.approved;
 
           return (
@@ -1074,9 +1074,9 @@ function TelegramLogTab() {
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-[9px] font-orbitron tracking-wider px-2 py-0.5 rounded-sm"
                       style={{
-                        background: approved ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.08)',
-                        border: approved ? '1px solid rgba(74,222,128,0.25)' : '1px solid rgba(248,113,113,0.2)',
-                        color: approved ? '#4ade80' : '#f87171',
+                        background: approved ? 'rgba(48,209,88,0.1)' : 'rgba(255,69,58,0.08)',
+                        border: approved ? '1px solid rgba(48,209,88,0.25)' : '1px solid rgba(255,69,58,0.2)',
+                        color: approved ? '#30d158' : '#ff453a',
                       }}>
                       {approved ? '✓ APPROVED' : '✗ DECLINED'}
                     </span>
@@ -1132,10 +1132,10 @@ export function DavidTraining() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <BrainCircuit size={18} style={{ color: '#fbbf24' }} />
+            <BrainCircuit size={18} style={{ color: '#ff9f0a' }} />
             <h1 className="font-orbitron text-[14px] font-bold text-textb tracking-[2px]">DAVID AI TRAINING CENTER</h1>
             <span className="text-[8px] font-orbitron tracking-[2px] px-2 py-0.5 rounded-sm"
-              style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}>
+              style={{ background: 'rgba(255,159,10,0.12)', border: '1px solid rgba(255,159,10,0.3)', color: '#ff9f0a' }}>
               ALPHA
             </span>
           </div>
@@ -1145,9 +1145,9 @@ export function DavidTraining() {
         {/* Quick stats */}
         <div className="flex gap-3 flex-shrink-0">
           {[
-            { label: 'Calls Total',  val: totalCalls,  color: '#67e8f9' },
-            { label: 'Closed',       val: totalClosed, color: '#4ade80' },
-            { label: 'Adaptations',  val: (adaptations.length > 0 ? adaptations : SAMPLE_ADAPTATIONS).length, color: '#fbbf24' },
+            { label: 'Calls Total',  val: totalCalls,  color: '#64d2ff' },
+            { label: 'Closed',       val: totalClosed, color: '#30d158' },
+            { label: 'Adaptations',  val: (adaptations.length > 0 ? adaptations : SAMPLE_ADAPTATIONS).length, color: '#ff9f0a' },
           ].map(s => (
             <div key={s.label} className="text-center px-3 py-2 rounded-sm"
               style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}>
@@ -1162,8 +1162,8 @@ export function DavidTraining() {
       {latestAdapt && (
         <GlassCard accent="gold" padding="p-3" hover={false}>
           <div className="flex items-center gap-2.5">
-            <Zap size={12} style={{ color: '#fbbf24' }} />
-            <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#fbbf24' }}>
+            <Zap size={12} style={{ color: '#ff9f0a' }} />
+            <span className="text-[9px] font-orbitron tracking-[1.5px] uppercase" style={{ color: '#ff9f0a' }}>
               Latest Adaptation
             </span>
             <span className="text-[10px] text-jtext">{latestAdapt.what_changed}</span>
@@ -1183,9 +1183,9 @@ export function DavidTraining() {
               onClick={() => setActiveTab(tab.id)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-sm flex-shrink-0 text-[10px] font-medium transition-colors"
               style={{
-                background: active ? 'rgba(251,191,36,0.12)' : 'transparent',
-                border: active ? '1px solid rgba(251,191,36,0.28)' : '1px solid transparent',
-                color: active ? '#fbbf24' : '#52526e',
+                background: active ? 'rgba(255,159,10,0.12)' : 'transparent',
+                border: active ? '1px solid rgba(255,159,10,0.28)' : '1px solid transparent',
+                color: active ? '#ff9f0a' : '#52526e',
               }}
               whileHover={!active ? { color: '#c4c4d6' } : {}}
             >

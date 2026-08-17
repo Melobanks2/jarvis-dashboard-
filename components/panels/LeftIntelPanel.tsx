@@ -7,8 +7,8 @@ import { useApp } from '@/lib/AppContext';
 import { timeAgo } from '@/lib/supabase';
 
 const STATUS_DOT: Record<string, string> = {
-  active:  '#4ade80',
-  idle:    '#fbbf24',
+  active:  '#30d158',
+  idle:    '#ff9f0a',
   offline: '#2a2a3e',
 };
 
@@ -37,18 +37,18 @@ export function LeftIntelPanel() {
           <div className="flex items-center gap-3 py-1">
             <div className="relative">
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px]"
-                style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                style={{ background: 'rgba(48,209,88,0.12)', border: '1px solid rgba(48,209,88,0.2)' }}>
                 👑
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-ngreen border border-bg"
-                style={{ boxShadow: '0 0 4px rgba(74,222,128,0.6)' }} />
+                style={{ boxShadow: '0 0 4px rgba(48,209,88,0.6)' }} />
             </div>
             <div className="flex-1">
               <div className="text-[12px] font-medium text-textb leading-none">Jarvis</div>
               <div className="text-[10px] text-dimtext mt-0.5">Chief of Staff</div>
             </div>
             <span className="text-[9px] font-medium rounded-full px-2 py-0.5"
-              style={{ background: 'rgba(74,222,128,0.10)', color: '#4ade80' }}>Live</span>
+              style={{ background: 'rgba(48,209,88,0.10)', color: '#30d158' }}>Live</span>
           </div>
 
           <div className="mt-1 flex flex-col gap-1">
@@ -73,10 +73,10 @@ export function LeftIntelPanel() {
         {/* Today's Performance */}
         <Section label="Today">
           <div className="grid grid-cols-2 gap-3">
-            <Metric label="Calls"          value={calls.length}   color="#67e8f9" />
-            <Metric label="Answered"       value={answered}       color="#4ade80" />
-            <Metric label="Hot Found"      value={hot}            color="#f87171" />
-            <Metric label="In Pipeline"    value="—"              color="#a78bfa" />
+            <Metric label="Calls"          value={calls.length}   color="#64d2ff" />
+            <Metric label="Answered"       value={answered}       color="#30d158" />
+            <Metric label="Hot Found"      value={hot}            color="#ff453a" />
+            <Metric label="In Pipeline"    value="—"              color="#bf5af2" />
           </div>
         </Section>
 
@@ -146,8 +146,8 @@ function Health({ label, ok }: { label: string; ok: boolean }) {
       <span className="text-[11px] text-jtext">{label}</span>
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full"
-          style={{ background: ok ? '#4ade80' : '#f87171', boxShadow: ok ? '0 0 4px rgba(74,222,128,0.5)' : '0 0 4px rgba(248,113,113,0.5)' }} />
-        <span className="text-[9px] font-medium" style={{ color: ok ? '#4ade80' : '#f87171' }}>{ok ? 'Operational' : 'Down'}</span>
+          style={{ background: ok ? '#30d158' : '#ff453a', boxShadow: ok ? '0 0 4px rgba(48,209,88,0.5)' : '0 0 4px rgba(255,69,58,0.5)' }} />
+        <span className="text-[9px] font-medium" style={{ color: ok ? '#30d158' : '#ff453a' }}>{ok ? 'Operational' : 'Down'}</span>
       </div>
     </div>
   );

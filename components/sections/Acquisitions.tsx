@@ -9,9 +9,10 @@ import {
 } from 'lucide-react';
 import { ScriptGuide } from './ScriptGuide';
 import { AcqLists } from './AcqLists';
+import { DIALER_API } from '@/lib/config';
 
 // Personal power-dialer backend (served by the VPS, like the Leads board).
-const ACQ_API = 'https://api.jarviscommandcenter.space/dialer/personal';
+const ACQ_API = `${DIALER_API}/dialer/personal`;
 const STORE_KEY = 'acq_session_id';
 
 type Outcome = 'hot' | 'warm' | 'cold' | 'callback' | 'not_interested';
@@ -51,10 +52,10 @@ const TIER_OPTIONS = [
 ];
 
 const OUTCOMES: { key: Outcome; label: string; color: string; Icon: React.ElementType }[] = [
-  { key: 'hot',            label: 'Hot',            color: '#ff5a3c', Icon: Flame },
-  { key: 'warm',           label: 'Warm',           color: '#fbbf24', Icon: Zap },
-  { key: 'cold',           label: 'Cold',           color: '#60a5fa', Icon: Snowflake },
-  { key: 'callback',       label: 'Callback',       color: '#a78bfa', Icon: CalendarClock },
+  { key: 'hot',            label: 'Hot',            color: '#ff453a', Icon: Flame },
+  { key: 'warm',           label: 'Warm',           color: '#ff9f0a', Icon: Zap },
+  { key: 'cold',           label: 'Cold',           color: '#0a84ff', Icon: Snowflake },
+  { key: 'callback',       label: 'Callback',       color: '#bf5af2', Icon: CalendarClock },
   { key: 'not_interested', label: 'Not Interested', color: '#71717a', Icon: XCircle },
 ];
 
@@ -206,7 +207,7 @@ export function Acquisitions() {
             <button key={t.key} onClick={() => setView(t.key)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold transition-all"
               style={on
-                ? { background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }
+                ? { background: 'rgba(48,209,88,0.15)', color: '#30d158', border: '1px solid rgba(48,209,88,0.4)' }
                 : { background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }}>
               <Icon size={13} /> {t.label}
             </button>
@@ -218,7 +219,7 @@ export function Acquisitions() {
 
       {view === 'lists' && <AcqLists onSessionStarted={handleListSession} />}
 
-      {view === 'dialer' && msg && <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>{msg}</div>}
+      {view === 'dialer' && msg && <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: 'rgba(255,69,58,0.08)', color: '#ff453a', border: '1px solid rgba(255,69,58,0.2)' }}>{msg}</div>}
 
       {/* ── IDLE: pick filters + Play ── */}
       {view === 'dialer' && status === 'idle' && (
@@ -266,8 +267,8 @@ export function Acquisitions() {
 
 function PhoneOutgoingDot() {
   return (
-    <span className="inline-flex w-6 h-6 rounded-md items-center justify-center" style={{ background: 'rgba(74,222,128,0.14)', border: '1px solid rgba(74,222,128,0.3)' }}>
-      <PhoneCall size={13} style={{ color: '#4ade80' }} />
+    <span className="inline-flex w-6 h-6 rounded-md items-center justify-center" style={{ background: 'rgba(48,209,88,0.14)', border: '1px solid rgba(48,209,88,0.3)' }}>
+      <PhoneCall size={13} style={{ color: '#30d158' }} />
     </span>
   );
 }
@@ -286,7 +287,7 @@ function SetupCard({ pipeline, setPipeline, tiers, toggleTier, busy, onStart }: 
             <button key={p.key} onClick={() => setPipeline(p.key)}
               className="px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors"
               style={pipeline === p.key
-                ? { background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }
+                ? { background: 'rgba(48,209,88,0.15)', color: '#30d158', border: '1px solid rgba(48,209,88,0.4)' }
                 : { background: 'rgba(255,255,255,0.03)', color: '#c4c4d6', border: '1px solid rgba(255,255,255,0.08)' }}>
               {p.label}
             </button>
@@ -302,7 +303,7 @@ function SetupCard({ pipeline, setPipeline, tiers, toggleTier, busy, onStart }: 
               <button key={t.key} onClick={() => toggleTier(t.key)}
                 className="px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors"
                 style={on
-                  ? { background: 'rgba(96,165,250,0.14)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.4)' }
+                  ? { background: 'rgba(10,132,255,0.14)', color: '#0a84ff', border: '1px solid rgba(10,132,255,0.4)' }
                   : { background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }}>
                 {t.label}
               </button>
@@ -314,7 +315,7 @@ function SetupCard({ pipeline, setPipeline, tiers, toggleTier, busy, onStart }: 
         onClick={onStart}
         disabled={busy || tiers.length === 0}
         className="self-start flex items-center gap-2 px-6 py-3 rounded-lg text-[14px] font-bold transition-all disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)', color: '#06140b', boxShadow: '0 6px 24px rgba(34,197,94,0.3)' }}>
+        style={{ background: 'linear-gradient(135deg,#30d158,#30d158)', color: '#06140b', boxShadow: '0 6px 24px rgba(48,209,88,0.3)' }}>
         <Play size={16} fill="#06140b" /> {busy ? 'Pulling leads…' : 'Play'}
       </button>
     </div>
@@ -329,7 +330,7 @@ function ProgressPanel({ state, status, onPause, onResume, busy }: {
     paused: 'Paused', ended: 'Session complete', unknown: 'Loading…',
   };
   const statusColor: Record<string, string> = {
-    dialing: '#4ade80', connected: '#fbbf24', review: '#a78bfa', paused: '#71717a', ended: '#4ade80', unknown: '#71717a',
+    dialing: '#30d158', connected: '#ff9f0a', review: '#bf5af2', paused: '#71717a', ended: '#30d158', unknown: '#71717a',
   };
   return (
     <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -346,8 +347,8 @@ function ProgressPanel({ state, status, onPause, onResume, busy }: {
         )}
         {status === 'paused' && (
           <button onClick={onResume} disabled={busy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold disabled:opacity-50"
-            style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}>
-            <Play size={12} fill="#4ade80" /> Resume
+            style={{ background: 'rgba(48,209,88,0.15)', color: '#30d158', border: '1px solid rgba(48,209,88,0.4)' }}>
+            <Play size={12} fill="#30d158" /> Resume
           </button>
         )}
       </div>
@@ -355,7 +356,7 @@ function ProgressPanel({ state, status, onPause, onResume, busy }: {
       {/* Total bar */}
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-[10px] text-dimtext"><span>Total</span><span>{state.totalDone}/{state.total}</span></div>
-        <Bar done={state.totalDone} total={state.total} color="#4ade80" height={10} />
+        <Bar done={state.totalDone} total={state.total} color="#30d158" height={10} />
       </div>
 
       {/* Per-tier bars */}
@@ -364,14 +365,14 @@ function ProgressPanel({ state, status, onPause, onResume, busy }: {
           const active = state.currentTier === t.key;
           return (
             <div key={t.key} className="flex flex-col gap-1.5 rounded-md p-2.5"
-              style={{ background: active ? 'rgba(96,165,250,0.06)' : 'transparent', border: active ? '1px solid rgba(96,165,250,0.25)' : '1px solid transparent' }}>
+              style={{ background: active ? 'rgba(10,132,255,0.06)' : 'transparent', border: active ? '1px solid rgba(10,132,255,0.25)' : '1px solid transparent' }}>
               <div className="flex justify-between text-[11px]">
-                <span style={{ color: active ? '#60a5fa' : '#c4c4d6', fontWeight: active ? 700 : 500 }}>
+                <span style={{ color: active ? '#0a84ff' : '#c4c4d6', fontWeight: active ? 700 : 500 }}>
                   {t.label}{active && ' ←'}
                 </span>
                 <span className="text-dimtext">{t.done}/{t.total}</span>
               </div>
-              <Bar done={t.done} total={t.total} color={active ? '#60a5fa' : '#52526e'} />
+              <Bar done={t.done} total={t.total} color={active ? '#0a84ff' : '#52526e'} />
             </div>
           );
         })}
@@ -384,7 +385,7 @@ function LeadCard({ card }: { card: Card }) {
   const Field = ({ Icon, label, value }: { Icon: React.ElementType; label: string; value?: string }) =>
     value ? (
       <div className="flex items-start gap-2">
-        <Icon size={13} className="mt-0.5 flex-shrink-0" style={{ color: '#4ade80' }} />
+        <Icon size={13} className="mt-0.5 flex-shrink-0" style={{ color: '#30d158' }} />
         <div>
           <div className="text-[9px] uppercase tracking-wider text-dimtext">{label}</div>
           <div className="text-[12px] text-textb">{value}</div>
@@ -393,10 +394,10 @@ function LeadCard({ card }: { card: Card }) {
     ) : null;
 
   return (
-    <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(20,16,8,0.7)', border: '1px solid rgba(251,191,36,0.3)' }}>
+    <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(20,16,8,0.7)', border: '1px solid rgba(255,159,10,0.3)' }}>
       <div className="flex items-center gap-2">
-        <PhoneCall size={15} style={{ color: '#fbbf24' }} className="animate-pulse" />
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#fbbf24' }}>Live call — talk now</span>
+        <PhoneCall size={15} style={{ color: '#ff9f0a' }} className="animate-pulse" />
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#ff9f0a' }}>Live call — talk now</span>
       </div>
       <div>
         <div className="text-[20px] font-bold text-textb">{card.name || 'Unknown caller'}</div>
@@ -442,10 +443,10 @@ function ReviewCard({ proposal, editOutcome, setEditOutcome, editNote, setEditNo
   busy: boolean; onApprove: () => void;
 }) {
   return (
-    <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(16,12,24,0.75)', border: '1px solid rgba(167,139,250,0.3)' }}>
+    <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(16,12,24,0.75)', border: '1px solid rgba(191,90,242,0.3)' }}>
       <div className="flex items-center gap-2">
-        <Pencil size={14} style={{ color: '#a78bfa' }} />
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#a78bfa' }}>
+        <Pencil size={14} style={{ color: '#bf5af2' }} />
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#bf5af2' }}>
           {proposal.manual ? 'Log the outcome' : 'AI suggested — approve or edit'}
         </span>
       </div>
@@ -482,7 +483,7 @@ function ReviewCard({ proposal, editOutcome, setEditOutcome, editNote, setEditNo
       <div className="flex items-center gap-2">
         <button onClick={onApprove} disabled={busy || !editOutcome}
           className="flex items-center gap-2 px-5 py-2.5 rounded-md text-[13px] font-bold disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)', color: '#06140b' }}>
+          style={{ background: 'linear-gradient(135deg,#30d158,#30d158)', color: '#06140b' }}>
           <ThumbsUp size={14} /> {busy ? 'Saving…' : 'Approve & continue'}
         </button>
         <span className="text-[10px] text-dimtext">Logs the note + moves the lead in GHL, then dials the next.</span>
@@ -494,17 +495,17 @@ function ReviewCard({ proposal, editOutcome, setEditOutcome, editNote, setEditNo
 function SummaryCard({ state, onReset }: { state: State; onReset: () => void }) {
   const s = state.summary || {};
   const cells = [
-    { key: 'hot', label: 'Hot', color: '#ff5a3c' },
-    { key: 'warm', label: 'Warm', color: '#fbbf24' },
-    { key: 'cold', label: 'Cold', color: '#60a5fa' },
-    { key: 'callback', label: 'Callbacks', color: '#a78bfa' },
+    { key: 'hot', label: 'Hot', color: '#ff453a' },
+    { key: 'warm', label: 'Warm', color: '#ff9f0a' },
+    { key: 'cold', label: 'Cold', color: '#0a84ff' },
+    { key: 'callback', label: 'Callbacks', color: '#bf5af2' },
     { key: 'not_interested', label: 'Not Int.', color: '#71717a' },
-    { key: 'contacted', label: 'Total talked', color: '#4ade80' },
+    { key: 'contacted', label: 'Total talked', color: '#30d158' },
   ];
   return (
-    <div className="rounded-lg p-6 flex flex-col gap-5" style={{ background: 'rgba(8,16,11,0.8)', border: '1px solid rgba(74,222,128,0.3)' }}>
+    <div className="rounded-lg p-6 flex flex-col gap-5" style={{ background: 'rgba(8,16,11,0.8)', border: '1px solid rgba(48,209,88,0.3)' }}>
       <div className="flex items-center gap-2">
-        <Trophy size={18} style={{ color: '#4ade80' }} />
+        <Trophy size={18} style={{ color: '#30d158' }} />
         <span className="text-[14px] font-bold text-textb">Session complete — nice work</span>
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -517,7 +518,7 @@ function SummaryCard({ state, onReset }: { state: State; onReset: () => void }) 
       </div>
       <div className="text-[11px] text-dimtext">Cleared {state.totalDone} of {state.total} leads across {state.tiers.length} tiers.</div>
       <button onClick={onReset} className="self-start flex items-center gap-2 px-4 py-2 rounded-md text-[12px] font-medium"
-        style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.35)' }}>
+        style={{ background: 'rgba(48,209,88,0.12)', color: '#30d158', border: '1px solid rgba(48,209,88,0.35)' }}>
         <RotateCcw size={13} /> Start a new session
       </button>
     </div>

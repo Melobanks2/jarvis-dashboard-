@@ -9,33 +9,41 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg:     '#0c0d14',
-        bg2:    '#121320',
-        bg3:    '#181928',
-        bg4:    '#1d1e2e',
-        // accent palette — toned down, premium
-        ngreen: '#4ade80',
-        ngold:  '#fbbf24',
-        nred:   '#f87171',
-        norange:'#fb923c',
-        nblue:  '#60a5fa',
-        npurple:'#a78bfa',
-        ncyan:  '#67e8f9',
-        // text
-        ndim:   '#1c1c2e',
-        dimtext:'#52526e',
-        jtext:  '#c4c4d6',
-        textb:  '#e4e4f0',
-        // borders
-        jborder:'rgba(255,255,255,0.06)',
-        border2:'rgba(255,255,255,0.10)',
+        // surfaces — deep blue-cast base; panels are translucent white
+        // washes so everything reads as glass over the ambient field.
+        bg:     '#05070d',
+        bg2:    'rgba(255,255,255,0.05)',
+        bg3:    'rgba(255,255,255,0.07)',
+        bg4:    'rgba(255,255,255,0.10)',
+        // accents — Apple system colors, blue-first.
+        // blue = identity/info · green = positive/money · red = urgent
+        // · orange = warning/aging. gold aliases to orange.
+        ngreen: '#30d158',
+        ngold:  '#ff9f0a',
+        nred:   '#ff453a',
+        norange:'#ff9f0a',
+        nblue:  '#0a84ff',
+        npurple:'#bf5af2',
+        ncyan:  '#64d2ff',
+        // text — Apple label hierarchy on dark
+        ndim:   'rgba(235,235,245,0.18)',
+        dimtext:'rgba(235,235,245,0.35)',
+        jtext:  'rgba(235,235,245,0.62)',
+        textb:  '#f5f5f7',
+        // borders — `border` was referenced 12x but never defined, so those
+        // divider lines rendered as nothing. Defined now.
+        border: 'rgba(255,255,255,0.08)',
+        jborder:'rgba(255,255,255,0.08)',
+        border2:'rgba(255,255,255,0.14)',
       },
       fontFamily: {
-        orbitron: ['Orbitron', 'monospace'],
+        // Orbitron retired — resolves to the system stack so every legacy
+        // font-orbitron callsite instantly loses the sci-fi face.
+        orbitron: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Inter', 'sans-serif'],
         spacemono: ['var(--font-space-mono)', 'monospace'],
         dmsans:   ['var(--font-dm-sans)', 'sans-serif'],
-        mono:     ['Inter', '-apple-system', 'sans-serif'],
-        sans:     ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        mono:     ['SF Mono', 'ui-monospace', 'Menlo', 'monospace'],
+        sans:     ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Inter', 'sans-serif'],
       },
       animation: {
         blink:       'blink 3s ease-in-out infinite',

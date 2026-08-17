@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DIALER_API } from '@/lib/config';
 
 // Refund tracker feed — served by the VPS dialer-server (joins iSpeed orders to
 // the GHL iSpeed pipeline by phone, then buckets by refund window). Same host
 // as the leads board. Recomputed server-side every 5 min; we poll every 60s.
-const REFUNDS_API = 'https://api.jarviscommandcenter.space/dialer/ispeed-refunds';
+const REFUNDS_API = `${DIALER_API}/dialer/ispeed-refunds`;
 const AUTO_REFRESH_MS = 60 * 1000;
 
 export type Disposition = 'keep' | 'refund' | 'new' | 'requested';

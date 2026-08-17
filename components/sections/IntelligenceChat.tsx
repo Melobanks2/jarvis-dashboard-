@@ -182,10 +182,10 @@ Color tokens (use as inline styles — these match the dashboard theme):
 | Token  | bg                            | border    | text      | use for                          |
 |--------|-------------------------------|-----------|-----------|----------------------------------|
 | Purple | rgba(83,74,183,0.12)          | #534AB7   | #a89ef5   | main concepts, primary           |
-| Teal   | rgba(15,110,86,0.18)          | #0F6E56   | #4ade80   | active / running / success       |
-| Coral  | rgba(248,113,113,0.12)        | #f87171   | #fca5a5   | broken / error / disabled        |
-| Blue   | rgba(24,95,165,0.15)          | #185FA5   | #93c5fd   | data / info                      |
-| Amber  | rgba(186,117,23,0.15)         | #BA7517   | #fcd34d   | warning / manual / pending       |
+| Teal   | rgba(15,110,86,0.18)          | #0F6E56   | #30d158   | active / running / success       |
+| Coral  | rgba(255,69,58,0.12)        | #ff453a   | #ff6961   | broken / error / disabled        |
+| Blue   | rgba(24,95,165,0.15)          | #185FA5   | #6db3ff   | data / info                      |
+| Amber  | rgba(186,117,23,0.15)         | #BA7517   | #ffb340   | warning / manual / pending       |
 | Gray   | rgba(95,94,90,0.15)           | #5F5E5A   | #c4c4d6   | structural / neutral             |
 
 CARD TEMPLATES — copy and fill in. Be high-density: short labels, tight padding, no decorative fluff.
@@ -202,16 +202,16 @@ CARD TEMPLATES — copy and fill in. Be high-density: short labels, tight paddin
 <div class="flex flex-wrap items-center gap-2 my-3">
   <span class="rounded-lg px-3 py-2 text-sm font-medium" style="background:rgba(83,74,183,0.12);border:1px solid #534AB7;color:#a89ef5">Step 1</span>
   <span style="color:#5F5E5A">→</span>
-  <span class="rounded-lg px-3 py-2 text-sm font-medium" style="background:rgba(15,110,86,0.18);border:1px solid #0F6E56;color:#4ade80">Step 2</span>
+  <span class="rounded-lg px-3 py-2 text-sm font-medium" style="background:rgba(15,110,86,0.18);border:1px solid #0F6E56;color:#30d158">Step 2</span>
   <span style="color:#5F5E5A">→</span>
-  <span class="rounded-lg px-3 py-2 text-sm font-medium" style="background:rgba(24,95,165,0.15);border:1px solid #185FA5;color:#93c5fd">Step 3</span>
+  <span class="rounded-lg px-3 py-2 text-sm font-medium" style="background:rgba(24,95,165,0.15);border:1px solid #185FA5;color:#6db3ff">Step 3</span>
 </div>
 
 3) Component card (one thing, what it does, status):
 <div class="rounded-lg p-3 my-3" style="background:rgba(83,74,183,0.12);border:1px solid #534AB7">
   <div class="flex items-start justify-between gap-3">
     <div class="font-semibold" style="color:#fff">Component name</div>
-    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:rgba(15,110,86,0.25);color:#4ade80">running</span>
+    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background:rgba(15,110,86,0.25);color:#30d158">running</span>
   </div>
   <div class="text-sm mt-1" style="color:#c4c4d6">One-sentence what + why.</div>
 </div>
@@ -230,7 +230,7 @@ CARD TEMPLATES — copy and fill in. Be high-density: short labels, tight paddin
 
 5) Decision / recommendation card (single emphasized takeaway):
 <div class="rounded-lg p-4 my-3" style="background:rgba(15,110,86,0.18);border:1px solid #0F6E56">
-  <div class="text-[10px] uppercase tracking-wide mb-1" style="color:#4ade80">Recommendation</div>
+  <div class="text-[10px] uppercase tracking-wide mb-1" style="color:#30d158">Recommendation</div>
   <div class="font-semibold" style="color:#fff">The one-sentence call.</div>
   <div class="text-sm mt-2" style="color:#c4c4d6">Brief why.</div>
 </div>
@@ -608,7 +608,7 @@ export function IntelligenceChat() {
 
   const maxContext = MODEL_MAX_CONTEXT[selectedModel];
   const contextPercent = Math.min(100, (estimatedTokens / maxContext) * 100);
-  const contextBarColor = contextPercent >= 90 ? '#f87171' : contextPercent >= 70 ? '#fcd34d' : '#a78bfa';
+  const contextBarColor = contextPercent >= 90 ? '#ff453a' : contextPercent >= 70 ? '#ffb340' : '#bf5af2';
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -1274,7 +1274,7 @@ export function IntelligenceChat() {
                           className="p-1 rounded"
                           style={{ color: '#52526e' }}
                           title="Delete session"
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#fca5a5'; }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#ff6961'; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#52526e'; }}
                         >
                           <Trash2 size={11} />
@@ -1392,7 +1392,7 @@ export function IntelligenceChat() {
       {voiceError && (
         <div
           className="px-4 py-1.5 text-[10px] flex-shrink-0"
-          style={{ background: 'rgba(248,113,113,0.12)', color: '#fca5a5' }}
+          style={{ background: 'rgba(255,69,58,0.12)', color: '#ff6961' }}
         >
           {voiceError}
         </div>
@@ -1402,7 +1402,7 @@ export function IntelligenceChat() {
       {tablesError && (
         <div
           className="px-4 py-2 text-[11px] flex-shrink-0"
-          style={{ background: 'rgba(153,60,29,0.2)', borderBottom: '1px solid rgba(153,60,29,0.3)', color: '#f87171' }}
+          style={{ background: 'rgba(153,60,29,0.2)', borderBottom: '1px solid rgba(153,60,29,0.3)', color: '#ff453a' }}
         >
           ⚠️ {tablesError}
         </div>
@@ -1420,7 +1420,7 @@ export function IntelligenceChat() {
               className="w-12 h-12 rounded-full flex items-center justify-center"
               style={{ background: 'rgba(83,74,183,0.15)', border: '1px solid rgba(83,74,183,0.25)' }}
             >
-              <Brain size={22} style={{ color: '#a78bfa' }} />
+              <Brain size={22} style={{ color: '#bf5af2' }} />
             </div>
             <div className="text-[13px] font-semibold" style={{ color: '#c4c4d6' }}>Jarvis Intelligence Chat</div>
             <div className="text-[11px] text-center max-w-xs leading-relaxed" style={{ color: '#52526e' }}>
@@ -1449,7 +1449,7 @@ export function IntelligenceChat() {
               className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center mt-1"
               style={{ background: 'rgba(83,74,183,0.2)', border: '1px solid rgba(83,74,183,0.3)' }}
             >
-              <Brain size={13} style={{ color: '#a78bfa' }} />
+              <Brain size={13} style={{ color: '#bf5af2' }} />
             </div>
             <div
               className="px-4 py-3 rounded-2xl rounded-tl-sm"
@@ -1460,7 +1460,7 @@ export function IntelligenceChat() {
                   <motion.div
                     key={i}
                     className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: '#a78bfa' }}
+                    style={{ background: '#bf5af2' }}
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1.2, delay: i * 0.2, repeat: Infinity }}
                   />
@@ -1479,7 +1479,7 @@ export function IntelligenceChat() {
           <button
             onClick={() => setQueueOpen(v => !v)}
             className="w-full flex items-center gap-2 px-4 py-2 text-[10px] font-medium"
-            style={{ color: '#a78bfa', background: 'rgba(83,74,183,0.05)' }}
+            style={{ color: '#bf5af2', background: 'rgba(83,74,183,0.05)' }}
           >
             <Zap size={11} />
             Prompt Queue ({pushQueue.length})
@@ -1515,7 +1515,7 @@ export function IntelligenceChat() {
                         title="Copy prompt"
                       >
                         {copiedId === item.id
-                          ? <Check size={9} style={{ color: '#4ade80' }} />
+                          ? <Check size={9} style={{ color: '#30d158' }} />
                           : <Copy size={9} />}
                       </button>
                       <button
@@ -1599,9 +1599,9 @@ export function IntelligenceChat() {
             title={geminiStream.isStreaming ? 'Stop voice mode (Gemini Live)' : 'Start voice mode (Gemini Live)'}
             className="flex-shrink-0 px-3 py-3 rounded-xl flex items-center gap-2 text-[11px] font-medium"
             style={{
-              background: geminiStream.isStreaming ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.06)',
-              color: geminiStream.isStreaming ? '#4ade80' : geminiApiKey ? '#a89ef5' : '#52526e',
-              border: geminiStream.isStreaming ? '1px solid rgba(74,222,128,0.4)' : '1px solid rgba(255,255,255,0.1)',
+              background: geminiStream.isStreaming ? 'rgba(48,209,88,0.15)' : 'rgba(255,255,255,0.06)',
+              color: geminiStream.isStreaming ? '#30d158' : geminiApiKey ? '#a89ef5' : '#52526e',
+              border: geminiStream.isStreaming ? '1px solid rgba(48,209,88,0.4)' : '1px solid rgba(255,255,255,0.1)',
               minHeight: 44,
               opacity: !geminiApiKey ? 0.5 : 1,
               cursor: !geminiApiKey ? 'not-allowed' : 'pointer',
@@ -1638,9 +1638,9 @@ export function IntelligenceChat() {
           title={isListening ? 'Stop listening' : 'Dictate with microphone'}
           className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
           style={{
-            background: isListening ? 'rgba(248,113,113,0.85)' : 'rgba(255,255,255,0.06)',
+            background: isListening ? 'rgba(255,69,58,0.85)' : 'rgba(255,255,255,0.06)',
             color: isListening ? '#fff' : '#a89ef5',
-            border: isListening ? '1px solid rgba(248,113,113,0.6)' : '1px solid rgba(255,255,255,0.1)',
+            border: isListening ? '1px solid rgba(255,69,58,0.6)' : '1px solid rgba(255,255,255,0.1)',
             transition: 'background 0.15s, color 0.15s',
           }}
           whileHover={{ scale: 1.04 }}
@@ -1720,7 +1720,7 @@ function CodeUpdateCard({ payload }: { payload: CodeUpdatePayload }) {
         <button
           onClick={onCopyCode}
           className="text-[11px] px-2 py-1 rounded flex items-center gap-1 flex-shrink-0"
-          style={{ background: codeCopied ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.05)', color: codeCopied ? '#4ade80' : '#c4c4d6' }}
+          style={{ background: codeCopied ? 'rgba(48,209,88,0.2)' : 'rgba(255,255,255,0.05)', color: codeCopied ? '#30d158' : '#c4c4d6' }}
         >
           {codeCopied ? <Check size={11} /> : <Copy size={11} />}
           {codeCopied ? 'Copied' : 'Copy'}
@@ -1763,9 +1763,9 @@ function CodeUpdateCard({ payload }: { payload: CodeUpdatePayload }) {
                 title="Click to copy"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-mono"
                 style={{
-                  background: copiedIdx === i ? 'rgba(74,222,128,0.15)' : 'rgba(15,110,86,0.15)',
-                  border: `1px solid ${copiedIdx === i ? '#4ade80' : '#0F6E56'}`,
-                  color: copiedIdx === i ? '#4ade80' : '#a7f3d0',
+                  background: copiedIdx === i ? 'rgba(48,209,88,0.15)' : 'rgba(15,110,86,0.15)',
+                  border: `1px solid ${copiedIdx === i ? '#30d158' : '#0F6E56'}`,
+                  color: copiedIdx === i ? '#30d158' : '#a7f3d0',
                   cursor: 'pointer',
                   maxWidth: '100%',
                 }}
@@ -1945,7 +1945,7 @@ function MessageBubble({
             style={{
               fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
               border: '1px solid rgba(255,255,255,0.12)', background: 'transparent',
-              color: copiedId === msg.id ? '#4ade80' : 'rgba(255,255,255,0.45)',
+              color: copiedId === msg.id ? '#30d158' : 'rgba(255,255,255,0.45)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
             }}
           >
@@ -1957,9 +1957,9 @@ function MessageBubble({
             title={speakingMsgId === msg.id ? 'Stop speaking' : 'Read aloud'}
             style={{
               fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
-              border: `1px solid ${speakingMsgId === msg.id ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.12)'}`,
-              background: speakingMsgId === msg.id ? 'rgba(74,222,128,0.12)' : 'transparent',
-              color: speakingMsgId === msg.id ? '#4ade80' : 'rgba(255,255,255,0.45)',
+              border: `1px solid ${speakingMsgId === msg.id ? 'rgba(48,209,88,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              background: speakingMsgId === msg.id ? 'rgba(48,209,88,0.12)' : 'transparent',
+              color: speakingMsgId === msg.id ? '#30d158' : 'rgba(255,255,255,0.45)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
             }}
           >
@@ -1983,8 +1983,8 @@ function MessageBubble({
               title="Bundle URL, status, response body, and proxy state into a Claude Code debugging prompt"
               style={{
                 fontSize: '11px', padding: '4px 12px', borderRadius: '5px',
-                border: '1px solid rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.1)',
-                color: '#fca5a5', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                border: '1px solid rgba(255,69,58,0.4)', background: 'rgba(255,69,58,0.1)',
+                color: '#ff6961', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
               }}
             >
               <Zap size={10} />
@@ -2016,7 +2016,7 @@ function PushModal({
 }) {
   const isError = mode === 'error';
   const accent = isError ? '248,113,113' : '83,74,183'; // red vs purple rgb
-  const iconColor = isError ? '#fca5a5' : '#a78bfa';
+  const iconColor = isError ? '#ff6961' : '#bf5af2';
   const title = isError ? 'Push error to Claude Code' : 'Push to Claude Code';
   return (
     <>
@@ -2090,9 +2090,9 @@ function PushModal({
             onClick={onCopy}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-semibold"
             style={{
-              background: copied ? 'rgba(74,222,128,0.15)' : `rgba(${accent},0.85)`,
-              color: copied ? '#4ade80' : '#fff',
-              border: copied ? '1px solid rgba(74,222,128,0.3)' : 'none',
+              background: copied ? 'rgba(48,209,88,0.15)' : `rgba(${accent},0.85)`,
+              color: copied ? '#30d158' : '#fff',
+              border: copied ? '1px solid rgba(48,209,88,0.3)' : 'none',
             }}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.97 }}

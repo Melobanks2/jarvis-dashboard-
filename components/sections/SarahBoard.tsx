@@ -15,11 +15,11 @@ import { timeAgo, fmtTime } from '@/lib/supabase';
 /* ─────────────────────────── palette / helpers ─────────────────────────── */
 
 const TEMP: Record<Temp, { c: string; label: string }> = {
-  hot:  { c: '#f87171', label: 'HOT'  },
-  warm: { c: '#fb923c', label: 'WARM' },
-  cold: { c: '#60a5fa', label: 'COLD' },
+  hot:  { c: '#ff453a', label: 'HOT'  },
+  warm: { c: '#ff9f0a', label: 'WARM' },
+  cold: { c: '#0a84ff', label: 'COLD' },
   dead: { c: '#5a5a80', label: 'DEAD' },
-  new:  { c: '#67e8f9', label: 'NEW'  },
+  new:  { c: '#64d2ff', label: 'NEW'  },
 };
 
 const ISPEED_PIPELINE = 'VJwMSSMaP8KhiPiUfSG0';
@@ -44,10 +44,10 @@ interface RefundMeta { days: number; color: string; urgency: RefundUrgency; cost
 function refundMeta(lead: Lead): RefundMeta | null {
   if (lead.source !== 'ispeed' || lead.daysUntilDeadline == null) return null;
   const d = lead.daysUntilDeadline;
-  let color = '#4ade80', urgency: RefundUrgency = 'safe';
+  let color = '#30d158', urgency: RefundUrgency = 'safe';
   if (d < 0)                                   { color = '#5a5a80'; urgency = 'expired'; }
-  else if (lead.deadlineUrgent || d <= 5)      { color = '#f87171'; urgency = 'danger';  }
-  else if (d <= 12)                            { color = '#fbbf24'; urgency = 'warn';    }
+  else if (lead.deadlineUrgent || d <= 5)      { color = '#ff453a'; urgency = 'danger';  }
+  else if (d <= 12)                            { color = '#ff9f0a'; urgency = 'warn';    }
   return { days: d, color, urgency, cost: lead.purchasePrice ?? null, purchasedAt: lead.purchasedAt ?? null };
 }
 
@@ -78,7 +78,7 @@ function CopyBtn({ text, label, size = 11 }: { text: string; label?: string; siz
       title={label ? `Copy ${label}` : 'Copy'}
       aria-label={label ? `Copy ${label}` : 'Copy'}
       className="flex-shrink-0 transition-colors hover:text-ncyan"
-      style={{ color: done ? '#4ade80' : '#52526e', lineHeight: 0 }}
+      style={{ color: done ? '#30d158' : '#52526e', lineHeight: 0 }}
     >
       {done ? <Check size={size} /> : <Copy size={size} />}
     </button>
@@ -127,9 +127,9 @@ function CopyLeadBtn({ lead }: { lead: Lead }) {
       }}
       className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors flex-shrink-0"
       style={{
-        color:       done ? '#4ade80' : '#67e8f9',
-        borderColor: done ? 'rgba(74,222,128,0.35)' : 'rgba(103,232,249,0.3)',
-        background:  done ? 'rgba(74,222,128,0.08)' : 'rgba(103,232,249,0.06)',
+        color:       done ? '#30d158' : '#64d2ff',
+        borderColor: done ? 'rgba(48,209,88,0.35)' : 'rgba(100,210,255,0.3)',
+        background:  done ? 'rgba(48,209,88,0.08)' : 'rgba(100,210,255,0.06)',
       }}
     >
       {done ? <Check size={11} /> : <Copy size={11} />}
@@ -314,7 +314,7 @@ function TimeToggle({ range, onChange }: { range: TimeRange; onChange: (r: TimeR
           className="px-2.5 py-1.5 text-[10px] font-medium transition-colors"
           style={{
             color: range === t.key ? '#0c0d14' : '#52526e',
-            background: range === t.key ? '#fbbf24' : 'transparent',
+            background: range === t.key ? '#ff9f0a' : 'transparent',
           }}
         >
           {t.label}
@@ -340,7 +340,7 @@ function ViewToggle({ view, onChange }: { view: 'board' | 'table'; onChange: (v:
             key={o.key}
             onClick={() => onChange(o.key)}
             className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium transition-colors"
-            style={{ color: active ? '#0c0d14' : '#52526e', background: active ? '#fbbf24' : 'transparent' }}
+            style={{ color: active ? '#0c0d14' : '#52526e', background: active ? '#ff9f0a' : 'transparent' }}
           >
             <o.Icon size={11} /> {o.label}
           </button>
@@ -444,7 +444,7 @@ function LeadTable({ leads, pipelines, onMove, liveKeys }: {
                     key={c.key}
                     onClick={() => toggleSort(c.key)}
                     className="px-3 py-2.5 text-[9.5px] font-semibold uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-jtext"
-                    style={{ color: active ? '#fbbf24' : '#8a8aa3', textAlign: c.align || 'left' }}
+                    style={{ color: active ? '#ff9f0a' : '#8a8aa3', textAlign: c.align || 'left' }}
                   >
                     <span className="inline-flex items-center gap-1" style={{ flexDirection: c.align === 'right' ? 'row-reverse' : 'row' }}>
                       {c.label}
@@ -466,14 +466,14 @@ function LeadTable({ leads, pipelines, onMove, liveKeys }: {
               const r = refundMeta(lead);
               const t = TEMP[lead.temp];
               const onCall = liveKeys.has(digits10(lead.phone));
-              const ageColor = dStage == null ? '#5a5a80' : dStage > 30 ? '#f87171' : dStage > 14 ? '#fbbf24' : '#9a9ab3';
+              const ageColor = dStage == null ? '#5a5a80' : dStage > 30 ? '#ff453a' : dStage > 14 ? '#ff9f0a' : '#9a9ab3';
               const selValue = stageOptions.find(s => normStage(s) === normStage(lead.stageName)) || lead.stageName;
               return (
                 <tr
                   key={lead.id}
                   onClick={() => setDetail({ id: lead.id, tab: 'detail' })}
                   className="border-b border-border2 cursor-pointer transition-colors hover:bg-white/[0.03]"
-                  style={onCall ? { background: 'rgba(248,113,113,0.06)' } : undefined}
+                  style={onCall ? { background: 'rgba(255,69,58,0.06)' } : undefined}
                 >
                   {/* Lead */}
                   <td className="px-3 py-2 align-top">
@@ -537,12 +537,12 @@ function LeadTable({ leads, pipelines, onMove, liveKeys }: {
 
 function StatStrip({ m, callsToday }: { m: { total: number; hot: number; warm: number; atRisk: number; capitalAtRisk: number; invested: number }; callsToday: number }) {
   const cards: { label: string; value: string | number; color: string; icon: React.ReactNode; sub?: string }[] = [
-    { label: 'Opportunities', value: m.total,                       color: '#67e8f9', icon: <Target size={13} /> },
-    { label: 'Hot',           value: m.hot,                         color: '#f87171', icon: <Flame size={13} /> },
-    { label: 'Warm',          value: m.warm,                        color: '#fb923c', icon: <Flame size={13} /> },
-    { label: 'Refund at risk',value: m.atRisk,                      color: '#fbbf24', icon: <AlertTriangle size={13} />, sub: `$${m.capitalAtRisk.toLocaleString()} exposed` },
-    { label: 'Capital in',    value: `$${m.invested.toLocaleString()}`, color: '#a78bfa', icon: <DollarSign size={13} /> },
-    { label: 'Calls today',   value: callsToday,                    color: '#4ade80', icon: <Phone size={13} /> },
+    { label: 'Opportunities', value: m.total,                       color: '#64d2ff', icon: <Target size={13} /> },
+    { label: 'Hot',           value: m.hot,                         color: '#ff453a', icon: <Flame size={13} /> },
+    { label: 'Warm',          value: m.warm,                        color: '#ff9f0a', icon: <Flame size={13} /> },
+    { label: 'Refund at risk',value: m.atRisk,                      color: '#ff9f0a', icon: <AlertTriangle size={13} />, sub: `$${m.capitalAtRisk.toLocaleString()} exposed` },
+    { label: 'Capital in',    value: `$${m.invested.toLocaleString()}`, color: '#bf5af2', icon: <DollarSign size={13} /> },
+    { label: 'Calls today',   value: callsToday,                    color: '#30d158', icon: <Phone size={13} /> },
   ];
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
@@ -569,11 +569,11 @@ function HotStrip({ leads }: { leads: Lead[] }) {
   const hot = leads.filter(l => l.temp === 'hot');
   if (!hot.length) return null;
   return (
-    <div className="rounded-lg border p-3" style={{ background: 'rgba(248,113,113,0.05)', borderColor: 'rgba(248,113,113,0.28)' }}>
+    <div className="rounded-lg border p-3" style={{ background: 'rgba(255,69,58,0.05)', borderColor: 'rgba(255,69,58,0.28)' }}>
       <div className="flex items-center gap-2 mb-2.5">
-        <Flame size={14} style={{ color: '#f87171' }} />
+        <Flame size={14} style={{ color: '#ff453a' }} />
         <span className="text-[12px] font-semibold text-textb">Call these now</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>{hot.length} hot</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,69,58,0.12)', color: '#ff453a' }}>{hot.length} hot</span>
         <span className="text-[9px] text-dimtext ml-auto">qualified hot — close while they're warm</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -598,7 +598,7 @@ function HotRow({ lead }: { lead: Lead }) {
     } catch { setSt('err'); }
   }
   return (
-    <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(248,113,113,0.22)' }}>
+    <div className="flex items-center gap-2 rounded-md border px-2.5 py-1.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,69,58,0.22)' }}>
       <div className="min-w-0 flex-1">
         <div className="text-[11.5px] font-medium text-textb truncate">{lead.name}</div>
         <div className="text-[9px] text-dimtext truncate">{[lead.pain, lead.askingPrice, lead.address].filter(Boolean).join(' · ') || '—'}</div>
@@ -608,7 +608,7 @@ function HotRow({ lead }: { lead: Lead }) {
         onClick={call}
         disabled={st === 'busy' || st === 'done'}
         className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border flex-shrink-0 disabled:opacity-60"
-        style={{ color: st === 'done' ? '#4ade80' : '#f87171', borderColor: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)' }}
+        style={{ color: st === 'done' ? '#30d158' : '#ff453a', borderColor: 'rgba(255,69,58,0.35)', background: 'rgba(255,69,58,0.08)' }}
       >
         {st === 'busy' ? <Loader2 size={11} className="animate-spin" /> : st === 'done' ? <Check size={11} /> : st === 'err' ? <X size={11} /> : <Phone size={11} />}
         {st === 'done' ? 'Dialing' : st === 'err' ? 'Failed' : 'Call'}
@@ -687,14 +687,14 @@ function LiveTranscriptPanel() {
   const stageTxt = active?.stage ? (STAGE_LABEL[active.stage] || active.stage) : null;
 
   return (
-    <div className="rounded-lg border p-3" style={{ background: 'rgba(255,255,255,0.012)', borderColor: onCall ? 'rgba(248,113,113,0.28)' : 'rgba(255,255,255,0.06)' }}>
+    <div className="rounded-lg border p-3" style={{ background: 'rgba(255,255,255,0.012)', borderColor: onCall ? 'rgba(255,69,58,0.28)' : 'rgba(255,255,255,0.06)' }}>
       {/* header */}
       <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-        <Radio size={13} style={{ color: onCall ? '#f87171' : '#52526e' }} className={onCall ? 'animate-pulse' : ''} />
+        <Radio size={13} style={{ color: onCall ? '#ff453a' : '#52526e' }} className={onCall ? 'animate-pulse' : ''} />
         <span className="text-[11px] font-semibold text-textb">Live Call</span>
         {onCall ? (
           <>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>on call</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,69,58,0.12)', color: '#ff453a' }}>on call</span>
             <span className="text-[11px] text-textb font-medium ml-1 truncate max-w-[160px]">{active!.name}</span>
             {active!.address && <span className="text-[9px] text-dimtext truncate max-w-[200px] hidden sm:inline">· {active!.address}</span>}
             <span className="ml-auto flex items-center gap-2.5 text-[10px]">
@@ -716,9 +716,9 @@ function LiveTranscriptPanel() {
               onClick={() => setActiveId(c.callId)}
               className="text-[9px] px-1.5 py-0.5 rounded-sm border transition-colors"
               style={{
-                borderColor: c.callId === activeId ? 'rgba(248,113,113,0.4)' : 'rgba(255,255,255,0.08)',
-                color: c.callId === activeId ? '#f87171' : '#7a7a9a',
-                background: c.callId === activeId ? 'rgba(248,113,113,0.08)' : 'transparent',
+                borderColor: c.callId === activeId ? 'rgba(255,69,58,0.4)' : 'rgba(255,255,255,0.08)',
+                color: c.callId === activeId ? '#ff453a' : '#7a7a9a',
+                background: c.callId === activeId ? 'rgba(255,69,58,0.08)' : 'transparent',
               }}
             >
               {c.name}
@@ -745,11 +745,11 @@ function LiveTranscriptPanel() {
                 <div
                   className="max-w-[78%] rounded-lg px-2.5 py-1.5"
                   style={{
-                    background: isSarah ? 'rgba(74,222,128,0.08)' : 'rgba(103,232,249,0.08)',
-                    border: `1px solid ${isSarah ? 'rgba(74,222,128,0.22)' : 'rgba(103,232,249,0.22)'}`,
+                    background: isSarah ? 'rgba(48,209,88,0.08)' : 'rgba(100,210,255,0.08)',
+                    border: `1px solid ${isSarah ? 'rgba(48,209,88,0.22)' : 'rgba(100,210,255,0.22)'}`,
                   }}
                 >
-                  <div className="text-[8px] uppercase tracking-[0.5px] mb-0.5" style={{ color: isSarah ? '#4ade80' : '#67e8f9' }}>
+                  <div className="text-[8px] uppercase tracking-[0.5px] mb-0.5" style={{ color: isSarah ? '#30d158' : '#64d2ff' }}>
                     {isSarah ? 'Sarah' : 'Seller'}
                   </div>
                   <div className="text-[11.5px] text-jtext leading-snug whitespace-pre-wrap">{t.text}</div>
@@ -770,9 +770,9 @@ function LivePanel({ live }: { live: { id: string; name: string; address: string
   return (
     <div className="rounded-lg border border-border2 p-3" style={{ background: 'rgba(255,255,255,0.012)' }}>
       <div className="flex items-center gap-2 mb-2.5">
-        <Radio size={13} style={{ color: liveCount ? '#f87171' : '#52526e' }} className={liveCount ? 'animate-pulse' : ''} />
+        <Radio size={13} style={{ color: liveCount ? '#ff453a' : '#52526e' }} className={liveCount ? 'animate-pulse' : ''} />
         <span className="text-[11px] font-semibold text-textb">Recent Calls Today</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: liveCount ? 'rgba(248,113,113,0.12)' : 'rgba(255,255,255,0.05)', color: liveCount ? '#f87171' : '#52526e' }}>
+        <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: liveCount ? 'rgba(255,69,58,0.12)' : 'rgba(255,255,255,0.05)', color: liveCount ? '#ff453a' : '#52526e' }}>
           {liveCount ? `${liveCount} just landed` : 'idle'}
         </span>
       </div>
@@ -785,11 +785,11 @@ function LivePanel({ live }: { live: { id: string; name: string; address: string
               key={c.id}
               className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border"
               style={{
-                background: c.isLive ? 'rgba(248,113,113,0.05)' : 'rgba(255,255,255,0.015)',
-                borderColor: c.isLive ? 'rgba(248,113,113,0.28)' : 'rgba(255,255,255,0.06)',
+                background: c.isLive ? 'rgba(255,69,58,0.05)' : 'rgba(255,255,255,0.015)',
+                borderColor: c.isLive ? 'rgba(255,69,58,0.28)' : 'rgba(255,255,255,0.06)',
               }}
             >
-              <Radio size={11} style={{ color: c.isLive ? '#f87171' : '#52526e' }} className={c.isLive ? 'animate-pulse' : ''} />
+              <Radio size={11} style={{ color: c.isLive ? '#ff453a' : '#52526e' }} className={c.isLive ? 'animate-pulse' : ''} />
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-medium text-textb truncate">{c.name}</div>
                 {c.address && <div className="text-[9px] text-dimtext truncate">{c.address}</div>}
@@ -873,8 +873,8 @@ function Board({ leads, pipelines, onMove, liveKeys }: { leads: Lead[]; pipeline
               }}
               className="flex flex-col rounded-lg border transition-colors flex-shrink-0 w-[270px]"
               style={{
-                borderColor: isOver ? '#fbbf24' : 'rgba(255,255,255,0.06)',
-                background: isOver ? 'rgba(251,191,36,0.05)' : 'rgba(255,255,255,0.012)',
+                borderColor: isOver ? '#ff9f0a' : 'rgba(255,255,255,0.06)',
+                background: isOver ? 'rgba(255,159,10,0.05)' : 'rgba(255,255,255,0.012)',
               }}
             >
               <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border2">
@@ -966,11 +966,11 @@ function OppCard({ lead, onCall, onOpen, onDragStart, onDragEnd }: { lead: Lead;
       onClick={handleClick}
       onDoubleClick={handleDouble}
       animate={onCall
-        ? { boxShadow: ['0 0 0 1px rgba(248,113,113,0.45), 0 0 6px rgba(248,113,113,0.15)', '0 0 0 1px rgba(248,113,113,0.85), 0 0 16px rgba(248,113,113,0.5)', '0 0 0 1px rgba(248,113,113,0.45), 0 0 6px rgba(248,113,113,0.15)'] }
+        ? { boxShadow: ['0 0 0 1px rgba(255,69,58,0.45), 0 0 6px rgba(255,69,58,0.15)', '0 0 0 1px rgba(255,69,58,0.85), 0 0 16px rgba(255,69,58,0.5)', '0 0 0 1px rgba(255,69,58,0.45), 0 0 6px rgba(255,69,58,0.15)'] }
         : { boxShadow: '0 0 0 0 rgba(0,0,0,0)' }}
       transition={onCall ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
       className="rounded-lg border p-2.5 cursor-pointer transition-colors hover:border-white/20"
-      style={{ background: onCall ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.025)', borderColor: onCall ? 'rgba(248,113,113,0.5)' : 'rgba(255,255,255,0.07)' }}
+      style={{ background: onCall ? 'rgba(255,69,58,0.06)' : 'rgba(255,255,255,0.025)', borderColor: onCall ? 'rgba(255,69,58,0.5)' : 'rgba(255,255,255,0.07)' }}
     >
       {/* header */}
       <div className="flex items-start justify-between gap-2">
@@ -993,7 +993,7 @@ function OppCard({ lead, onCall, onOpen, onDragStart, onDragEnd }: { lead: Lead;
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {onCall && (
-            <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(248,113,113,0.18)', color: '#f87171' }}>
+            <span className="flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(255,69,58,0.18)', color: '#ff453a' }}>
               <Radio size={8} className="animate-pulse" /> ON CALL
             </span>
           )}
@@ -1021,12 +1021,12 @@ function OppCard({ lead, onCall, onOpen, onDragStart, onDragEnd }: { lead: Lead;
       {(lead.pain || lead.timeline || lead.condition) && (
         <div className="flex items-center flex-wrap gap-1.5 mt-2">
           {lead.pain && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-sm truncate max-w-full" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }} title={lead.pain}>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-sm truncate max-w-full" style={{ background: 'rgba(191,90,242,0.12)', color: '#bf5af2' }} title={lead.pain}>
               {lead.pain}
             </span>
           )}
           {lead.timeline && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa' }}>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(10,132,255,0.12)', color: '#0a84ff' }}>
               {lead.timeline}
             </span>
           )}
@@ -1049,7 +1049,7 @@ function OppCard({ lead, onCall, onOpen, onDragStart, onDragEnd }: { lead: Lead;
           <Phone size={9} /> {attempts === 0 ? 'New — not called' : `${attempts} ${attempts === 1 ? 'attempt' : 'attempts'}`}
           {last && attempts > 0 && <span className="opacity-70">· {timeAgo(last)}</span>}
         </span>
-        {lead.askingPrice && <span style={{ color: '#4ade80' }}>{lead.askingPrice}</span>}
+        {lead.askingPrice && <span style={{ color: '#30d158' }}>{lead.askingPrice}</span>}
         {lead.provider && <span className="flex items-center gap-1 truncate max-w-[110px]"><Building2 size={9} /> {lead.provider}</span>}
       </div>
     </motion.div>
@@ -1162,9 +1162,9 @@ function LeadDetailModal({ lead, initialTab, onClose }: { lead: Lead; initialTab
               onClick={() => setTab(id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors"
               style={{
-                background: tab === id ? 'rgba(251,191,36,0.12)' : 'transparent',
-                color: tab === id ? '#fbbf24' : '#52526e',
-                border: tab === id ? '1px solid rgba(251,191,36,0.25)' : '1px solid transparent',
+                background: tab === id ? 'rgba(255,159,10,0.12)' : 'transparent',
+                color: tab === id ? '#ff9f0a' : '#52526e',
+                border: tab === id ? '1px solid rgba(255,159,10,0.25)' : '1px solid transparent',
               }}
             >
               {id === 'history' ? <History size={11} /> : <FileText size={11} />} {label}
@@ -1196,9 +1196,9 @@ function DetailTab({
     <div>
       {/* qualification fields */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <DetailRow label="Motivation" value={lead.pain} color="#a78bfa" copyable />
+        <DetailRow label="Motivation" value={lead.pain} color="#bf5af2" copyable />
         <DetailRow label="Timeline"   value={lead.timeline} />
-        <DetailRow label="Asking"     value={lead.askingPrice} color="#4ade80" copyable />
+        <DetailRow label="Asking"     value={lead.askingPrice} color="#30d158" copyable />
         <DetailRow label="Condition"  value={lead.condition} />
         <DetailRow label="ARV"        value={lead.arv} copyable />
         <DetailRow label="Rehab"      value={lead.rehabCost} />
@@ -1207,7 +1207,7 @@ function DetailTab({
         <DetailRow label="Mortgage"   value={lead.mortgage} />
         <DetailRow label="Deal type"  value={lead.dealType} />
         <DetailRow label="Rating"     value={lead.rating} />
-        <DetailRow label="Value"      value={lead.value ? `$${lead.value.toLocaleString()}` : null} color="#4ade80" copyable />
+        <DetailRow label="Value"      value={lead.value ? `$${lead.value.toLocaleString()}` : null} color="#30d158" copyable />
         <DetailRow label="Stage"      value={lead.stageName} />
         <DetailRow label="Attempts"   value={String(attemptCount(lead))} />
         <DetailRow label="In CRM"     value={lead.daysInCrm != null ? `${lead.daysInCrm}d` : null} />
@@ -1218,7 +1218,7 @@ function DetailTab({
       <div className="mt-4 pt-4 border-t border-border2">
         <div className="text-[9px] uppercase tracking-[0.5px] text-dimtext mb-2 flex items-center gap-1.5"><DollarSign size={11} /> Lead Economics</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <DetailRow label="Cost"        value={lead.purchasePrice != null ? `$${lead.purchasePrice}` : null} color="#fbbf24" />
+          <DetailRow label="Cost"        value={lead.purchasePrice != null ? `$${lead.purchasePrice}` : null} color="#ff9f0a" />
           <DetailRow label="Tier"        value={lead.purchaseTier} />
           <DetailRow label="Provider"    value={lead.provider} />
           <DetailRow label="Lead Source" value={lead.leadSource} />
@@ -1226,7 +1226,7 @@ function DetailTab({
           <DetailRow label="Bought"      value={lead.purchasedAt ? epochDate(lead.purchasedAt) : null} />
           <DetailRow label="Funding"     value={lead.fundingSource} />
           <DetailRow label="Refund elig." value={lead.refundEligible} />
-          <DetailRow label="Refund in"   value={lead.daysUntilDeadline != null ? `${lead.daysUntilDeadline}d` : null} color={lead.deadlineUrgent ? '#f87171' : undefined} />
+          <DetailRow label="Refund in"   value={lead.daysUntilDeadline != null ? `${lead.daysUntilDeadline}d` : null} color={lead.deadlineUrgent ? '#ff453a' : undefined} />
         </div>
       </div>
 
@@ -1252,7 +1252,7 @@ function DetailTab({
             onClick={saveNote}
             disabled={!note.trim() || !lead.contactId || noteState === 'saving'}
             className="flex items-center gap-1 px-3 py-2 rounded-md text-[10px] font-medium border transition-colors disabled:opacity-40"
-            style={{ color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.06)' }}
+            style={{ color: '#ff9f0a', borderColor: 'rgba(255,159,10,0.3)', background: 'rgba(255,159,10,0.06)' }}
           >
             {noteState === 'saving' ? <Loader2 size={11} className="animate-spin" /> : noteState === 'saved' ? <Check size={11} /> : <Send size={11} />}
             {noteState === 'saved' ? 'Saved' : 'Note'}
@@ -1261,7 +1261,7 @@ function DetailTab({
             onClick={approveCallback}
             disabled={!lead.contactId || cbState === 'saving' || cbState === 'done'}
             className="flex items-center gap-1.5 px-3 py-2 rounded-md text-[10px] font-medium border transition-colors disabled:opacity-50"
-            style={{ color: '#4ade80', borderColor: 'rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.08)' }}
+            style={{ color: '#30d158', borderColor: 'rgba(48,209,88,0.35)', background: 'rgba(48,209,88,0.08)' }}
           >
             {cbState === 'saving' ? <Loader2 size={11} className="animate-spin" /> : cbState === 'done' ? <Check size={11} /> : cbState === 'error' ? <X size={11} /> : <Phone size={11} />}
             {cbState === 'done' ? 'Queued' : cbState === 'error' ? 'Failed' : 'Call back'}
@@ -1285,12 +1285,12 @@ function CallHistoryTab({ history }: { history: CallRecord[] }) {
         return (
           <div key={c.id} className="rounded-lg border border-border2 overflow-hidden" style={{ background: 'rgba(255,255,255,0.015)' }}>
             <button onClick={() => setOpen(isOpen ? null : c.id)} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left">
-              <span className="flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-semibold flex-shrink-0" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+              <span className="flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-semibold flex-shrink-0" style={{ background: 'rgba(255,159,10,0.12)', color: '#ff9f0a' }}>
                 {history.length - i}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] text-textb font-medium">{fmtTime(c.calledAt)} <span className="text-dimtext font-normal">· {timeAgo(c.calledAt)}</span></div>
-                {moved && <div className="text-[9px] text-dimtext truncate">{c.stageBefore || '—'} → <span style={{ color: '#4ade80' }}>{c.stageAfter}</span></div>}
+                {moved && <div className="text-[9px] text-dimtext truncate">{c.stageBefore || '—'} → <span style={{ color: '#30d158' }}>{c.stageAfter}</span></div>}
               </div>
               <span className="text-[10px] text-ncyan flex items-center gap-1 flex-shrink-0"><Clock size={9} /> {fmtDuration(c.duration)}</span>
               <ChevronDown size={13} className="text-dimtext flex-shrink-0 transition-transform" style={{ transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }} />

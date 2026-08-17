@@ -49,7 +49,7 @@ export function CenterOrb() {
         className="absolute pointer-events-none"
         style={{
           width: 520, height: 520,
-          background: 'radial-gradient(circle, rgba(74,222,128,0.05) 0%, rgba(103,232,249,0.02) 40%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(48,209,88,0.05) 0%, rgba(100,210,255,0.02) 40%, transparent 70%)',
           borderRadius: '50%',
         }}
       />
@@ -70,7 +70,7 @@ export function CenterOrb() {
       {/* Floating status badges */}
       <motion.div
         className="absolute top-[18%] left-[18%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(74,222,128,0.07)', border: '1px solid rgba(74,222,128,0.14)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(48,209,88,0.07)', border: '1px solid rgba(48,209,88,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -6, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       >
@@ -80,7 +80,7 @@ export function CenterOrb() {
 
       <motion.div
         className="absolute top-[18%] right-[18%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(103,232,249,0.07)', border: '1px solid rgba(103,232,249,0.14)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(100,210,255,0.07)', border: '1px solid rgba(100,210,255,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       >
@@ -90,7 +90,7 @@ export function CenterOrb() {
 
       <motion.div
         className="absolute bottom-[22%] left-[20%] hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full"
-        style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.14)', backdropFilter: 'blur(8px)' }}
+        style={{ background: 'rgba(191,90,242,0.07)', border: '1px solid rgba(191,90,242,0.14)', backdropFilter: 'blur(8px)' }}
         animate={{ y: [0, -5, 0] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
       >
@@ -114,7 +114,7 @@ export function CenterOrb() {
       >
         <h1
           className="font-orbitron text-[22px] font-black tracking-[6px] uppercase"
-          style={{ color: '#4ade80', textShadow: '0 0 24px rgba(74,222,128,.3)' }}
+          style={{ color: '#30d158', textShadow: '0 0 24px rgba(48,209,88,.3)' }}
         >
           JARVIS AI
         </h1>

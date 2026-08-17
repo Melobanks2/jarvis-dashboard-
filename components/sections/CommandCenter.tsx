@@ -4,10 +4,10 @@ import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import {
-  Flame, TrendingUp, Users, Activity, Clock, Phone, CheckCircle, Circle,
-  AlertTriangle, ArrowRight, ChevronDown, Hourglass, PhoneCall, Sparkles, DollarSign,
+  Flame, TrendingUp, CheckCircle, Circle,
+  AlertTriangle, ChevronDown, PhoneCall, Sparkles, DollarSign, RefreshCw,
 } from 'lucide-react';
-import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
+import { GlassCard, SectionTitle, GlassPill } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { StatusDot } from '@/components/ui/StatusDot';
 import { usePipeline, Lead } from '@/lib/hooks/usePipeline';
@@ -15,6 +15,21 @@ import { useAgents } from '@/lib/hooks/useAgents';
 import { useFeed } from '@/lib/hooks/useFeed';
 import { useApp } from '@/lib/AppContext';
 import { supabase, timeAgo } from '@/lib/supabase';
+
+// ── Palette — Apple system colors, blue-first ───────────────────────────────
+// blue = identity + neutral info · green = positive/money · red = urgent
+// · orange = warning/aging. If something is tinted, it needs attention.
+const C = {
+  blue:  '#0a84ff',
+  pos:   '#30d158',
+  urg:   '#ff453a',
+  warn:  '#ff9f0a',
+  dim:   'rgba(235,235,245,0.35)',
+};
+
+// iOS spring for taps and hovers — quick, settles clean.
+const SPRING = { type: 'spring', stiffness: 420, damping: 30 } as const;
+const TAP = { scale: 0.97 };
 
 const money = (n: number) => '$' + Math.round(n).toLocaleString();
 const sumPP = (ls: Lead[]) => ls.reduce((a, l) => a + (l.purchasePrice || 0), 0);
@@ -31,26 +46,34 @@ const DAVID_SCHEDULE = [
 ];
 
 const FREQ_RULES = [
-  { stage: 'New Leads',     color: '#00aaff', rule: 'Every 3h · up to 4x/day · hit until they answer' },
-  { stage: 'No Answer',     color: '#ff8800', rule: 'Every 3h · up to 4x/day · advance attempt ladder' },
-  { stage: 'Hot Follow Up', color: '#ff3366', rule: 'Every 10h · 2x/day · morning qualify + evening close' },
-  { stage: 'Warm Follow Up',color: '#ff8800', rule: 'Every 48h · 1x/day · one quality call every 2 days' },
-  { stage: 'Cold Follow Up',color: '#5a5a80', rule: 'Every 72h · 1x/day · every 3 days only' },
+  { stage: 'New Leads',     color: C.blue, rule: 'Every 3h · up to 4x/day · hit until they answer' },
+  { stage: 'No Answer',     color: C.warn, rule: 'Every 3h · up to 4x/day · advance attempt ladder' },
+  { stage: 'Hot Follow Up', color: C.urg,  rule: 'Every 10h · 2x/day · morning qualify + evening close' },
+  { stage: 'Warm Follow Up',color: C.warn, rule: 'Every 48h · 1x/day · one quality call every 2 days' },
+  { stage: 'Cold Follow Up',color: C.dim,  rule: 'Every 72h · 1x/day · every 3 days only' },
 ];
 
 const JarvisOrb = dynamic(() => import('@/components/three/JarvisOrb').then(m => ({ default: m.JarvisOrb })), {
   ssr: false,
-  loading: () => <div className="w-full h-full flex items-center justify-center text-dimtext text-[11px]">Initializing AI core...</div>,
+  loading: () => <div className="w-full h-full flex items-center justify-center text-dimtext text-[13px]">Starting up…</div>,
 });
 
 const TYPE_COLOR: Record<string, string> = {
-  success: '#00ff88', error: '#ff3366', warning: '#ff8800', info: '#00aaff', call: '#00e5ff',
+  success: C.pos, error: C.urg, warning: C.warn, info: C.blue, call: C.blue,
 };
 
-const SOURCE_LABEL: Record<string, string> = { alpha: '♦️ Alpha (free)', ispeed: 'iSpeed (paid)', sarah: '🤖 Sarah' };
+const SOURCE_LABEL: Record<string, string> = { alpha: 'Alpha · free', ispeed: 'iSpeed · paid', sarah: 'Sarah' };
 
 const FADE_UP = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+
+// Big numbers: SF with tabular numerals (via .font-orbitron remap), tight tracking.
+const NUM = 'font-orbitron font-semibold';
+
+// Computed in an effect so the statically-prerendered HTML (built at an
+// arbitrary hour) never mismatches the client's clock on hydration.
+const greetingFor = (h: number) =>
+  h < 5 ? 'Working late, Chris' : h < 12 ? 'Good morning, Chris' : h < 17 ? 'Good afternoon, Chris' : 'Good evening, Chris';
 
 interface DavidStats { calls: number; conversations: number; hot: number; voicemails: number; lastCall: string | null; }
 
@@ -101,12 +124,14 @@ export function CommandCenter() {
 
   const goLeads = () => setActiveSection('leads');
 
+  const [greeting, setGreeting] = useState('Command Center');
+  useEffect(() => { setGreeting(greetingFor(new Date().getHours())); }, []);
+
   // ── Derived signal from the live pipeline ──────────────────────────────────
   const leads  = data?.leads ?? [];
   const stages = data?.stages ?? {};
   const total  = data?.total ?? 0;
   const byTemp = data?.byTemp ?? { hot: 0, warm: 0, cold: 0, dead: 0, new: 0 };
-  const online = agents.filter(a => a.status === 'active').length;
 
   const stageCount = (s: string) => stages[s]?.length ?? 0;
   const dealsInMotion = stageCount('Decision Pending') + stageCount('Contract Sent') + stageCount('Under Contract');
@@ -138,45 +163,46 @@ export function CommandCenter() {
   const pulse = total > 0 ? 1 : 0;
 
   return (
-    <motion.div variants={STAGGER} initial="hidden" animate="show" className="flex flex-col gap-5">
+    <motion.div variants={STAGGER} initial="hidden" animate="show" className="flex flex-col gap-6">
 
-      {/* Status line */}
-      <div className="flex justify-end items-center gap-2 text-[9px] text-dimtext">
-        <Clock size={10} />
-        <span>
-          {pError ? <span className="text-nred">pipeline offline — {pError}</span>
-            : pLoading && !data ? 'loading live pipeline…'
-            : `${total} leads live · updated ${elapsed < 5 ? 'just now' : `${elapsed}s ago`} · auto-refresh 60s`}
-        </span>
-        <button onClick={refresh}
-          className="ml-1 px-2 py-0.5 rounded-sm border border-border hover:border-ngreen/40 hover:text-ngreen transition-colors font-orbitron tracking-[1px]">
-          REFRESH
-        </button>
-      </div>
+      {/* Header — greeting + live status */}
+      <motion.div variants={FADE_UP} className="flex items-center gap-4 flex-wrap">
+        <h1 className="text-[28px] font-semibold tracking-[-0.028em] text-textb">{greeting}</h1>
+        <GlassPill>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: pError ? C.urg : C.pos }} />
+          {pError ? 'pipeline offline'
+            : pLoading && !data ? 'loading…'
+            : `${total} leads live · ${elapsed < 5 ? 'just now' : `${elapsed}s ago`}`}
+        </GlassPill>
+        <motion.button whileTap={TAP} transition={SPRING} onClick={refresh}
+          className="press ml-auto inline-flex items-center gap-2 rounded-full border border-border px-4 py-1.5 text-[13px] text-jtext bg-white/[0.06] hover:bg-white/10 hover:text-textb"
+          style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)' }}>
+          <RefreshCw size={13} /> Refresh
+        </motion.button>
+      </motion.div>
 
       {/* ① iSpeed Refund Window — only renders when money is recoverable this week */}
       {refundWindow.length > 0 && (
         <motion.div variants={FADE_UP}>
-          <div className="rounded-sm border p-3" style={{ borderColor: '#ff336640', background: 'linear-gradient(90deg,#ff33661a,#ff33660a)' }}>
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle size={14} className="text-nred animate-pulse" />
-              <span className="font-orbitron text-[11px] font-bold tracking-[2px] text-nred uppercase">iSpeed Refund Window — Act Now</span>
-              <span className="ml-auto text-[9px] text-dimtext">{money(sumPP(refundWindow))} recoverable · {refundWindow.length} leads ≤7d</span>
+          <div className="glass rounded-[22px] p-5" style={{ borderColor: 'rgba(255,69,58,0.25)', background: 'rgba(255,69,58,0.06)' }}>
+            <div className="flex items-baseline gap-3 mb-4 flex-wrap">
+              <span className="text-[16px] font-semibold tracking-[-0.02em]" style={{ color: C.urg }}>Refund window closing</span>
+              <span className="text-[13px] text-dimtext">{money(sumPP(refundWindow))} recoverable across {refundWindow.length} leads</span>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {refundWindow.map(l => {
                 const d = l.daysUntilDeadline ?? 0;
-                const c = d <= 3 ? '#ff3366' : '#ff8800';
+                const c = d <= 3 ? C.urg : C.warn;
                 return (
-                  <button key={l.id} onClick={goLeads}
-                    className="flex-shrink-0 text-left rounded-sm border px-3 py-2 min-w-[150px] hover:brightness-125 transition"
-                    style={{ borderColor: `${c}33`, background: `${c}0d` }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] text-textb font-bold truncate">{l.name}</span>
-                      <span className="font-orbitron text-[12px] font-black flex-shrink-0" style={{ color: c }}>{d}d</span>
+                  <motion.button key={l.id} whileTap={TAP} transition={SPRING} onClick={goLeads}
+                    className="press flex-shrink-0 text-left rounded-2xl border border-border bg-bg2 px-4 py-3 min-w-[172px] hover:bg-white/10 transition-colors"
+                    style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[14px] text-textb font-medium truncate">{l.name}</span>
+                      <span className={`${NUM} text-[18px] flex-shrink-0`} style={{ color: c }}>{d}d</span>
                     </div>
-                    <div className="text-[8px] text-dimtext truncate mt-0.5">{l.stage} · {money(l.purchasePrice || 0)}</div>
-                  </button>
+                    <div className="text-[12px] text-dimtext truncate mt-0.5">{l.stage} · {money(l.purchasePrice || 0)}</div>
+                  </motion.button>
                 );
               })}
             </div>
@@ -184,76 +210,70 @@ export function CommandCenter() {
         </motion.div>
       )}
 
-      {/* ② Money-Lane hero — action tiles + orb + close-this-week worklist */}
-      <motion.div variants={FADE_UP} className="grid grid-cols-1 lg:grid-cols-5 gap-5 min-h-[340px]">
+      {/* ② Stat tiles */}
+      <motion.div variants={FADE_UP} className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <BigStat label="Hot leads" value={byTemp.hot} color={C.urg} icon={<Flame size={14} />} sub="Need a close call" onClick={goLeads} />
+        <BigStat label="Deals in motion" value={dealsInMotion} color={C.pos} icon={<TrendingUp size={14} />} sub="Decision · contract · UC" onClick={goLeads} />
+        <BigStat label="Fresh leads" value={freshNew} color={C.blue} icon={<Sparkles size={14} />} sub={`${staleNew} stale & untouched`} subWarn={staleNew > 0} onClick={goLeads} />
+        <RefundTile recoverable={recoverableSum} lost={lostSum} onClick={goLeads} />
+      </motion.div>
 
-        {/* Left action tiles */}
-        <div className="lg:col-span-1 flex flex-col gap-3">
-          <BigStat label="Hot Leads" value={byTemp.hot} color="#ff3366" icon={<Flame size={15} />} sub="need a close call" onClick={goLeads} />
-          <BigStat label="Deals in Motion" value={dealsInMotion} color="#00ff88" icon={<TrendingUp size={15} />} sub="decision · contract · UC" onClick={goLeads} />
-          <BigStat label="Fresh New ≤2d" value={freshNew} color="#00aaff" icon={<Sparkles size={15} />} sub={`${staleNew} stale & untouched`} subWarn={staleNew > 0} onClick={goLeads} />
-          <RefundTile recoverable={recoverableSum} lost={lostSum} onClick={goLeads} />
-        </div>
-
-        {/* Orb */}
-        <GlassCard accent="green" className="lg:col-span-3 flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden" padding="">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="absolute rounded-full border border-ngreen/10 animate-pulse-ring pointer-events-none"
-              style={{ width: `${i * 28}%`, height: `${i * 28}%`, animationDelay: `${i * 0.5}s` }} />
-          ))}
+      {/* ③ Orb + close-this-week worklist */}
+      <motion.div variants={FADE_UP} className="grid grid-cols-1 lg:grid-cols-3 gap-5 min-h-[340px]">
+        <GlassCard className="lg:col-span-2 flex flex-col items-center justify-center min-h-[320px]" padding="">
           <JarvisOrb pulse={pulse} className="w-full h-60 lg:h-72" />
-          <div className="absolute bottom-4 left-0 right-0 text-center">
-            <div className="font-orbitron text-[11px] text-ngreen glow-green tracking-[3px]">JARVIS AI</div>
-            <div className="text-[9px] text-dimtext tracking-[2px] mt-1">CHIEF OF STAFF · AUTONOMOUS OPERATIONS</div>
+          <div className="absolute bottom-6 left-0 right-0 text-center">
+            <div className="text-[21px] font-semibold tracking-[-0.022em] text-textb">Jarvis</div>
+            <div className="text-[13px] text-dimtext mt-1">Chief of staff · autonomous operations</div>
           </div>
         </GlassCard>
 
-        {/* Close this week worklist */}
-        <div className="lg:col-span-1">
-          <GlassCard accent="green" padding="p-3" hover={false} className="h-full">
-            <div className="flex items-center gap-1.5 mb-2">
-              <span className="font-orbitron text-[9px] font-bold tracking-[1px] text-ngreen uppercase">Close This Week</span>
-              <span className="ml-auto font-orbitron text-[12px] font-black text-ngreen">{closeList.length}</span>
-            </div>
-            <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto">
-              {closeList.slice(0, 8).map(l => (
-                <button key={l.id} onClick={goLeads} className="text-left rounded-sm border border-border px-2 py-1.5 hover:border-ngreen/40 transition">
-                  <div className="text-[10px] text-textb font-bold truncate">{l.name}</div>
-                  <div className="flex items-center justify-between text-[8px] text-dimtext mt-0.5">
-                    <span className="truncate">{l.stage}</span>
-                    {l.daysInStage != null && <span className="flex-shrink-0 ml-1">{l.daysInStage}d</span>}
-                  </div>
-                </button>
-              ))}
-              {closeList.length === 0 && <div className="text-[9px] text-dimtext italic py-4 text-center">No deals in the closing lane yet</div>}
-            </div>
-          </GlassCard>
-        </div>
+        <GlassCard>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-[16px] font-semibold tracking-[-0.02em] text-textb">Close this week</span>
+            <span className={`${NUM} ml-auto text-[21px]`} style={{ color: C.blue }}>{closeList.length}</span>
+          </div>
+          <div className="flex flex-col gap-2.5 max-h-[290px] overflow-y-auto">
+            {closeList.slice(0, 8).map(l => (
+              <motion.button key={l.id} whileTap={TAP} transition={SPRING} onClick={goLeads}
+                className="press text-left rounded-2xl border border-border bg-bg2 px-3.5 py-2.5 hover:bg-white/10 transition-colors"
+                style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+                <div className="text-[14px] text-textb font-medium truncate">{l.name}</div>
+                <div className="flex items-center justify-between text-[12px] text-dimtext mt-0.5">
+                  <span className="truncate">{l.stage}</span>
+                  {l.daysInStage != null && <span className="flex-shrink-0 ml-1">{l.daysInStage}d</span>}
+                </div>
+              </motion.button>
+            ))}
+            {closeList.length === 0 && <div className="text-[13px] text-dimtext py-4 text-center">No deals in the closing lane yet</div>}
+          </div>
+        </GlassCard>
       </motion.div>
 
-      {/* ③ Decaying hot/warm + Today's production funnel */}
+      {/* ④ Decaying hot/warm + Today's production funnel */}
       <motion.div variants={FADE_UP} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Decaying hot/warm */}
-        <GlassCard accent="orange" padding="p-4">
-          <SectionTitle accent="orange" badge="oldest first">Decaying Hot / Warm</SectionTitle>
-          <div className="flex flex-col gap-1.5">
+        <GlassCard>
+          <SectionTitle badge="Oldest first">Decaying leads</SectionTitle>
+          <div className="flex flex-col">
             {decaying.map(l => {
               const age = l.daysInCrm ?? 0;
-              const c = age > 60 ? '#ff3366' : age > 30 ? '#ff8800' : '#8888aa';
-              const tc = l.temp === 'hot' ? '#ff3366' : '#ff8800';
+              const c = age > 60 ? C.urg : age > 30 ? C.warn : C.dim;
+              const tc = l.temp === 'hot' ? C.urg : C.warn;
               return (
-                <button key={l.id} onClick={goLeads} className="flex items-center gap-2 py-1.5 border-b border-border last:border-0 text-left hover:bg-white/[0.02] transition">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tc, boxShadow: `0 0 6px ${tc}` }} />
+                <motion.button key={l.id} whileTap={TAP} transition={SPRING} onClick={goLeads}
+                  className="press flex items-center gap-3 py-2.5 border-b border-border last:border-0 text-left hover:bg-white/[0.04] transition-colors rounded-lg px-1.5 -mx-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tc }} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] text-textb truncate">{l.name}</div>
-                    <div className="text-[8px] text-dimtext truncate">{SOURCE_LABEL[l.source] || l.source} · {l.stage}</div>
+                    <div className="text-[14px] text-textb font-medium truncate">{l.name}</div>
+                    <div className="text-[12px] text-dimtext truncate">{SOURCE_LABEL[l.source] || l.source} · {l.stage}</div>
                   </div>
-                  <span className="font-orbitron text-[12px] font-bold flex-shrink-0" style={{ color: c }}>{age}d</span>
-                </button>
+                  <span className={`${NUM} text-[17px] flex-shrink-0`} style={{ color: c }}>{age}d</span>
+                </motion.button>
               );
             })}
-            {decaying.length === 0 && <div className="text-[10px] text-dimtext italic py-4 text-center">No hot/warm leads aging</div>}
+            {decaying.length === 0 && <div className="text-[13px] text-dimtext py-4 text-center">No hot or warm leads aging</div>}
           </div>
         </GlassCard>
 
@@ -261,53 +281,51 @@ export function CommandCenter() {
         <ProductionFunnel ops={davidOps} />
       </motion.div>
 
-      {/* ④ Source glance + cadence */}
+      {/* ⑤ Source glance + cadence */}
       <motion.div variants={FADE_UP} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <SourceStrip bySource={data?.bySource ?? {}} ispeedSpend={sumPP(ispeed)} ispeedLost={lostSum} onClick={goLeads} />
         <CadenceCard />
       </motion.div>
 
-      {/* ⑤ Agent status + activity feed */}
+      {/* ⑥ Agent status + activity feed */}
       <motion.div variants={FADE_UP} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <GlassCard accent="gold" padding="p-4">
-          <SectionTitle accent="gold">Agent Status</SectionTitle>
-          <div className="flex flex-col gap-2">
+        <GlassCard>
+          <SectionTitle>Agents</SectionTitle>
+          <div className="flex flex-col">
             {agents.map(a => (
-              <div key={a.key} className="flex items-center gap-3 py-1.5 border-b border-border last:border-0">
+              <div key={a.key} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
                 <StatusDot status={a.status === 'active' ? 'online' : a.status === 'idle' ? 'idle' : 'offline'} />
-                <div className="flex-1">
-                  <div className="text-[11px] text-textb">{a.name}</div>
-                  <div className="text-[9px] text-dimtext">{a.schedule}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] text-textb font-medium truncate">{a.name}</div>
+                  <div className="text-[12px] text-dimtext truncate">{a.schedule}</div>
                 </div>
-                <div className="text-right">
-                  <div className="font-orbitron text-[12px] font-bold" style={{ color: a.color }}>{a.runCount}</div>
-                  <div className="text-[8px] text-dimtext">restarts</div>
-                </div>
+                <GlassPill color={a.status === 'active' ? C.pos : a.status === 'idle' ? C.warn : undefined}>
+                  {a.status === 'active' ? 'Active' : a.status === 'idle' ? 'Idle' : 'Offline'}
+                </GlassPill>
               </div>
             ))}
           </div>
         </GlassCard>
 
-        <GlassCard accent="cyan" padding="p-4">
-          <SectionTitle accent="cyan">Activity Feed</SectionTitle>
-          <div className="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto">
-            {feed.map(item => (
-              <motion.div key={item.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                className="flex gap-2.5 py-1.5 border-b border-border last:border-0"
-                style={{ borderLeft: `2px solid ${TYPE_COLOR[item.type] || '#16162e'}`, paddingLeft: 8 }}>
-                <div className="flex-1 min-w-0">
-                  {item.source && (
-                    <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm"
-                      style={{ background: `${TYPE_COLOR[item.type]}15`, color: TYPE_COLOR[item.type] || '#5a5a80', border: `1px solid ${TYPE_COLOR[item.type]}25` }}>
-                      {item.source}
-                    </span>
-                  )}
-                  <div className="text-[10px] text-jtext line-clamp-2 mt-0.5">{item.message}</div>
-                  <div className="text-[8px] text-dimtext mt-0.5">{timeAgo(item.created_at)}</div>
-                </div>
-              </motion.div>
-            ))}
-            {feed.length === 0 && <div className="text-[10px] text-dimtext italic py-4 text-center">No recent activity</div>}
+        <GlassCard>
+          <SectionTitle>Activity</SectionTitle>
+          <div className="flex flex-col gap-4 max-h-[320px] overflow-y-auto">
+            {feed.map(item => {
+              const c = TYPE_COLOR[item.type] || C.dim;
+              return (
+                <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={SPRING}
+                  className="flex gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-[7px]" style={{ background: c }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] text-textb line-clamp-2">{item.message}</div>
+                    <div className="text-[12px] text-dimtext mt-0.5">
+                      {item.source && <span className="capitalize">{item.source} · </span>}{timeAgo(item.created_at)}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+            {feed.length === 0 && <div className="text-[13px] text-dimtext py-4 text-center">No recent activity</div>}
           </div>
         </GlassCard>
       </motion.div>
@@ -321,31 +339,35 @@ function BigStat({ label, value, color, icon, sub, subWarn, onClick }: {
   label: string; value: number; color: string; icon: React.ReactNode; sub?: string; subWarn?: boolean; onClick?: () => void;
 }) {
   return (
-    <GlassCard accent="green" padding="p-3" hover={false}>
-      <button onClick={onClick} className="w-full text-left" disabled={!onClick}>
-        <div className="flex items-center gap-2 mb-1" style={{ color, opacity: 0.85 }}>
-          {icon}
-          <span className="text-[8px] font-orbitron tracking-[1px] uppercase text-dimtext">{label}</span>
-        </div>
-        <AnimatedCounter target={value} className="font-orbitron text-[26px] font-black" style={{ color } as React.CSSProperties} />
-        {sub && <div className="text-[8px] mt-0.5" style={{ color: subWarn ? '#ff8800' : '#5a5a80' }}>{sub}</div>}
-      </button>
-    </GlassCard>
+    <motion.div whileTap={onClick ? TAP : undefined} transition={SPRING}>
+      <GlassCard padding="p-5" className="h-full">
+        <button onClick={onClick} className="w-full text-left" disabled={!onClick}>
+          <div className="flex items-center gap-2" style={{ color }}>
+            {icon}
+            <span className="text-[13px] text-jtext">{label}</span>
+          </div>
+          <AnimatedCounter target={value} className={`${NUM} block text-[38px] leading-tight mt-2`} style={{ color } as React.CSSProperties} />
+          {sub && <div className="text-[12px] mt-1" style={{ color: subWarn ? C.warn : C.dim }}>{sub}</div>}
+        </button>
+      </GlassCard>
+    </motion.div>
   );
 }
 
 function RefundTile({ recoverable, lost, onClick }: { recoverable: number; lost: number; onClick?: () => void }) {
   return (
-    <GlassCard accent="red" padding="p-3" hover={false}>
-      <button onClick={onClick} className="w-full text-left">
-        <div className="flex items-center gap-2 mb-1" style={{ color: '#ff8800', opacity: 0.85 }}>
-          <DollarSign size={15} />
-          <span className="text-[8px] font-orbitron tracking-[1px] uppercase text-dimtext">Refund Recoverable</span>
-        </div>
-        <div className="font-orbitron text-[26px] font-black" style={{ color: '#ff8800' }}>{money(recoverable)}</div>
-        <div className="text-[8px] mt-0.5 text-nred">{money(lost)} already lost · expired</div>
-      </button>
-    </GlassCard>
+    <motion.div whileTap={TAP} transition={SPRING}>
+      <GlassCard padding="p-5" className="h-full">
+        <button onClick={onClick} className="w-full text-left">
+          <div className="flex items-center gap-2" style={{ color: C.warn }}>
+            <DollarSign size={14} />
+            <span className="text-[13px] text-jtext">Recoverable</span>
+          </div>
+          <div className={`${NUM} text-[32px] leading-tight mt-2`} style={{ color: C.warn }}>{money(recoverable)}</div>
+          <div className="text-[12px] mt-1" style={{ color: C.urg }}>{money(lost)} already lost</div>
+        </button>
+      </GlassCard>
+    </motion.div>
   );
 }
 
@@ -355,37 +377,41 @@ function ProductionFunnel({ ops }: { ops: DavidStats }) {
   const hotRate  = conversations > 0 ? Math.round((hot / conversations) * 100) : 0;
   const machinesOnly = calls > 0 && conversations === 0;
   const steps = [
-    { label: 'Calls Made',    value: calls,         color: '#00aaff' },
-    { label: 'Conversations', value: conversations,  color: '#00ff88', rate: `${convRate}% answered` },
-    { label: 'Hot Found',     value: hot,            color: '#ff3366', rate: `${hotRate}% qualified` },
+    { label: 'Calls made',    value: calls,         color: C.blue },
+    { label: 'Conversations', value: conversations,  color: C.pos, rate: `${convRate}% answered` },
+    { label: 'Hot found',     value: hot,            color: C.urg, rate: `${hotRate}% qualified` },
   ];
   const max = Math.max(calls, 1);
   return (
-    <GlassCard accent="cyan" padding="p-4">
-      <SectionTitle accent="cyan" badge="VA leads · today">Today&apos;s Production</SectionTitle>
+    <GlassCard>
+      <SectionTitle badge="VA leads · today">Today&apos;s production</SectionTitle>
       {machinesOnly && (
-        <div className="flex items-center gap-1.5 mb-2 text-[9px] text-norange">
-          <AlertTriangle size={10} /> {calls} dials, 0 conversations — likely all voicemail/AMD
+        <div className="flex items-center gap-2 mb-3 text-[13px]" style={{ color: C.warn }}>
+          <AlertTriangle size={13} /> {calls} dials, no conversations — likely all voicemail
         </div>
       )}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-4">
         {steps.map(s => (
           <div key={s.label}>
-            <div className="flex items-center justify-between text-[9px] mb-0.5">
-              <span className="text-dimtext">{s.label}</span>
-              <span className="font-orbitron font-bold" style={{ color: s.color }}>
-                {s.value}{s.rate && <span className="text-dimtext font-normal ml-1.5">{s.rate}</span>}
+            <div className="flex items-baseline justify-between text-[14px] mb-1.5">
+              <span className="text-jtext">{s.label}</span>
+              <span>
+                {s.rate && <span className="text-[12px] text-dimtext mr-2.5">{s.rate}</span>}
+                <span className={`${NUM} text-[16px]`} style={{ color: s.color }}>{s.value}</span>
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-bg3 overflow-hidden">
-              <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(2, (s.value / max) * 100)}%`, background: s.color }} />
+              <motion.div className="h-full rounded-full" initial={{ width: 0 }}
+                animate={{ width: `${Math.max(2, (s.value / max) * 100)}%` }}
+                transition={{ type: 'spring', stiffness: 90, damping: 22 }}
+                style={{ background: s.color }} />
             </div>
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-border text-[8px] text-dimtext">
-        <span><PhoneCall size={8} className="inline mr-1" />{voicemails} voicemails left</span>
-        {lastCall && <span>last call {timeAgo(lastCall)}</span>}
+      <div className="flex items-center justify-between mt-4 pt-3.5 border-t border-border text-[12px] text-dimtext">
+        <span><PhoneCall size={11} className="inline mr-1.5 -mt-px" />{voicemails} voicemails left</span>
+        {lastCall && <span>Last call {timeAgo(lastCall)}</span>}
       </div>
     </GlassCard>
   );
@@ -397,25 +423,27 @@ function SourceStrip({ bySource, ispeedSpend, ispeedLost, onClick }: {
 }) {
   const cards = (['alpha', 'ispeed'] as const).map(key => ({ key, s: bySource[key] }));
   return (
-    <GlassCard accent="blue" padding="p-4">
-      <SectionTitle accent="blue" badge="free vs paid">Source Performance</SectionTitle>
-      <div className="grid grid-cols-2 gap-3">
+    <GlassCard>
+      <SectionTitle badge="Free vs paid">Source performance</SectionTitle>
+      <div className="grid grid-cols-2 gap-3.5">
         {cards.map(({ key, s }) => {
           const qualified = (s?.hot ?? 0) + (s?.warm ?? 0);
           return (
-            <button key={key} onClick={onClick} className="text-left rounded-sm border border-border p-3 hover:border-nblue/40 transition">
-              <div className="text-[9px] font-orbitron text-textb tracking-[1px] mb-2">{SOURCE_LABEL[key]}</div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-orbitron text-[22px] font-black text-nblue">{s?.total ?? 0}</span>
-                <span className="text-[8px] text-dimtext">leads</span>
+            <motion.button key={key} whileTap={TAP} transition={SPRING} onClick={onClick}
+              className="press text-left rounded-2xl border border-border bg-bg2 p-4 hover:bg-white/10 transition-colors"
+              style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+              <div className="text-[13px] text-jtext">{SOURCE_LABEL[key]}</div>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className={`${NUM} text-[30px] text-textb leading-none`}>{s?.total ?? 0}</span>
+                <span className="text-[12px] text-dimtext">leads</span>
               </div>
-              <div className="text-[9px] mt-1" style={{ color: '#00ff88' }}>{qualified} hot+warm qualified</div>
+              <div className="text-[13px] mt-1.5" style={{ color: C.pos }}>{qualified} hot + warm</div>
               {key === 'ispeed' && (
-                <div className="text-[8px] text-dimtext mt-1.5 leading-relaxed">
-                  {money(ispeedSpend)} spent · <span className="text-nred">{money(ispeedLost)} past window</span>
+                <div className="text-[12px] text-dimtext mt-2 leading-relaxed">
+                  {money(ispeedSpend)} spent · <span style={{ color: C.urg }}>{money(ispeedLost)} past window</span>
                 </div>
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -429,48 +457,49 @@ function CadenceCard() {
   const estHour = nowEST.getHours();
   const next = DAVID_SCHEDULE.find(s => s.hour >= estHour);
   return (
-    <GlassCard accent="purple" padding="p-4">
-      <div className="flex items-center gap-2">
-        <SectionTitle accent="purple">David Call Cadence</SectionTitle>
-      </div>
-      <div className="flex items-center gap-2 -mt-2 mb-1">
-        <div className="w-2 h-2 rounded-full bg-ngreen animate-pulse" />
-        <span className="text-[10px] text-textb">
-          {next ? <>Next window <span className="font-orbitron text-ngreen">{next.time}</span> — {next.stages}</> : 'Calling done for today'}
+    <GlassCard>
+      <SectionTitle>Call cadence</SectionTitle>
+      <div className="flex items-center gap-3">
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: C.blue }} />
+        <span className="text-[14px] text-textb">
+          {next ? <>Next window <span className={`${NUM} text-[14px]`} style={{ color: C.blue }}>{next.time}</span> <span className="text-jtext">— {next.stages}</span></> : 'Calling done for today'}
         </span>
-        <button onClick={() => setOpen(o => !o)} className="ml-auto flex items-center gap-1 text-[8px] text-dimtext hover:text-jtext">
-          {open ? 'hide' : 'full schedule'} <ChevronDown size={10} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '.2s' }} />
-        </button>
+        <motion.button whileTap={TAP} transition={SPRING} onClick={() => setOpen(o => !o)}
+          className="press ml-auto flex items-center gap-1 text-[12px] text-dimtext hover:text-jtext transition-colors flex-shrink-0">
+          {open ? 'Hide' : 'Full schedule'}
+          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={SPRING} className="inline-flex"><ChevronDown size={13} /></motion.span>
+        </motion.button>
       </div>
       {open && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
-          <div className="flex flex-col gap-1">
-            <div className="text-[8px] font-orbitron text-dimtext tracking-[1px] mb-1">SCHEDULE (EST)</div>
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-4 pt-4 border-t border-border overflow-hidden">
+          <div className="flex flex-col gap-2">
+            <div className="text-[12px] text-dimtext mb-0.5">Schedule (EST)</div>
             {DAVID_SCHEDULE.map(slot => {
               const done = estHour > slot.hour, active = estHour === slot.hour;
               return (
-                <div key={slot.time} className="flex items-start gap-2">
-                  <div className="mt-0.5 flex-shrink-0">
-                    {active ? <div className="w-2 h-2 rounded-full bg-ngreen animate-pulse" /> : done ? <CheckCircle size={8} className="text-dimtext opacity-40" /> : <Circle size={8} className="text-dimtext opacity-20" />}
+                <div key={slot.time} className="flex items-start gap-2.5">
+                  <div className="mt-1.5 flex-shrink-0">
+                    {active ? <div className="w-1.5 h-1.5 rounded-full" style={{ background: C.blue }} /> : done ? <CheckCircle size={11} className="text-dimtext opacity-50" /> : <Circle size={11} className="text-dimtext opacity-30" />}
                   </div>
                   <div>
-                    <span className="font-orbitron text-[9px]" style={{ color: active ? '#00ff88' : done ? '#5a5a80' : '#8888aa' }}>{slot.time}</span>
-                    <span className="text-[8px] text-dimtext ml-1.5">{slot.stages}</span>
+                    <span className={`${NUM} text-[12px]`} style={{ color: active ? C.blue : done ? 'rgba(235,235,245,0.30)' : 'rgba(235,235,245,0.55)' }}>{slot.time}</span>
+                    <span className="text-[12px] text-dimtext ml-2">{slot.stages}</span>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex flex-col gap-1">
-            <div className="text-[8px] font-orbitron text-dimtext tracking-[1px] mb-1">FREQUENCY RULES</div>
+          <div className="flex flex-col gap-2.5">
+            <div className="text-[12px] text-dimtext mb-0.5">Frequency rules</div>
             {FREQ_RULES.map(r => (
-              <div key={r.stage} className="py-0.5">
-                <div className="text-[9px] font-medium" style={{ color: r.color }}>{r.stage}</div>
-                <div className="text-[8px] text-dimtext leading-tight">{r.rule}</div>
+              <div key={r.stage}>
+                <div className="text-[13px] font-medium" style={{ color: r.color }}>{r.stage}</div>
+                <div className="text-[12px] text-dimtext leading-snug">{r.rule}</div>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
     </GlassCard>
   );

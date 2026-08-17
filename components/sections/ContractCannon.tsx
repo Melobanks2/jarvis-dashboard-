@@ -9,6 +9,7 @@ import {
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { useApp } from '@/lib/AppContext';
 import { usePipeline, Lead } from '@/lib/hooks/usePipeline';
+import { DIALER_API } from '@/lib/config';
 
 // Stages where a deal is "armed" — close enough to paper a contract.
 const ARMED_STAGES = ['Decision Pending', 'Contract Sent', 'Under Contract', 'Hot Follow Up'];
@@ -41,7 +42,7 @@ const PROFILES: Record<'psa' | 'rbp', Field[]> = {
 
 // Backend lives on the VPS dialer-server (Vercel Hobby is at its 12-function cap),
 // same host the pipeline/leads data comes from.
-const CONTRACT_API = 'https://api.jarviscommandcenter.space/dialer/contract';
+const CONTRACT_API = `${DIALER_API}/dialer/contract`;
 const GHL_DOCS_URL = 'https://app.gohighlevel.com/v2/location/AymErWPrH9U1ddRouslC/payments/documents-contracts';
 
 const money = (n: number | null) => (n ? `$${Math.round(n).toLocaleString()}` : '');
@@ -49,12 +50,12 @@ const money = (n: number | null) => (n ? `$${Math.round(n).toLocaleString()}` : 
 function StatusPill({ status }: { status: string }) {
   const s = (status || '').toLowerCase();
   const map: Record<string, [string, string]> = {
-    completed: ['rgba(0,255,136,0.12)', '#00ff88'],
-    signed:    ['rgba(0,255,136,0.12)', '#00ff88'],
-    viewed:    ['rgba(0,170,255,0.12)', '#00aaff'],
-    sent:      ['rgba(0,170,255,0.12)', '#00aaff'],
+    completed: ['rgba(48,209,88,0.12)', '#30d158'],
+    signed:    ['rgba(48,209,88,0.12)', '#30d158'],
+    viewed:    ['rgba(10,132,255,0.12)', '#0a84ff'],
+    sent:      ['rgba(10,132,255,0.12)', '#0a84ff'],
     draft:     ['rgba(255,255,255,0.06)', '#8a8aa0'],
-    declined:  ['rgba(255,51,102,0.12)', '#ff3366'],
+    declined:  ['rgba(255,69,58,0.12)', '#ff453a'],
   };
   const [bg, fg] = map[s] || ['rgba(255,255,255,0.06)', '#8a8aa0'];
   return (
@@ -149,8 +150,8 @@ export function ContractCannon() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,51,102,0.1)', border: '1px solid rgba(255,51,102,0.3)' }}>
-          <Rocket size={18} style={{ color: '#ff3366' }} />
+        <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,69,58,0.1)', border: '1px solid rgba(255,69,58,0.3)' }}>
+          <Rocket size={18} style={{ color: '#ff453a' }} />
         </div>
         <div>
           <div className="text-[15px] font-semibold" style={{ color: '#e8e8f0' }}>Contract Cannon</div>
@@ -160,8 +161,8 @@ export function ContractCannon() {
 
       {/* Merge-field setup notice (slim) */}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-sm"
-           style={{ background: 'rgba(255,136,0,0.06)', border: '1px solid rgba(255,136,0,0.18)' }}>
-        <AlertTriangle size={12} style={{ color: '#ff8800', flexShrink: 0 }} />
+           style={{ background: 'rgba(255,159,10,0.06)', border: '1px solid rgba(255,159,10,0.18)' }}>
+        <AlertTriangle size={12} style={{ color: '#ff9f0a', flexShrink: 0 }} />
         <p className="text-[10px]" style={{ color: '#d8b88a' }}>
           Auto-fill of numbers needs merge fields on your GHL templates. Until then, Fire sends the template as-is — review first.
         </p>
@@ -170,10 +171,10 @@ export function ContractCannon() {
       {/* Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Armed deals', val: armed.length, c: '#00ff88' },
-          { label: 'Templates',   val: templates.length, c: '#00aaff' },
-          { label: 'Awaiting sig', val: docs.filter(d => ['sent', 'viewed'].includes((d.status || '').toLowerCase())).length, c: '#ffd700' },
-          { label: 'Completed',    val: docs.filter(d => ['completed', 'signed'].includes((d.status || '').toLowerCase())).length, c: '#00ff88' },
+          { label: 'Armed deals', val: armed.length, c: '#30d158' },
+          { label: 'Templates',   val: templates.length, c: '#0a84ff' },
+          { label: 'Awaiting sig', val: docs.filter(d => ['sent', 'viewed'].includes((d.status || '').toLowerCase())).length, c: '#ff9f0a' },
+          { label: 'Completed',    val: docs.filter(d => ['completed', 'signed'].includes((d.status || '').toLowerCase())).length, c: '#30d158' },
         ].map(m => (
           <div key={m.label} className="rounded-sm px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="text-[9px] uppercase tracking-wider" style={{ color: '#52526e' }}>{m.label}</div>
@@ -199,10 +200,10 @@ export function ContractCannon() {
                 return (
                   <button key={l.id} onClick={() => setDeal(l)}
                     className="w-full text-left rounded-sm px-2.5 py-2 transition-colors"
-                    style={{ background: sel ? 'rgba(0,255,136,0.08)' : 'rgba(255,255,255,0.02)',
-                             border: `1px solid ${sel ? 'rgba(0,255,136,0.35)' : 'rgba(255,255,255,0.05)'}` }}>
+                    style={{ background: sel ? 'rgba(48,209,88,0.08)' : 'rgba(255,255,255,0.02)',
+                             border: `1px solid ${sel ? 'rgba(48,209,88,0.35)' : 'rgba(255,255,255,0.05)'}` }}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium truncate" style={{ color: sel ? '#00ff88' : '#c4c4d6' }}>{l.name}</span>
+                      <span className="text-[11px] font-medium truncate" style={{ color: sel ? '#30d158' : '#c4c4d6' }}>{l.name}</span>
                       <span className="text-[8px] px-1.5 py-0.5 rounded-sm shrink-0" style={{ background: 'rgba(255,255,255,0.05)', color: '#8a8aa0' }}>{l.stage}</span>
                     </div>
                     <div className="text-[9px] truncate mt-0.5" style={{ color: '#52526e' }}>
@@ -260,8 +261,8 @@ export function ContractCannon() {
 
               {/* Recipient line */}
               <div className="flex items-center gap-2 text-[10px] px-2.5 py-2 rounded-sm"
-                   style={{ background: 'rgba(0,170,255,0.05)', border: '1px solid rgba(0,170,255,0.15)' }}>
-                <Send size={11} style={{ color: '#00aaff' }} />
+                   style={{ background: 'rgba(10,132,255,0.05)', border: '1px solid rgba(10,132,255,0.15)' }}>
+                <Send size={11} style={{ color: '#0a84ff' }} />
                 <span style={{ color: '#8abbe0' }}>
                   {deal ? <>Sends to <b style={{ color: '#bcd8f0' }}>{deal.name}</b>{deal.address ? ` · ${deal.address}` : ''}</> : 'Pick an armed deal on the left first.'}
                 </span>
@@ -269,9 +270,9 @@ export function ContractCannon() {
 
               <button disabled={!deal || !tpl} onClick={() => setStage('review')}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-sm text-[11px] font-semibold transition-opacity"
-                style={{ background: !deal || !tpl ? 'rgba(255,255,255,0.05)' : 'rgba(255,215,0,0.14)',
-                         border: `1px solid ${!deal || !tpl ? 'rgba(255,255,255,0.08)' : 'rgba(255,215,0,0.4)'}`,
-                         color: !deal || !tpl ? '#52526e' : '#ffd700', cursor: !deal || !tpl ? 'not-allowed' : 'pointer' }}>
+                style={{ background: !deal || !tpl ? 'rgba(255,255,255,0.05)' : 'rgba(255,159,10,0.14)',
+                         border: `1px solid ${!deal || !tpl ? 'rgba(255,255,255,0.08)' : 'rgba(255,159,10,0.4)'}`,
+                         color: !deal || !tpl ? '#52526e' : '#ff9f0a', cursor: !deal || !tpl ? 'not-allowed' : 'pointer' }}>
                 <Eye size={13} /> Review before sending
               </button>
             </div>
@@ -280,12 +281,12 @@ export function ContractCannon() {
           {stage === 'review' && deal && tpl && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                {kind === 'rbp' ? <FileSignature size={15} style={{ color: '#ffd700' }} /> : <FileText size={15} style={{ color: '#00aaff' }} />}
+                {kind === 'rbp' ? <FileSignature size={15} style={{ color: '#ff9f0a' }} /> : <FileText size={15} style={{ color: '#0a84ff' }} />}
                 <div className="min-w-0">
                   <div className="text-[12px] font-medium truncate" style={{ color: '#e8e8f0' }}>{tpl.name}</div>
                   <div className="text-[9px] truncate" style={{ color: '#52526e' }}>{deal.name}{deal.address ? ` · ${deal.address}` : ''}</div>
                 </div>
-                <span className="ml-auto text-[8px] px-2 py-0.5 rounded-sm shrink-0" style={{ background: 'rgba(255,136,0,0.12)', color: '#ff8800' }}>not sent yet</span>
+                <span className="ml-auto text-[8px] px-2 py-0.5 rounded-sm shrink-0" style={{ background: 'rgba(255,159,10,0.12)', color: '#ff9f0a' }}>not sent yet</span>
               </div>
 
               <div className="grid grid-cols-2 gap-1.5">
@@ -305,10 +306,10 @@ export function ContractCannon() {
 
               {fired && (
                 <div className="flex items-center gap-2 text-[10px] px-2.5 py-2 rounded-sm"
-                     style={{ background: fired.ok ? 'rgba(0,255,136,0.08)' : 'rgba(255,51,102,0.08)',
-                              border: `1px solid ${fired.ok ? 'rgba(0,255,136,0.3)' : 'rgba(255,51,102,0.3)'}` }}>
-                  {fired.ok ? <Check size={12} style={{ color: '#00ff88' }} /> : <AlertTriangle size={12} style={{ color: '#ff3366' }} />}
-                  <span style={{ color: fired.ok ? '#00ff88' : '#ff8a9c' }}>{fired.msg}</span>
+                     style={{ background: fired.ok ? 'rgba(48,209,88,0.08)' : 'rgba(255,69,58,0.08)',
+                              border: `1px solid ${fired.ok ? 'rgba(48,209,88,0.3)' : 'rgba(255,69,58,0.3)'}` }}>
+                  {fired.ok ? <Check size={12} style={{ color: '#30d158' }} /> : <AlertTriangle size={12} style={{ color: '#ff453a' }} />}
+                  <span style={{ color: fired.ok ? '#30d158' : '#ff8a9c' }}>{fired.msg}</span>
                 </div>
               )}
 
@@ -320,9 +321,9 @@ export function ContractCannon() {
                 </button>
                 <button disabled={firing || (fired?.ok ?? false)} onClick={fire}
                   className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-sm text-[11px] font-semibold"
-                  style={{ background: fired?.ok ? 'rgba(0,255,136,0.14)' : 'rgba(255,51,102,0.16)',
-                           border: `1px solid ${fired?.ok ? 'rgba(0,255,136,0.4)' : 'rgba(255,51,102,0.45)'}`,
-                           color: fired?.ok ? '#00ff88' : '#ff5a78', cursor: firing ? 'wait' : 'pointer' }}>
+                  style={{ background: fired?.ok ? 'rgba(48,209,88,0.14)' : 'rgba(255,69,58,0.16)',
+                           border: `1px solid ${fired?.ok ? 'rgba(48,209,88,0.4)' : 'rgba(255,69,58,0.45)'}`,
+                           color: fired?.ok ? '#30d158' : '#ff5a78', cursor: firing ? 'wait' : 'pointer' }}>
                   {firing ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
                     : fired?.ok ? <><Check size={13} /> Fired</>
                     : <><Rocket size={13} /> Fire contract</>}

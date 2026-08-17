@@ -10,18 +10,18 @@ import { useApp } from '@/lib/AppContext';
 import { timeAgo } from '@/lib/supabase';
 
 const STAGE_COLORS: Record<string, string> = {
-  'Hot Follow Up':       '#ff3366',
-  'Warm Follow Up':      '#ff8800',
-  'Decision Pending':    '#aa44ff',
-  'Contract Sent':       '#00ff88',
-  'Under Contract':      '#00cc66',
-  'New Lead':            '#00aaff',
+  'Hot Follow Up':       '#ff453a',
+  'Warm Follow Up':      '#ff9f0a',
+  'Decision Pending':    '#bf5af2',
+  'Contract Sent':       '#30d158',
+  'Under Contract':      '#30d158',
+  'New Lead':            '#0a84ff',
   'Cold Follow Up':      '#5a5a88',
   'Attempt 1':           '#484870',
   'Attempt 2':           '#404068',
   'Attempt 3-5':         '#383858',
   'Unresponsive':        '#303050',
-  'Closed':              '#ffd700',
+  'Closed':              '#ff9f0a',
   'Signed w/ Someone Else': '#5a5a80',
   'Disposition':         '#5a5a80',
   'Dead':                '#2a2a44',
@@ -76,7 +76,7 @@ export function Pipeline() {
               key={stage}
               layout
               className="rounded-sm border overflow-hidden"
-              style={{ background: 'rgba(10,10,20,0.8)', borderColor: `${color}25` }}
+              style={{ background: 'rgba(255,255,255,0.04)', borderColor: `${color}25` }}
             >
               {/* Column header */}
               <button

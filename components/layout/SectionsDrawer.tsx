@@ -8,23 +8,23 @@ import {
 import { useApp, Section } from '@/lib/AppContext';
 
 const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: string; desc: string }[] = [
-  { section: 'command-center',    label: 'Command Center',    Icon: LayoutDashboard, color: '#4ade80', desc: 'AI brain overview' },
-  { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#4ade80', desc: 'Live GHL pipeline board' },
-  { section: 'david-hq',         label: 'Sarah HQ',          Icon: Shield,          color: '#fbbf24', desc: 'Qualify & track leads' },
-  { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#fbbf24', desc: 'Agent management' },
-  { section: 'acquisitions',     label: 'Acquisitions',      Icon: PhoneOutgoing,   color: '#4ade80', desc: 'Power-dialer — work my leads' },
-  { section: 'call-center',      label: 'Call Log',          Icon: History,         color: '#67e8f9', desc: 'Play & review every call' },
-  { section: 'contract-cannon',  label: 'Contract Cannon',   Icon: Rocket,          color: '#ff3366', desc: 'Fire GHL contracts' },
-  { section: 'novation-deal',    label: 'Novation Deal',     Icon: FileSignature,   color: '#00ff88', desc: '720 W Taylor Rd — road to close' },
-  { section: 'ispeed-refunds',   label: 'iSpeed Refunds',    Icon: Receipt,         color: '#4ade80', desc: 'Refund windows & recovery' },
-  { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#4ade80', desc: 'Comp reports' },
-  { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#fbbf24', desc: 'Revenue targets' },
-  { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#a78bfa', desc: 'Feature backlog' },
-  { section: 'knowledge-base',   label: 'Knowledge Base',    Icon: BookOpen,        color: '#fb923c', desc: 'Wholesale research' },
-  { section: 'marketing-intelligence', label: 'Marketing Intel', Icon: BarChart2, color: '#00aaff', desc: 'ROI & lead performance' },
-  { section: 'multi-dialer',      label: 'Scout HQ',          Icon: PhoneCall,       color: '#ff3366', desc: 'Cold multi-line dialer' },
-  { section: 'intelligence-chat',label: 'Intelligence Chat', Icon: Sparkles,        color: '#a78bfa', desc: 'Jarvis AI brain' },
-  { section: 'agent-chat',       label: 'Agent Chat',        Icon: MessageSquare,   color: '#67e8f9', desc: 'Talk to agents' },
+  { section: 'command-center',    label: 'Command Center',    Icon: LayoutDashboard, color: '#0a84ff', desc: 'AI brain overview' },
+  { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#30d158', desc: 'Live GHL pipeline board' },
+  { section: 'david-hq',         label: 'Sarah HQ',          Icon: Shield,          color: '#ff9f0a', desc: 'Qualify & track leads' },
+  { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#ff9f0a', desc: 'Agent management' },
+  { section: 'acquisitions',     label: 'Acquisitions',      Icon: PhoneOutgoing,   color: '#30d158', desc: 'Power-dialer — work my leads' },
+  { section: 'call-center',      label: 'Call Log',          Icon: History,         color: '#64d2ff', desc: 'Play & review every call' },
+  { section: 'contract-cannon',  label: 'Contract Cannon',   Icon: Rocket,          color: '#ff453a', desc: 'Fire GHL contracts' },
+  { section: 'novation-deal',    label: 'Novation Deal',     Icon: FileSignature,   color: '#30d158', desc: '720 W Taylor Rd — road to close' },
+  { section: 'ispeed-refunds',   label: 'iSpeed Refunds',    Icon: Receipt,         color: '#30d158', desc: 'Refund windows & recovery' },
+  { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#30d158', desc: 'Comp reports' },
+  { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#ff9f0a', desc: 'Revenue targets' },
+  { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#bf5af2', desc: 'Feature backlog' },
+  { section: 'knowledge-base',   label: 'Knowledge Base',    Icon: BookOpen,        color: '#ff9f0a', desc: 'Wholesale research' },
+  { section: 'marketing-intelligence', label: 'Marketing Intel', Icon: BarChart2, color: '#0a84ff', desc: 'ROI & lead performance' },
+  { section: 'multi-dialer',      label: 'Scout HQ',          Icon: PhoneCall,       color: '#ff453a', desc: 'Cold multi-line dialer' },
+  { section: 'intelligence-chat',label: 'Intelligence Chat', Icon: Sparkles,        color: '#bf5af2', desc: 'Jarvis AI brain' },
+  { section: 'agent-chat',       label: 'Agent Chat',        Icon: MessageSquare,   color: '#64d2ff', desc: 'Talk to agents' },
   { section: 'settings',         label: 'Settings',          Icon: Settings,        color: '#52526e', desc: 'System config' },
 ];
 
@@ -65,7 +65,7 @@ export function SectionsDrawer() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className="relative w-full flex items-center transition-colors"
                 style={{
-                  background: active ? `${item.color}12` : 'transparent',
+                  background: active ? 'rgba(10,132,255,0.10)' : 'transparent',
                   minHeight: 42,
                   padding: sidebarCollapsed ? '0 0 0 4px' : '0 8px',
                 }}
@@ -74,12 +74,12 @@ export function SectionsDrawer() {
                 {active && (
                   <div
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-                    style={{ background: item.color }}
+                    style={{ background: '#0a84ff' }}
                   />
                 )}
                 {/* Icon */}
                 <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 40, height: 40 }}>
-                  <Icon size={15} style={{ color: active ? item.color : '#52526e' }} />
+                  <Icon size={15} style={{ color: active ? '#0a84ff' : 'rgba(235,235,245,0.35)' }} />
                 </div>
                 {/* Label — hidden when collapsed */}
                 <AnimatePresence>
@@ -91,7 +91,7 @@ export function SectionsDrawer() {
                       exit={{ opacity: 0, x: -6 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <div className="text-[11px] font-medium truncate" style={{ color: active ? item.color : '#c4c4d6' }}>
+                      <div className="text-[11px] font-medium truncate" style={{ color: active ? '#f5f5f7' : 'rgba(235,235,245,0.62)' }}>
                         {item.label}
                       </div>
                       <div className="text-[9px] truncate" style={{ color: '#3a3a52' }}>{item.desc}</div>
@@ -135,8 +135,8 @@ export function SectionsDrawer() {
             >
               <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.25)' }}>
-                    <div className="w-2 h-2 rounded-full" style={{ background: '#4ade80', boxShadow: '0 0 6px rgba(74,222,128,0.6)' }} />
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(10,132,255,0.16)', border: '1px solid rgba(10,132,255,0.28)' }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: '#0a84ff' }} />
                   </div>
                   <span className="font-orbitron text-[12px] font-bold tracking-[3px]" style={{ color: '#e8e8f0' }}>JARVIS</span>
                 </div>
@@ -153,17 +153,17 @@ export function SectionsDrawer() {
                       key={item.section}
                       onClick={() => select(item.section)}
                       className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-left transition-colors"
-                      style={{ background: active ? `${item.color}0c` : 'transparent' }}
+                      style={{ background: active ? 'rgba(10,132,255,0.09)' : 'transparent' }}
                     >
                       {active && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: item.color }} />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: '#0a84ff' }} />
                       )}
-                      <Icon size={15} style={{ color: active ? item.color : '#52526e' }} />
+                      <Icon size={15} style={{ color: active ? '#0a84ff' : 'rgba(235,235,245,0.35)' }} />
                       <div className="flex-1">
-                        <div className="text-[12px] font-medium" style={{ color: active ? item.color : '#c4c4d6' }}>{item.label}</div>
+                        <div className="text-[12px] font-medium" style={{ color: active ? '#f5f5f7' : 'rgba(235,235,245,0.62)' }}>{item.label}</div>
                         <div className="text-[9px] mt-0.5" style={{ color: '#3a3a52' }}>{item.desc}</div>
                       </div>
-                      {active && <div className="w-1.5 h-1.5 rounded-full" style={{ background: item.color }} />}
+                      {active && <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#0a84ff' }} />}
                     </button>
                   );
                 })}

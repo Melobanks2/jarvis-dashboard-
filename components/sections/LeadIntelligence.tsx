@@ -13,8 +13,8 @@ const TABS = ['Pipeline Leads', 'Hot Sellers', 'County Leads'] as const;
 type Tab = typeof TABS[number];
 
 const STAGE_COLOR: Record<string, string> = {
-  'Hot Follow Up': '#ff3366', 'Warm Follow Up': '#ff8800', 'Decision Pending': '#aa44ff',
-  'Contract Sent': '#00ff88', 'Under Contract': '#00cc66', 'New Lead': '#00aaff',
+  'Hot Follow Up': '#ff453a', 'Warm Follow Up': '#ff9f0a', 'Decision Pending': '#bf5af2',
+  'Contract Sent': '#30d158', 'Under Contract': '#30d158', 'New Lead': '#0a84ff',
   'Cold Follow Up': '#5a5a88', 'Unresponsive': '#303050',
 };
 
@@ -36,10 +36,10 @@ export function LeadIntelligence() {
     <div className="flex flex-col gap-5">
       {/* Intel cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <IntelCard label="Hot Sellers"    count={hot.length}  color="#ff3366" icon={<Flame size={18} />} leads={hot.slice(0,3)} />
-        <IntelCard label="Warm Leads"     count={warm.length} color="#ff8800" icon={<Thermometer size={18} />} leads={warm.slice(0,3)} />
-        <IntelCard label="Cold Follow Up" count={cold.length} color="#00aaff" icon={<Snowflake size={18} />} leads={cold.slice(0,3)} />
-        <IntelCard label="Total Pipeline" count={data?.total ?? 0} color="#aa44ff" icon={<Phone size={18} />} leads={[]} />
+        <IntelCard label="Hot Sellers"    count={hot.length}  color="#ff453a" icon={<Flame size={18} />} leads={hot.slice(0,3)} />
+        <IntelCard label="Warm Leads"     count={warm.length} color="#ff9f0a" icon={<Thermometer size={18} />} leads={warm.slice(0,3)} />
+        <IntelCard label="Cold Follow Up" count={cold.length} color="#0a84ff" icon={<Snowflake size={18} />} leads={cold.slice(0,3)} />
+        <IntelCard label="Total Pipeline" count={data?.total ?? 0} color="#bf5af2" icon={<Phone size={18} />} leads={[]} />
       </div>
 
       {/* Search bar */}
@@ -57,7 +57,7 @@ export function LeadIntelligence() {
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className="px-4 py-2 text-[10px] font-orbitron tracking-[1px] uppercase border-b-2 transition-all -mb-px"
-            style={{ color: tab === t ? '#00aaff' : '#5a5a80', borderColor: tab === t ? '#00aaff' : 'transparent' }}
+            style={{ color: tab === t ? '#0a84ff' : '#5a5a80', borderColor: tab === t ? '#0a84ff' : 'transparent' }}
           >
             {t}
           </button>

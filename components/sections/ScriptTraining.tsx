@@ -8,20 +8,21 @@ import {
   Heart, Home, DollarSign, Plane, Building, Percent,
   Gavel, Search, Shield, Play,
 } from 'lucide-react';
+import { AUDIO_BASE } from '@/lib/config';
 
 // ── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
   bg: '#0a0a0f',
   surface: '#12121a',
   border: '#1e1e2e',
-  hot: '#ff4d4d',
-  warm: '#ffaa00',
-  cold: '#4da6ff',
+  hot: '#ff453a',
+  warm: '#ff9f0a',
+  cold: '#0a84ff',
   dead: '#555566',
-  green: '#00e5a0',
+  green: '#30d158',
   text: '#e0e0f0',
   muted: '#666680',
-  accent: '#7c6aff',
+  accent: '#bf5af2',
 };
 
 const FONT_MONO = 'font-spacemono';
@@ -72,7 +73,7 @@ interface Objection {
 }
 
 // ── Audio Mapping ─────────────────────────────────────────────────────────────
-const BASE_URL = 'https://api.jarviscommandcenter.space';
+const BASE_URL = AUDIO_BASE;
 
 const AUDIO_MAP: Record<string, string> = {
   'greet-prefix': `${BASE_URL}/audio/APPROVED-FINAL/greet-prefix-final.wav`,
@@ -153,7 +154,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'That makes total sense, handling all of that on top of everything else is a lot.',
     ack2: 'Yeah, I hear you — and we just want to make this one less thing you have to worry about.',
     recap: ['I know you\'re dealing with the loss of a loved one on top of everything else…', 'I know dealing with an inherited property and the estate can be really stressful…'],
-    color: '#a78bfa',
+    color: '#bf5af2',
   },
   {
     id: 'behind', icon: DollarSign, emoji: '💸', label: 'Behind on Payments',
@@ -162,7 +163,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'Got it, so time is definitely a factor here.',
     ack2: 'Yeah, that\'s a lot of pressure — we deal with situations like this all the time and we can move fast.',
     recap: ['I know things have been really stressful financially…'],
-    color: '#fbbf24',
+    color: '#ff9f0a',
   },
   {
     id: 'relocating', icon: Plane, emoji: '✈️', label: 'Relocating',
@@ -178,7 +179,7 @@ const PAIN_PATHS: PainPath[] = [
       moving_with_family: 'That\'s really wonderful, it\'s great that you have that support system.',
     },
     recap: ['I know you\'ve got a big move coming up…', 'I know you\'re ready to simplify things…', 'I know you\'re trying to get closer to your family…'],
-    color: '#60a5fa',
+    color: '#0a84ff',
   },
   {
     id: 'vacant', icon: Building, emoji: '🏚️', label: 'Vacant Property',
@@ -187,7 +188,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'Yeah holding a vacant property can be like just having money go straight out the door.',
     ack2: 'Right, and the longer it sits the more it costs — that\'s exactly the kind of situation we help people get out of.',
     recap: ['I know carrying a vacant property can be like just having money go straight out the door…'],
-    color: '#fb923c',
+    color: '#ff9f0a',
   },
   {
     id: 'tired_landlord', icon: Percent, emoji: '😤', label: 'Tired Landlord',
@@ -196,7 +197,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'Yeah that\'s a tough situation, dealing with tenants is no joke.',
     ack2: 'Yeah, I totally get it — at some point it\'s just not worth the headache anymore.',
     recap: ['I know dealing with tenants has been really draining…'],
-    color: '#f59e0b',
+    color: '#ff9f0a',
   },
   {
     id: 'preforeclosure', icon: Gavel, emoji: '🔥', label: 'Pre-Foreclosure',
@@ -205,7 +206,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'Got it, so time is really of the essence here — we definitely want to make sure we can help you before that date.',
     ack2: 'Yeah, and honestly that\'s the most important thing right now — just making sure you have options before that deadline hits.',
     recap: ['I know you\'re up against a foreclosure deadline and you need to get this resolved fast…'],
-    color: '#ff3366', hot: true,
+    color: '#ff453a', hot: true,
   },
   {
     id: 'tax_lien', icon: Shield, emoji: '⚖️', label: 'Tax Lien / Auction',
@@ -214,7 +215,7 @@ const PAIN_PATHS: PainPath[] = [
     ack1: 'Got it, so you\'ve got an auction date coming up — that\'s exactly the kind of situation we handle, and we want to make sure we get you taken care of before that happens.',
     ack2: 'Yeah absolutely, and the good news is we\'ve helped people in this exact situation — we just need to move quickly.',
     recap: ['I know you\'ve got an auction date coming up and you need to move on this quickly…'],
-    color: '#ff3366', hot: true,
+    color: '#ff453a', hot: true,
   },
   {
     id: 'exploring', icon: Search, emoji: '🤷', label: 'Just Exploring',
@@ -235,9 +236,9 @@ const HANDOFF_TIERS: HandoffTier[] = [
 ];
 
 const OBJECTIONS: Objection[] = [
-  { id: 'give_offer', trigger: '"Just give me an offer"', response: 'I hear you — Chris is the guy who runs the numbers, I just get him the info so he can put together something real. Couple quick questions and I\'ll get you connected.', color: '#a78bfa', audioUrl: AUDIO_MAP['obj-give-offer'] },
-  { id: 'ai_question', trigger: '"Are you a robot / AI?"', response: 'Haha — no I\'m not AI, that\'s actually the first time anyone\'s ever said that to me. I\'m Sarah, I just handle the intake calls for Chris.', color: '#4ade80', audioUrl: AUDIO_MAP['obj-ai'] },
-  { id: 'who_are_you', trigger: '"Are you a company? Who are you?"', response: 'Yeah so we\'re a real estate acquisitions company — basically what we do is work directly with homeowners like yourself to put together a fair cash offer on the property as-is. No agents, no commissions, no fees. Chris is our acquisitions manager and he\'s the one who actually puts the numbers together.', color: '#60a5fa' },
+  { id: 'give_offer', trigger: '"Just give me an offer"', response: 'I hear you — Chris is the guy who runs the numbers, I just get him the info so he can put together something real. Couple quick questions and I\'ll get you connected.', color: '#bf5af2', audioUrl: AUDIO_MAP['obj-give-offer'] },
+  { id: 'ai_question', trigger: '"Are you a robot / AI?"', response: 'Haha — no I\'m not AI, that\'s actually the first time anyone\'s ever said that to me. I\'m Sarah, I just handle the intake calls for Chris.', color: '#30d158', audioUrl: AUDIO_MAP['obj-ai'] },
+  { id: 'who_are_you', trigger: '"Are you a company? Who are you?"', response: 'Yeah so we\'re a real estate acquisitions company — basically what we do is work directly with homeowners like yourself to put together a fair cash offer on the property as-is. No agents, no commissions, no fees. Chris is our acquisitions manager and he\'s the one who actually puts the numbers together.', color: '#0a84ff' },
   { id: 'dnc', trigger: '"Take me off your list"', response: 'Done — I\'ll mark you as do-not-contact. Have a good one.', color: C.dead, audioUrl: AUDIO_MAP['obj-dnc'] },
   { id: 'not_interested', trigger: '"I\'m not interested"', response: 'No worries. Mind if I ask — is the timing off, or did you decide not to sell at all? Helps me know whether to check back later.', color: C.warm, audioUrl: AUDIO_MAP['obj-not-interested'] },
   { id: 'hostile', trigger: 'Rude / Hostile', response: 'Totally fair — I\'ll get out of your hair. Take care.', color: C.hot, audioUrl: AUDIO_MAP['obj-hostile'] },
@@ -630,7 +631,7 @@ export default function ScriptTraining() {
               <ScriptNode node={{
                 id: 'OCCUPANCY', label: 'Occupancy',
                 script: '"And is this your primary home or more of a rental property?"',
-                color: '#fb923c', audioUrl: AUDIO_MAP['occupancy'],
+                color: '#ff9f0a', audioUrl: AUDIO_MAP['occupancy'],
                 children: [
                   { id: 'OCCUPANCY-PRIMARY', label: 'Primary', script: '"Okay got it — and are you currently living in it right now or is it vacant?"', color: C.green },
                   { id: 'OCCUPANCY-RENTAL', label: 'Rental', script: '"Okay got it — is it currently occupied or is it vacant right now?"', color: C.warm },

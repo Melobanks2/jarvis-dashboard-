@@ -12,19 +12,19 @@ const money = (n: number) => '$' + Math.round(n).toLocaleString();
 
 // Urgency color by days left in the 21-day window.
 function urgency(daysLeft: number) {
-  if (daysLeft <= 8)  return { color: '#f87171', bg: 'rgba(248,113,113,0.12)' };
-  if (daysLeft <= 14) return { color: '#fbbf24', bg: 'rgba(251,191,36,0.14)' };
-  return { color: '#4ade80', bg: 'rgba(74,222,128,0.12)' };
+  if (daysLeft <= 8)  return { color: '#ff453a', bg: 'rgba(255,69,58,0.12)' };
+  if (daysLeft <= 14) return { color: '#ff9f0a', bg: 'rgba(255,159,10,0.14)' };
+  return { color: '#30d158', bg: 'rgba(48,209,88,0.12)' };
 }
 
 function DispositionTag({ d }: { d: Disposition }) {
   if (d === 'keep') return (
-    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: '#4ade80' }}>
+    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: '#30d158' }}>
       <Flame size={11} /> keep
     </span>
   );
   if (d === 'requested') return (
-    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: '#a78bfa' }}>
+    <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: '#bf5af2' }}>
       <CheckCircle2 size={11} /> filed
     </span>
   );
@@ -38,7 +38,7 @@ function DispositionTag({ d }: { d: Disposition }) {
 
 function Kpi({ label, value, sub, color }: { label: string; value: string; sub: string; color?: string }) {
   return (
-    <div className="rounded-lg px-4 py-3" style={{ background: '#121320', border: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="text-[11px] mb-1.5" style={{ color: '#52526e' }}>{label}</div>
       <div className="text-[22px] font-semibold leading-none" style={{ color: color || '#e4e4f0' }}>{value}</div>
       <div className="text-[10px] mt-1.5" style={{ color: '#52526e' }}>{sub}</div>
@@ -92,7 +92,7 @@ export function IspeedRefunds() {
     </div>
   );
   if (error && !data) return (
-    <div className="flex items-center justify-center h-64 gap-2 text-[12px]" style={{ color: '#f87171' }}>
+    <div className="flex items-center justify-center h-64 gap-2 text-[12px]" style={{ color: '#ff453a' }}>
       <AlertTriangle size={14} /> Couldn&apos;t reach the refund feed — {error}
     </div>
   );
@@ -104,7 +104,7 @@ export function IspeedRefunds() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Receipt size={16} style={{ color: '#4ade80' }} />
+        <Receipt size={16} style={{ color: '#30d158' }} />
         <span className="text-[14px] font-semibold" style={{ color: '#e4e4f0' }}>iSpeed refunds</span>
         <span className="ml-auto flex items-center gap-1 text-[10px]" style={{ color: '#52526e' }}>
           <RefreshCw size={10} /> live · syncs every 5 min
@@ -113,9 +113,9 @@ export function IspeedRefunds() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Recovered"        value={money(k.recovered)}         sub={`${k.recoveredCount} leads back`} color="#4ade80" />
+        <Kpi label="Recovered"        value={money(k.recovered)}         sub={`${k.recoveredCount} leads back`} color="#30d158" />
         <Kpi label="Open window"      value={String(k.openWindow)}       sub="submittable now" />
-        <Kpi label="Closing ≤8 days"  value={String(k.closingSoon)}      sub="act first" color={k.closingSoon ? '#f87171' : '#e4e4f0'} />
+        <Kpi label="Closing ≤8 days"  value={String(k.closingSoon)}      sub="act first" color={k.closingSoon ? '#ff453a' : '#e4e4f0'} />
         <Kpi label="Expired unrefunded" value={money(k.expiredUnrefunded)} sub={`${k.expiredCount} missed`} />
       </div>
 
@@ -134,33 +134,33 @@ export function IspeedRefunds() {
           )}
         </div>
         <div className="flex flex-wrap gap-4 mt-2.5 text-[10px]" style={{ color: '#52526e' }}>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#f87171' }} />≤8 days</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#fbbf24' }} />9–14 days</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#4ade80' }} />15+ days</span>
-          <span className="ml-auto flex items-center gap-1"><Flame size={11} style={{ color: '#4ade80' }} /> keep = you&apos;re working it</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#ff453a' }} />≤8 days</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#ff9f0a' }} />9–14 days</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#30d158' }} />15+ days</span>
+          <span className="ml-auto flex items-center gap-1"><Flame size={11} style={{ color: '#30d158' }} /> keep = you&apos;re working it</span>
         </div>
       </div>
 
       {/* Recovered by tier + capture rate */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-xl px-4 py-3.5" style={{ background: '#121320', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="rounded-xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="text-[11px] mb-2.5" style={{ color: '#8888a0' }}>Recovered by tier</div>
-          <div className="flex h-3.5 rounded-full overflow-hidden mb-2.5" style={{ background: '#1d1e2e' }}>
-            <div style={{ width: `${tierBar.excl}%`, background: '#60a5fa' }} />
-            <div style={{ width: `${tierBar.coup}%`, background: '#fb923c' }} />
+          <div className="flex h-3.5 rounded-full overflow-hidden mb-2.5" style={{ background: 'rgba(255,255,255,0.10)' }}>
+            <div style={{ width: `${tierBar.excl}%`, background: '#0a84ff' }} />
+            <div style={{ width: `${tierBar.coup}%`, background: '#ff9f0a' }} />
           </div>
           <div className="flex flex-col gap-1 text-[11px]" style={{ color: '#c4c4d6' }}>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-sm" style={{ background: '#60a5fa' }} />
+              <span className="w-2 h-2 rounded-sm" style={{ background: '#0a84ff' }} />
               Exclusive $125 — {money(k.recoveredByTier.exclusive)}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-sm" style={{ background: '#fb923c' }} />
+              <span className="w-2 h-2 rounded-sm" style={{ background: '#ff9f0a' }} />
               Coupon $29 — {money(k.recoveredByTier.coupon)}
             </span>
           </div>
         </div>
-        <div className="rounded-xl px-4 py-3.5" style={{ background: '#121320', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="rounded-xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="text-[11px] mb-2" style={{ color: '#8888a0' }}>$125 leads — capture rate</div>
           <div className="text-[30px] font-semibold leading-none" style={{ color: '#e4e4f0' }}>{k.captureRatePct}%</div>
           <div className="text-[10px] mt-2" style={{ color: '#52526e' }}>
@@ -171,15 +171,15 @@ export function IspeedRefunds() {
 
       {/* Refunded + missed lists */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <ListCard title={`Already refunded · ${data.refunded.length}`} icon={<CheckCircle2 size={13} style={{ color: '#4ade80' }} />}>
+        <ListCard title={`Already refunded · ${data.refunded.length}`} icon={<CheckCircle2 size={13} style={{ color: '#30d158' }} />}>
           {data.refunded.map((l, i) => (
             <div key={i} className="flex items-center justify-between px-3 py-1.5 text-[11px]" style={{ borderTop: i ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
               <span className="truncate" style={{ color: '#c4c4d6' }}>{l.name}</span>
-              <span className="flex-shrink-0 ml-2" style={{ color: '#4ade80' }}>{money(l.price)}</span>
+              <span className="flex-shrink-0 ml-2" style={{ color: '#30d158' }}>{money(l.price)}</span>
             </div>
           ))}
         </ListCard>
-        <ListCard title={`Past window · ${data.missed.length}`} icon={<AlertTriangle size={13} style={{ color: '#f87171' }} />}>
+        <ListCard title={`Past window · ${data.missed.length}`} icon={<AlertTriangle size={13} style={{ color: '#ff453a' }} />}>
           {data.missed.slice(0, 12).map((l, i) => (
             <div key={i} className="flex items-center justify-between px-3 py-1.5 text-[11px]" style={{ borderTop: i ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
               <span className="truncate" style={{ color: '#8888a0' }}>{l.name}</span>

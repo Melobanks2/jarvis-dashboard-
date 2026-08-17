@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, todayStart } from '../supabase';
+import { DIALER_API } from '@/lib/config';
 
 export type Temp = 'hot' | 'warm' | 'cold' | 'dead' | 'new';
 export type Source = 'alpha' | 'sarah' | 'ispeed';
@@ -113,7 +114,7 @@ const TEST_PHONE = '+13479704969';
 const LIVE_WINDOW_MS = 3 * 60 * 1000; // calls within 3 min are shown as "live/just landed"
 const AUTO_REFRESH_MS = 30 * 1000;    // real-time: re-pull leads + calls every 30s
 // Leads are served by the VPS backend (Vercel Hobby is at its 12-function cap)
-export const LEADS_API = 'https://api.jarviscommandcenter.space/dialer';
+export const LEADS_API = `${DIALER_API}/dialer`;
 
 const EMPTY_STATS: LeadStats = { total: 0, hot: 0, warm: 0, cold: 0, dead: 0, newLeads: 0 };
 

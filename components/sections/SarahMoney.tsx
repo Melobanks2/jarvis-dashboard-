@@ -17,9 +17,9 @@ const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 function attemptsOf(l: Lead) { return l.attempts ?? l.callHistory?.length ?? 0; }
 function refundColor(d: number, urgent?: boolean | null): string {
   if (d < 0) return '#5a5a80';
-  if (urgent || d <= 5) return '#f87171';
-  if (d <= 12) return '#fbbf24';
-  return '#4ade80';
+  if (urgent || d <= 5) return '#ff453a';
+  if (d <= 12) return '#ff9f0a';
+  return '#30d158';
 }
 const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
@@ -69,12 +69,12 @@ function RefundRadar({ leads, loading, onChanged }: { leads: Lead[]; loading: bo
   return (
     <div className="rounded-lg border border-border2 p-3.5" style={{ background: 'rgba(255,255,255,0.012)' }}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <AlertTriangle size={14} style={{ color: '#fbbf24' }} />
+        <AlertTriangle size={14} style={{ color: '#ff9f0a' }} />
         <span className="text-[12px] font-semibold text-textb">Refund Radar</span>
         <span className="text-[10px] text-dimtext">leads nearing their refund deadline</span>
         <span className="ml-auto flex items-center gap-3 text-[11px]">
-          <span style={{ color: '#fbbf24' }}>{money(dollarsAtRisk)} at risk</span>
-          {neglected > 0 && <span style={{ color: '#f87171' }}>{neglected} never called</span>}
+          <span style={{ color: '#ff9f0a' }}>{money(dollarsAtRisk)} at risk</span>
+          {neglected > 0 && <span style={{ color: '#ff453a' }}>{neglected} never called</span>}
         </span>
       </div>
 
@@ -120,7 +120,7 @@ function RadarRow({ lead, onChanged }: { lead: Lead; onChanged: () => void }) {
       <div className="min-w-0 flex-1">
         <div className="text-[12px] font-medium text-textb truncate">{lead.name}</div>
         <div className="text-[9.5px] text-dimtext truncate">
-          {lead.address || '—'} · <span style={{ color: attempts === 0 ? '#f87171' : undefined }}>{attempts === 0 ? 'never called' : `${attempts} attempt${attempts === 1 ? '' : 's'}`}</span>
+          {lead.address || '—'} · <span style={{ color: attempts === 0 ? '#ff453a' : undefined }}>{attempts === 0 ? 'never called' : `${attempts} attempt${attempts === 1 ? '' : 's'}`}</span>
           {lead.purchasePrice != null && <> · {money(lead.purchasePrice)}{lead.provider ? ` · ${lead.provider}` : ''}</>}
         </div>
       </div>
@@ -128,7 +128,7 @@ function RadarRow({ lead, onChanged }: { lead: Lead; onChanged: () => void }) {
         onClick={doCall}
         disabled={call === 'busy' || call === 'done'}
         className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors flex-shrink-0 disabled:opacity-60"
-        style={{ color: call === 'done' ? '#4ade80' : '#67e8f9', borderColor: call === 'err' ? 'rgba(248,113,113,0.4)' : 'rgba(103,232,249,0.3)', background: 'rgba(103,232,249,0.06)' }}
+        style={{ color: call === 'done' ? '#30d158' : '#64d2ff', borderColor: call === 'err' ? 'rgba(255,69,58,0.4)' : 'rgba(100,210,255,0.3)', background: 'rgba(100,210,255,0.06)' }}
       >
         {call === 'busy' ? <Loader2 size={11} className="animate-spin" /> : call === 'done' ? <Check size={11} /> : call === 'err' ? <X size={11} /> : <Phone size={11} />}
         {call === 'done' ? 'Dialing' : call === 'err' ? 'Failed' : 'Call now'}
@@ -137,7 +137,7 @@ function RadarRow({ lead, onChanged }: { lead: Lead; onChanged: () => void }) {
         onClick={doRefund}
         disabled={refund === 'busy' || refund === 'done'}
         className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-colors flex-shrink-0 disabled:opacity-60"
-        style={{ color: refund === 'done' ? '#4ade80' : '#fbbf24', borderColor: refund === 'err' ? 'rgba(248,113,113,0.4)' : 'rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.06)' }}
+        style={{ color: refund === 'done' ? '#30d158' : '#ff9f0a', borderColor: refund === 'err' ? 'rgba(255,69,58,0.4)' : 'rgba(255,159,10,0.3)', background: 'rgba(255,159,10,0.06)' }}
         title="Tag refund-requested, close the opp, and ping Telegram"
       >
         {refund === 'busy' ? <Loader2 size={11} className="animate-spin" /> : refund === 'done' ? <Check size={11} /> : refund === 'err' ? <X size={11} /> : <DollarSign size={11} />}
@@ -176,7 +176,7 @@ function SourceROI({ leads }: { leads: Lead[] }) {
   return (
     <div className="rounded-lg border border-border2 p-3.5" style={{ background: 'rgba(255,255,255,0.012)' }}>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <TrendingUp size={14} style={{ color: '#60a5fa' }} />
+        <TrendingUp size={14} style={{ color: '#0a84ff' }} />
         <span className="text-[12px] font-semibold text-textb">Lead Source ROI</span>
         <span className="text-[10px] text-dimtext">where your lead budget actually converts</span>
         <span className="ml-auto text-[11px] text-dimtext">{money(totalSpend)} spent · {totalHot} hot</span>
@@ -200,7 +200,7 @@ function SourceROI({ leads }: { leads: Lead[] }) {
             <tbody>
               {rows.map(r => {
                 const perHot = r.hot > 0 ? r.spend / r.hot : null;
-                const tag = r.key === bestKey ? { t: 'best',  c: '#4ade80' } : r.key === worstKey ? { t: 'cut', c: '#f87171' } : null;
+                const tag = r.key === bestKey ? { t: 'best',  c: '#30d158' } : r.key === worstKey ? { t: 'cut', c: '#ff453a' } : null;
                 return (
                   <tr key={r.key} style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
                     <td className="py-1.5 pr-2">
@@ -213,8 +213,8 @@ function SourceROI({ leads }: { leads: Lead[] }) {
                     <td className="text-right text-jtext">{r.leads}</td>
                     <td className="text-right text-jtext">{money(r.spend)}</td>
                     <td className="text-right text-jtext">{r.leads ? Math.round((r.contacted / r.leads) * 100) : 0}%</td>
-                    <td className="text-right" style={{ color: r.hot > 0 ? '#f87171' : '#52526e' }}>{r.hot}</td>
-                    <td className="text-right" style={{ color: perHot == null ? '#52526e' : perHot <= 300 ? '#4ade80' : '#fbbf24' }}>
+                    <td className="text-right" style={{ color: r.hot > 0 ? '#ff453a' : '#52526e' }}>{r.hot}</td>
+                    <td className="text-right" style={{ color: perHot == null ? '#52526e' : perHot <= 300 ? '#30d158' : '#ff9f0a' }}>
                       {perHot == null ? '—' : money(perHot)}
                     </td>
                   </tr>
@@ -225,7 +225,7 @@ function SourceROI({ leads }: { leads: Lead[] }) {
         </div>
       )}
       <div className="text-[9.5px] text-dimtext mt-2.5 flex items-center gap-1.5">
-        <Flame size={10} style={{ color: '#f87171' }} /> Lower $/hot = cheaper to find a motivated seller. <span style={{ color: '#4ade80' }}>Green</span> sources earn more budget; <span style={{ color: '#f87171' }}>red</span> ones are burning cash with no hot leads.
+        <Flame size={10} style={{ color: '#ff453a' }} /> Lower $/hot = cheaper to find a motivated seller. <span style={{ color: '#30d158' }}>Green</span> sources earn more budget; <span style={{ color: '#ff453a' }}>red</span> ones are burning cash with no hot leads.
       </div>
     </div>
   );

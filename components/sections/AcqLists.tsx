@@ -10,9 +10,10 @@ import {
   type Table,
 } from '@/lib/csv';
 import { CountySources } from './CountySources';
+import { DIALER_API } from '@/lib/config';
 
 // Personal power-dialer backend (same host the Live Dialer uses).
-const ACQ_API = 'https://api.jarviscommandcenter.space/dialer/personal';
+const ACQ_API = `${DIALER_API}/dialer/personal`;
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -128,11 +129,11 @@ function Step1CountyToXLeads() {
     : [];
 
   return (
-    <Card accent="#4ade80">
+    <Card accent="#30d158">
       <StepHeader n={1} Icon={FileSpreadsheet} title="County record → XLeads format"
-        subtitle="Drop your raw county list. Map the columns, then download a file XLeads can skip-trace." accent="#4ade80" />
+        subtitle="Drop your raw county list. Map the columns, then download a file XLeads can skip-trace." accent="#30d158" />
 
-      <FilePick label="Choose county CSV" fileName={fileName} onClick={() => fileRef.current?.click()} accent="#4ade80" />
+      <FilePick label="Choose county CSV" fileName={fileName} onClick={() => fileRef.current?.click()} accent="#30d158" />
       <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={onFile} />
 
       {err && <Banner tone="error">{err}</Banner>}
@@ -161,7 +162,7 @@ function Step1CountyToXLeads() {
                       <button key={o} onClick={() => setNameOrder(o)}
                         className="px-2.5 py-1 rounded text-[11px] font-medium"
                         style={nameOrder === o
-                          ? { background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }
+                          ? { background: 'rgba(48,209,88,0.15)', color: '#30d158', border: '1px solid rgba(48,209,88,0.4)' }
                           : { background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }}>
                         {o === 'last-first' ? 'Last First' : 'First Last'}
                       </button>
@@ -196,7 +197,7 @@ function Step1CountyToXLeads() {
 
           <Preview headers={OUT_FIELDS.map(f => outHeaders[f.key])} rows={outRows.slice(0, 5)} />
 
-          <PrimaryBtn onClick={download} Icon={Download} accent="#22c55e">
+          <PrimaryBtn onClick={download} Icon={Download} accent="#30d158">
             Download XLeads CSV ({outRows.length} rows)
           </PrimaryBtn>
         </>
@@ -300,11 +301,11 @@ function Step2SkipTracedToDial({ onSessionStarted }: { onSessionStarted?: (sessi
   const reset = () => { setTable(null); setFileName(''); setErr(null); setNote(null); setPhoneCols([]); };
 
   return (
-    <Card accent="#60a5fa">
+    <Card accent="#0a84ff">
       <StepHeader n={2} Icon={ListChecks} title="Skip-traced list → dial queue"
-        subtitle="Drop the file XLeads gives back. It finds the phone numbers and builds your dial list." accent="#60a5fa" />
+        subtitle="Drop the file XLeads gives back. It finds the phone numbers and builds your dial list." accent="#0a84ff" />
 
-      <FilePick label="Choose skip-traced CSV" fileName={fileName} onClick={() => fileRef.current?.click()} accent="#60a5fa" />
+      <FilePick label="Choose skip-traced CSV" fileName={fileName} onClick={() => fileRef.current?.click()} accent="#0a84ff" />
       <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={onFile} />
 
       {err && <Banner tone="error">{err}</Banner>}
@@ -315,7 +316,7 @@ function Step2SkipTracedToDial({ onSessionStarted }: { onSessionStarted?: (sessi
             <span className="text-dimtext">{table.rows.length} rows ·</span>
             {phoneCols.length > 0
               ? <span className="text-ngreen flex items-center gap-1"><CheckCircle2 size={12} /> {phoneCols.length} phone column{phoneCols.length > 1 ? 's' : ''} detected</span>
-              : <span className="flex items-center gap-1" style={{ color: '#f87171' }}><AlertTriangle size={12} /> no phone columns found</span>}
+              : <span className="flex items-center gap-1" style={{ color: '#ff453a' }}><AlertTriangle size={12} /> no phone columns found</span>}
           </div>
 
           {/* dial mode */}
@@ -329,7 +330,7 @@ function Step2SkipTracedToDial({ onSessionStarted }: { onSessionStarted?: (sessi
                 <button key={o.k} onClick={() => setMode(o.k)}
                   className="flex-1 rounded-md px-3 py-2 text-left transition-all"
                   style={mode === o.k
-                    ? { background: 'rgba(96,165,250,0.14)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.45)' }
+                    ? { background: 'rgba(10,132,255,0.14)', color: '#0a84ff', border: '1px solid rgba(10,132,255,0.45)' }
                     : { background: 'rgba(255,255,255,0.03)', color: '#c4c4d6', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div className="text-[12px] font-semibold">{o.label}</div>
                   <div className="text-[10px] text-dimtext">{o.hint}</div>
@@ -437,7 +438,7 @@ function Select({ value, onChange, options }: { value: number; onChange: (v: num
 }
 
 function Banner({ children, tone }: { children: React.ReactNode; tone: 'error' | 'info' }) {
-  const c = tone === 'error' ? { bg: 'rgba(248,113,113,0.08)', fg: '#f87171', bd: 'rgba(248,113,113,0.2)' } : { bg: 'rgba(96,165,250,0.08)', fg: '#93c5fd', bd: 'rgba(96,165,250,0.25)' };
+  const c = tone === 'error' ? { bg: 'rgba(255,69,58,0.08)', fg: '#ff453a', bd: 'rgba(255,69,58,0.2)' } : { bg: 'rgba(10,132,255,0.08)', fg: '#6db3ff', bd: 'rgba(10,132,255,0.25)' };
   return <div className="text-[11px] px-3 py-2 rounded-sm" style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>{children}</div>;
 }
 

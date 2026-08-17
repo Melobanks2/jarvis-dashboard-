@@ -1,34 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Orbitron:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* ── Backgrounds ─────────────── */
-  --bg:    #0c0d14;
-  --bg2:   #121320;
-  --bg3:   #181928;
-  --bg4:   #1d1e2e;
+  /* ── Backgrounds — deep blue-cast dark ─ */
+  --bg:    #05070d;
+  --bg2:   rgba(255,255,255,0.05);
+  --bg3:   rgba(255,255,255,0.07);
+  --bg4:   rgba(255,255,255,0.10);
 
-  /* ── Accent colors (toned down) ─ */
-  --green:  #4ade80;
-  --gold:   #fbbf24;
-  --red:    #f87171;
-  --orange: #fb923c;
-  --blue:   #60a5fa;
-  --purple: #a78bfa;
-  --cyan:   #67e8f9;
+  /* ── Accents — Apple system colors, blue-first ─
+     blue = identity + neutral info · green = positive/money
+     red = urgent · orange = warning/aging. */
+  --blue:   #0a84ff;
+  --green:  #30d158;
+  --red:    #ff453a;
+  --orange: #ff9f0a;
+  --purple: #bf5af2;
+  --cyan:   #64d2ff;
+  --gold:   #ff9f0a;
 
-  /* ── Text ───────────────────────  */
-  --text:    #c4c4d6;
-  --textb:   #e4e4f0;
-  --dimtext: #52526e;
+  /* ── Text — Apple label hierarchy on dark ─ */
+  --text:    rgba(235,235,245,0.62);
+  --textb:   #f5f5f7;
+  --dimtext: rgba(235,235,245,0.35);
 
-  /* ── Borders ────────────────────  */
-  --border:  rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.10);
-  --dim:     #1c1c2e;
+  /* ── Borders ─ */
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --dim:     rgba(235,235,245,0.18);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,83 +39,118 @@ html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Ambient color field — the light source Liquid Glass refracts.
+   Fixed and static so it costs nothing after first paint. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(44% 36% at 16% 6%,  rgba(10,132,255,0.30), transparent 62%),
+    radial-gradient(40% 32% at 86% 14%, rgba(100,210,255,0.16), transparent 64%),
+    radial-gradient(42% 38% at 68% 92%, rgba(10,132,255,0.18), transparent 66%),
+    radial-gradient(48% 42% at 24% 66%, rgba(191,90,242,0.10), transparent 68%);
+  filter: blur(24px);
+}
+
 /* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
 
-/* Fonts */
-.font-orbitron { font-family: 'Orbitron', monospace; }
-.font-mono     { font-family: 'Inter', monospace; }
+/* Fonts — Orbitron is retired. The class is kept because ~25 sections still
+   reference it, but it now resolves to the system stack with tabular numerals,
+   which is how numbers read as "precise" without the sci-fi face. */
+.font-orbitron {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.02em !important;
+}
+.font-mono { font-family: 'SF Mono', ui-monospace, 'Menlo', monospace; }
 
-/* Leads section — clean, readable font (override the "video game" Orbitron
-   look). Scoped to .leads-clean so the rest of the dashboard is unaffected. */
 .leads-clean,
 .leads-clean .font-orbitron {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
 }
-.leads-clean .font-orbitron {
-  letter-spacing: normal !important;
-}
+.leads-clean .font-orbitron { letter-spacing: normal !important; }
 
-/* Glow text — very subtle now */
-.glow-green  { text-shadow: 0 0 16px rgba(74,222,128,.35); }
-.glow-gold   { text-shadow: 0 0 16px rgba(251,191,36,.30); }
-.glow-cyan   { text-shadow: 0 0 12px rgba(103,232,249,.30); }
-.glow-purple { text-shadow: 0 0 12px rgba(167,139,250,.30); }
-.glow-red    { text-shadow: 0 0 10px rgba(248,113,113,.30); }
-.glow-orange { text-shadow: 0 0 10px rgba(251,146,60,.30);  }
-.glow-blue   { text-shadow: 0 0 10px rgba(96,165,250,.30);  }
+/* Glow text — retired. Classes kept so existing sections don't break. */
+.glow-green, .glow-gold, .glow-cyan, .glow-purple,
+.glow-red, .glow-orange, .glow-blue { text-shadow: none; }
 
-/* Glass utility */
+/* ── Liquid Glass material ──────────────────────────────────────────
+   Translucent wash + heavy backdrop blur + saturation boost, with a
+   specular top edge. Needs the ambient field behind it to read. */
 .glass {
-  background: rgba(18, 19, 32, 0.80);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255,255,255,0.055);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(255,255,255,0.04),
+    0 10px 40px rgba(0,0,0,0.42);
 }
 
-/* Panel accent top line */
-.accent-top-green  { box-shadow: inset 0 1px 0 rgba(74,222,128,.20);  }
-.accent-top-gold   { box-shadow: inset 0 1px 0 rgba(251,191,36,.20);   }
-.accent-top-cyan   { box-shadow: inset 0 1px 0 rgba(103,232,249,.20);  }
-.accent-top-blue   { box-shadow: inset 0 1px 0 rgba(96,165,250,.20);   }
-.accent-top-purple { box-shadow: inset 0 1px 0 rgba(167,139,250,.20);  }
-.accent-top-orange { box-shadow: inset 0 1px 0 rgba(251,146,60,.20);   }
-.accent-top-red    { box-shadow: inset 0 1px 0 rgba(248,113,113,.20);  }
+/* Apple-style press physics.
+   .press  — color transitions only; use on framer-motion elements where
+             whileTap owns transform (a CSS transform transition would fight
+             the spring's per-frame writes and feel mushy).
+   .tap    — full CSS press for plain (non-framer) clickables. */
+.press { transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease; }
+.tap {
+  transition: transform 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+              background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.tap:active { transform: scale(0.965); }
+
+/* Native select popups can't be translucent — keep options readable now that
+   bg2/bg3 surfaces are white washes. */
+select option { background-color: #10141e; color: #f5f5f7; }
+
+/* Panel accent top line — legacy, now neutral specular edges. */
+.accent-top-green, .accent-top-gold, .accent-top-cyan, .accent-top-blue,
+.accent-top-purple, .accent-top-orange, .accent-top-red {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
+}
 
 /* Idea badge variants */
-.badge-automation { background: rgba(96,165,250,.10);  color: #60a5fa; border: 1px solid rgba(96,165,250,.20);  }
-.badge-crm        { background: rgba(74,222,128,.08);  color: #4ade80; border: 1px solid rgba(74,222,128,.18);  }
-.badge-cost_saving{ background: rgba(251,191,36,.08);  color: #fbbf24; border: 1px solid rgba(251,191,36,.18);  }
-.badge-revenue    { background: rgba(167,139,250,.10); color: #a78bfa; border: 1px solid rgba(167,139,250,.20); }
-.badge-personal   { background: rgba(82,82,110,.15);   color: #52526e; border: 1px solid rgba(255,255,255,.07); }
-.badge-high       { background: rgba(248,113,113,.10); color: #f87171; border: 1px solid rgba(248,113,113,.20); }
-.badge-medium     { background: rgba(251,146,60,.08);  color: #fb923c; border: 1px solid rgba(251,146,60,.18);  }
-.badge-low        { background: rgba(82,82,110,.15);   color: #52526e; border: 1px solid rgba(255,255,255,.07); }
+.badge-automation { background: rgba(10,132,255,.12);  color: #6db3ff; border: 1px solid rgba(10,132,255,.22);  }
+.badge-crm        { background: rgba(48,209,88,.10);   color: #30d158; border: 1px solid rgba(48,209,88,.20);   }
+.badge-cost_saving{ background: rgba(255,159,10,.10);  color: #ff9f0a; border: 1px solid rgba(255,159,10,.20);  }
+.badge-revenue    { background: rgba(191,90,242,.12);  color: #bf5af2; border: 1px solid rgba(191,90,242,.22);  }
+.badge-personal   { background: rgba(235,235,245,.08); color: rgba(235,235,245,.5); border: 1px solid rgba(255,255,255,.08); }
+.badge-high       { background: rgba(255,69,58,.12);   color: #ff6961; border: 1px solid rgba(255,69,58,.22);   }
+.badge-medium     { background: rgba(255,159,10,.10);  color: #ff9f0a; border: 1px solid rgba(255,159,10,.20);  }
+.badge-low        { background: rgba(235,235,245,.08); color: rgba(235,235,245,.5); border: 1px solid rgba(255,255,255,.08); }
 
 /* ── Jarvis Intelligence Chat — rendered markdown ─────────────────── */
 .jarvis-content p                  { margin-bottom: 10px; }
 .jarvis-content p:last-child       { margin-bottom: 0; }
-.jarvis-content h1                 { font-size: 16px; font-weight: 700; color: #e4e4f0; margin: 14px 0 8px; }
-.jarvis-content h2                 { font-size: 14px; font-weight: 600; color: #e4e4f0; margin: 12px 0 6px; }
-.jarvis-content h3                 { font-size: 13px; font-weight: 600; color: #c4c4d6; margin: 10px 0 5px; }
-.jarvis-content strong             { color: #e4e4f0; font-weight: 600; }
-.jarvis-content em                 { color: #a78bfa; font-style: italic; }
+.jarvis-content h1                 { font-size: 17px; font-weight: 600; color: #f5f5f7; margin: 14px 0 8px; letter-spacing: -0.02em; }
+.jarvis-content h2                 { font-size: 15px; font-weight: 600; color: #f5f5f7; margin: 12px 0 6px; letter-spacing: -0.016em; }
+.jarvis-content h3                 { font-size: 14px; font-weight: 600; color: rgba(235,235,245,0.75); margin: 10px 0 5px; }
+.jarvis-content strong             { color: #f5f5f7; font-weight: 600; }
+.jarvis-content em                 { color: #6db3ff; font-style: italic; }
 .jarvis-content ul                 { list-style: none; padding-left: 0; margin: 8px 0; }
 .jarvis-content ul li              { padding: 2px 0 2px 16px; position: relative; }
-.jarvis-content ul li::before      { content: '›'; position: absolute; left: 0; color: #a78bfa; }
-.jarvis-content code               { background: rgba(255,255,255,0.08); color: #67e8f9; padding: 1px 5px; border-radius: 4px; font-family: 'Menlo','Consolas',monospace; font-size: 12px; }
-.jarvis-content .jv-code-block     { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin: 10px 0; overflow: hidden; }
-.jarvis-content .jv-code-lang      { font-size: 9px; font-weight: 600; color: #52526e; padding: 6px 12px 0; text-transform: uppercase; letter-spacing: 1px; }
+.jarvis-content ul li::before      { content: '›'; position: absolute; left: 0; color: #0a84ff; }
+.jarvis-content code               { background: rgba(255,255,255,0.08); color: #64d2ff; padding: 1px 5px; border-radius: 5px; font-family: 'SF Mono','Menlo','Consolas',monospace; font-size: 12px; }
+.jarvis-content .jv-code-block     { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.jarvis-content .jv-code-lang      { font-size: 10px; font-weight: 600; color: rgba(235,235,245,0.35); padding: 6px 12px 0; text-transform: uppercase; letter-spacing: 1px; }
 .jarvis-content .jv-code-block pre { padding: 10px 12px; overflow-x: auto; }
-.jarvis-content .jv-code-block code{ background: transparent; color: #c4c4d6; font-size: 11px; line-height: 1.7; padding: 0; border-radius: 0; }
+.jarvis-content .jv-code-block code{ background: transparent; color: rgba(235,235,245,0.62); font-size: 12px; line-height: 1.7; padding: 0; border-radius: 0; }

@@ -7,9 +7,9 @@
 export type WorkStatus = 'working' | 'standby' | 'off' | 'unknown';
 
 const CFG: Record<WorkStatus, { c: string; label: string }> = {
-  working: { c: '#4ade80', label: 'WORKING' },
-  standby: { c: '#fbbf24', label: 'STANDBY' },
-  off:     { c: '#ff3366', label: 'OFF' },
+  working: { c: '#30d158', label: 'WORKING' },
+  standby: { c: '#ff9f0a', label: 'STANDBY' },
+  off:     { c: '#ff453a', label: 'OFF' },
   unknown: { c: '#52526e', label: '···' },
 };
 

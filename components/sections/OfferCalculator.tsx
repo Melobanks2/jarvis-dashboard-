@@ -8,9 +8,9 @@ const DEFAULTS = { arv: '', repairs: '', pct: '70', spread: '15000' };
 
 // Walk-up rungs as a fraction of MAO: opening → counter → ceiling.
 const LADDER = [
-  { mult: 0.85, label: 'First offer',   when: 'Say this when you present the number',                 color: '#4ade80' },
-  { mult: 0.92, label: 'Counter',       when: 'After the pushback — "let me talk to my underwriter"', color: '#fbbf24' },
-  { mult: 1.00, label: 'Ceiling · MAO', when: 'Your walk-away max — never go above this',             color: '#ff5a3c' },
+  { mult: 0.85, label: 'First offer',   when: 'Say this when you present the number',                 color: '#30d158' },
+  { mult: 0.92, label: 'Counter',       when: 'After the pushback — "let me talk to my underwriter"', color: '#ff9f0a' },
+  { mult: 1.00, label: 'Ceiling · MAO', when: 'Your walk-away max — never go above this',             color: '#ff453a' },
 ];
 
 const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
@@ -60,9 +60,9 @@ export function OfferCalculator() {
   const ready = arv > 0 && mao > 0;
 
   return (
-    <div className="rounded-lg p-4 flex flex-col gap-3" style={{ background: 'rgba(8,16,11,0.7)', border: '1px solid rgba(74,222,128,0.25)' }}>
+    <div className="rounded-lg p-4 flex flex-col gap-3" style={{ background: 'rgba(8,16,11,0.7)', border: '1px solid rgba(48,209,88,0.25)' }}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#4ade80' }}>
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold" style={{ color: '#30d158' }}>
           <Calculator size={13} /> Offer Ladder
         </div>
         <button title="Reset" onClick={clear} className="text-dimtext hover:text-ngreen transition-colors"><RotateCcw size={11} /></button>
@@ -82,8 +82,8 @@ export function OfferCalculator() {
 
       {/* ceiling */}
       <div className="flex items-baseline justify-between rounded-md px-3 py-2" style={{ background: 'rgba(255,90,60,0.08)', border: '1px solid rgba(255,90,60,0.25)' }}>
-        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#ff5a3c' }}>Ceiling · MAO</span>
-        <span className="text-[18px] font-bold" style={{ color: ready ? '#ff5a3c' : '#52526e' }}>{ready ? money(mao) : '—'}</span>
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: '#ff453a' }}>Ceiling · MAO</span>
+        <span className="text-[18px] font-bold" style={{ color: ready ? '#ff453a' : '#52526e' }}>{ready ? money(mao) : '—'}</span>
       </div>
 
       {/* ladder */}

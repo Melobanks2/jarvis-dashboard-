@@ -568,7 +568,7 @@ function AgentMesh({
   const isActive = agent.status === 'active';
   const isIdle   = agent.status === 'idle';
 
-  const dotColor   = isActive ? '#4ade80' : isIdle ? '#fbbf24' : '#ef4444';
+  const dotColor   = isActive ? '#30d158' : isIdle ? '#ff9f0a' : '#ff453a';
   const nameColor  = isActive ? agent.color : isIdle ? `${agent.color}bb` : `${agent.color}66`;
   const nameShadow = isActive ? `0 0 8px ${agent.color}` : 'none';
 

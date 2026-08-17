@@ -42,10 +42,10 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className="rounded-sm border overflow-hidden"
-      style={{ background: 'rgba(170,68,255,0.04)', borderColor: 'rgba(170,68,255,0.25)' }}
+      style={{ background: 'rgba(191,90,242,0.04)', borderColor: 'rgba(191,90,242,0.25)' }}
     >
       {/* Top accent */}
-      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, #aa44ff 40%, #aa44ff 60%, transparent)' }} />
+      <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, #bf5af2 40%, #bf5af2 60%, transparent)' }} />
 
       <div className="p-4">
         {/* Header row */}
@@ -62,14 +62,14 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
 
         {/* ARV + Offer grid */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="p-2 rounded-sm border" style={{ background: 'rgba(0,229,255,0.05)', borderColor: 'rgba(0,229,255,0.15)' }}>
+          <div className="p-2 rounded-sm border" style={{ background: 'rgba(100,210,255,0.05)', borderColor: 'rgba(100,210,255,0.15)' }}>
             <div className="text-[8px] text-dimtext font-orbitron tracking-[1px] mb-0.5">ARV</div>
             <div className="font-orbitron text-[18px] font-black text-ncyan">{fmtCurrency(approval.arv)}</div>
             {approval.repair_estimate && (
               <div className="text-[8px] text-dimtext mt-0.5">Repairs: {fmtCurrency(approval.repair_estimate)}</div>
             )}
           </div>
-          <div className="p-2 rounded-sm border" style={{ background: 'rgba(0,255,136,0.05)', borderColor: 'rgba(0,255,136,0.12)' }}>
+          <div className="p-2 rounded-sm border" style={{ background: 'rgba(48,209,88,0.05)', borderColor: 'rgba(48,209,88,0.12)' }}>
             <div className="text-[8px] text-dimtext font-orbitron tracking-[1px] mb-1">OFFER RANGE</div>
             <div className="flex flex-col gap-0.5">
               <div className="flex justify-between text-[9px]">
@@ -78,7 +78,7 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
               </div>
               <div className="flex justify-between text-[9px]">
                 <span className="text-dimtext">65% Target</span>
-                <span style={{ color: '#ffd700' }} className="font-bold">{fmtCurrency(approval.offer_65)}</span>
+                <span style={{ color: '#ff9f0a' }} className="font-bold">{fmtCurrency(approval.offer_65)}</span>
               </div>
               <div className="flex justify-between text-[9px]">
                 <span className="text-dimtext">70% Max</span>
@@ -118,7 +118,7 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
                 {approval.transcript.split('\n').map((line, i) => {
                   const isJarvis = line.toLowerCase().startsWith('jarvis') || line.toLowerCase().startsWith('agent');
                   return (
-                    <div key={i} style={{ color: isJarvis ? '#00e5ff' : '#00ff88' }}>{line}</div>
+                    <div key={i} style={{ color: isJarvis ? '#64d2ff' : '#30d158' }}>{line}</div>
                   );
                 })}
               </div>
@@ -144,7 +144,7 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
             disabled={deciding}
             whileTap={{ scale: 0.95 }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-sm font-orbitron text-[10px] font-bold tracking-[1px] transition-all disabled:opacity-50"
-            style={{ background: 'rgba(0,255,136,0.12)', border: '1px solid rgba(0,255,136,0.30)', color: '#00ff88' }}
+            style={{ background: 'rgba(48,209,88,0.12)', border: '1px solid rgba(48,209,88,0.30)', color: '#30d158' }}
           >
             <ThumbsUp size={12} /> APPROVE
           </motion.button>
@@ -153,7 +153,7 @@ function ApprovalCard({ approval, onDecision }: { approval: DealApproval; onDeci
             disabled={deciding}
             whileTap={{ scale: 0.95 }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-sm font-orbitron text-[10px] font-bold tracking-[1px] transition-all disabled:opacity-50"
-            style={{ background: 'rgba(255,51,102,0.10)', border: '1px solid rgba(255,51,102,0.25)', color: '#ff3366' }}
+            style={{ background: 'rgba(255,69,58,0.10)', border: '1px solid rgba(255,69,58,0.25)', color: '#ff453a' }}
           >
             <ThumbsDown size={12} /> PASS
           </motion.button>
@@ -223,7 +223,7 @@ function ProspectCard({ call }: { call: ProspectCall }) {
               {call.transcript_full.split('\n').map((line, i) => {
                 const isJarvis = line.toLowerCase().startsWith('jarvis');
                 return (
-                  <div key={i} style={{ color: isJarvis ? '#00e5ff' : '#00ff88' }}>{line}</div>
+                  <div key={i} style={{ color: isJarvis ? '#64d2ff' : '#30d158' }}>{line}</div>
                 );
               })}
             </div>
@@ -278,10 +278,10 @@ export function ProspectsHub() {
       {/* Metrics row */}
       <motion.div variants={FADE_UP} className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Pending Approval', value: pendingVisible.length, color: '#aa44ff' },
-          { label: 'Approved Deals',   value: decidedApprovals.filter(a => a.status === 'approved').length, color: '#00ff88' },
-          { label: 'Passed',           value: decidedApprovals.filter(a => a.status === 'passed').length,   color: '#ff3366' },
-          { label: 'Calls Logged',     value: calls.length,                                                  color: '#00e5ff' },
+          { label: 'Pending Approval', value: pendingVisible.length, color: '#bf5af2' },
+          { label: 'Approved Deals',   value: decidedApprovals.filter(a => a.status === 'approved').length, color: '#30d158' },
+          { label: 'Passed',           value: decidedApprovals.filter(a => a.status === 'passed').length,   color: '#ff453a' },
+          { label: 'Calls Logged',     value: calls.length,                                                  color: '#64d2ff' },
         ].map(m => (
           <GlassCard key={m.label} accent="purple" padding="p-3" hover={false}>
             <div className="text-[8px] text-dimtext font-orbitron tracking-[1px] uppercase mb-1">{m.label}</div>
@@ -296,11 +296,11 @@ export function ProspectsHub() {
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-sm border cursor-pointer"
-            style={{ background: 'rgba(170,68,255,0.08)', borderColor: 'rgba(170,68,255,0.30)' }}
+            style={{ background: 'rgba(191,90,242,0.08)', borderColor: 'rgba(191,90,242,0.30)' }}
             onClick={() => setTab('approvals')}
           >
-            <AlertCircle size={13} style={{ color: '#aa44ff' }} />
-            <span className="text-[10px] font-orbitron font-bold" style={{ color: '#aa44ff' }}>
+            <AlertCircle size={13} style={{ color: '#bf5af2' }} />
+            <span className="text-[10px] font-orbitron font-bold" style={{ color: '#bf5af2' }}>
               {pendingVisible.length} deal{pendingVisible.length > 1 ? 's' : ''} awaiting your approval
             </span>
             <span className="ml-auto text-[9px] text-dimtext">Tap to review →</span>
@@ -321,8 +321,8 @@ export function ProspectsHub() {
               onClick={() => setTab(t.key)}
               className="px-4 py-2 text-[10px] font-orbitron tracking-[1px] uppercase border-b-2 transition-all"
               style={{
-                color:       tab === t.key ? '#aa44ff' : '#5a5a80',
-                borderColor: tab === t.key ? '#aa44ff' : 'transparent',
+                color:       tab === t.key ? '#bf5af2' : '#5a5a80',
+                borderColor: tab === t.key ? '#bf5af2' : 'transparent',
               }}
             >
               {t.label}
@@ -361,8 +361,8 @@ export function ProspectsHub() {
                       key={a.id}
                       className="flex items-center gap-3 px-3 py-2 rounded-sm border text-[10px]"
                       style={{
-                        background:   a.status === 'approved' ? 'rgba(0,255,136,0.04)' : 'rgba(255,51,102,0.04)',
-                        borderColor:  a.status === 'approved' ? 'rgba(0,255,136,0.15)' : 'rgba(255,51,102,0.15)',
+                        background:   a.status === 'approved' ? 'rgba(48,209,88,0.04)' : 'rgba(255,69,58,0.04)',
+                        borderColor:  a.status === 'approved' ? 'rgba(48,209,88,0.15)' : 'rgba(255,69,58,0.15)',
                       }}
                     >
                       {a.status === 'approved'
@@ -407,7 +407,7 @@ export function ProspectsHub() {
                 <div
                   key={c.id}
                   className="flex items-center gap-3 px-3 py-2 rounded-sm border text-[10px]"
-                  style={{ background: 'rgba(0,229,255,0.03)', borderColor: 'rgba(0,229,255,0.10)' }}
+                  style={{ background: 'rgba(100,210,255,0.03)', borderColor: 'rgba(100,210,255,0.10)' }}
                 >
                   <Phone size={10} className="text-ncyan flex-shrink-0" />
                   <div className="flex-1 min-w-0">

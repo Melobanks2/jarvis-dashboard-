@@ -7,11 +7,11 @@ import { useApp } from '@/lib/AppContext';
 import { timeAgo } from '@/lib/supabase';
 
 const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
-  call:    { icon: <Phone size={10} />,       color: '#67e8f9' },
-  success: { icon: <CheckCircle size={10} />, color: '#4ade80' },
-  error:   { icon: <AlertCircle size={10} />, color: '#f87171' },
-  warning: { icon: <Zap size={10} />,         color: '#fb923c' },
-  info:    { icon: <TrendingUp size={10} />,  color: '#60a5fa' },
+  call:    { icon: <Phone size={10} />,       color: '#64d2ff' },
+  success: { icon: <CheckCircle size={10} />, color: '#30d158' },
+  error:   { icon: <AlertCircle size={10} />, color: '#ff453a' },
+  warning: { icon: <Zap size={10} />,         color: '#ff9f0a' },
+  info:    { icon: <TrendingUp size={10} />,  color: '#0a84ff' },
 };
 
 const SOURCE_ICONS: Record<string, React.ReactNode> = {

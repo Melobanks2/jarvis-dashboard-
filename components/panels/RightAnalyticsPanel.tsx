@@ -10,12 +10,12 @@ import { timeAgo } from '@/lib/supabase';
 const MONTHLY_GOAL = 30000;
 
 const STAGE_COLORS: Record<string, string> = {
-  'Hot Follow Up':    '#f87171',
-  'Warm Follow Up':   '#fb923c',
-  'Decision Pending': '#a78bfa',
-  'Contract Sent':    '#4ade80',
-  'Under Contract':   '#4ade80',
-  'New Lead':         '#60a5fa',
+  'Hot Follow Up':    '#ff453a',
+  'Warm Follow Up':   '#ff9f0a',
+  'Decision Pending': '#bf5af2',
+  'Contract Sent':    '#30d158',
+  'Under Contract':   '#30d158',
+  'New Lead':         '#0a84ff',
 };
 
 export function RightAnalyticsPanel() {
@@ -42,10 +42,10 @@ export function RightAnalyticsPanel() {
         {/* Call stats */}
         <Module label="Call Performance">
           <div className="grid grid-cols-2 gap-3 mb-1">
-            <BigNum label="Calls Today" value={calls.length}                          color="#67e8f9" />
-            <BigNum label="Answered"    value={answered}                              color="#4ade80" />
-            <BigNum label="Hot Found"   value={hotFound}                              color="#f87171" />
-            <BigNum label="Voicemails"  value={Math.max(0, calls.length - answered)}  color="#fbbf24" />
+            <BigNum label="Calls Today" value={calls.length}                          color="#64d2ff" />
+            <BigNum label="Answered"    value={answered}                              color="#30d158" />
+            <BigNum label="Hot Found"   value={hotFound}                              color="#ff453a" />
+            <BigNum label="Voicemails"  value={Math.max(0, calls.length - answered)}  color="#ff9f0a" />
           </div>
         </Module>
 
@@ -59,14 +59,14 @@ export function RightAnalyticsPanel() {
                 target={revenue}
                 prefix="$"
                 className="font-orbitron text-[24px] font-bold"
-                style={{ color: '#fbbf24' } as React.CSSProperties}
+                style={{ color: '#ff9f0a' } as React.CSSProperties}
               />
               <span className="text-dimtext text-[11px] mb-0.5">/ $30K</span>
             </div>
-            <div className="relative h-1 rounded-full overflow-hidden" style={{ background: 'rgba(251,191,36,0.10)' }}>
+            <div className="relative h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,159,10,0.10)' }}>
               <motion.div
                 className="absolute top-0 left-0 h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, #fbbf24, #fb923c)' }}
+                style={{ background: 'linear-gradient(90deg, #ff9f0a, #ff9f0a)' }}
                 initial={{ width: 0 }}
                 animate={{ width: `${revPct}%` }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -102,7 +102,7 @@ export function RightAnalyticsPanel() {
         <Module label="Activity">
           <div className="flex flex-col gap-2">
             {feed.slice(0, 5).map(item => {
-              const tc = { success: '#4ade80', error: '#f87171', warning: '#fb923c', info: '#60a5fa', call: '#67e8f9' }[item.type] || '#52526e';
+              const tc = { success: '#30d158', error: '#ff453a', warning: '#ff9f0a', info: '#0a84ff', call: '#64d2ff' }[item.type] || '#52526e';
               return (
                 <motion.div key={item.id} className="flex gap-2" whileHover={{ x: 2 }}>
                   <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: tc }} />

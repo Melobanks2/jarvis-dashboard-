@@ -16,13 +16,13 @@ import { timeAgo } from '@/lib/supabase';
 const JarvisOrb = dynamic(() => import('@/components/three/JarvisOrb').then(m => ({ default: m.JarvisOrb })), { ssr: false });
 
 const TYPE_COLOR: Record<string, string> = {
-  success: '#00ff88', error: '#ff3366', warning: '#ff8800', info: '#00aaff', call: '#00e5ff',
+  success: '#30d158', error: '#ff453a', warning: '#ff9f0a', info: '#0a84ff', call: '#64d2ff',
 };
 
 // At-a-glance conversation/voicemail/no-answer indicator for the call peek.
 const CALL_TYPE_COLOR: Record<string, { color: string; short: string }> = {
-  conversation: { color: '#00ff88', short: 'Convo' },
-  voicemail:    { color: '#ffd700', short: 'VM' },
+  conversation: { color: '#30d158', short: 'Convo' },
+  voicemail:    { color: '#ff9f0a', short: 'VM' },
   'no-answer':  { color: '#5a5a80', short: 'No ans' },
 };
 
@@ -49,12 +49,12 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,.02) 2px,rgba(0,255,136,.02) 4px)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(48,209,88,.02) 2px,rgba(48,209,88,.02) 4px)' }} />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: 'rgba(0,255,136,.15)' }}>
+      <div className="flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: 'rgba(48,209,88,.15)' }}>
         <div>
-          <h1 className="font-orbitron text-[20px] font-black text-ngreen glow-green tracking-[4px]">MISSION CONTROL</h1>
+          <h1 className="text-[20px] font-semibold text-textb tracking-[-0.02em]">Mission Control</h1>
           <p className="text-[9px] text-dimtext tracking-[3px] uppercase mt-0.5">Live Operations · Jarvis AI System</p>
         </div>
         <button onClick={onClose} className="p-2 text-dimtext hover:text-nred transition-colors"><X size={18} /></button>
@@ -65,25 +65,25 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
 
         {/* Left: Orb + stats */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-3">
-          <div className="flex-1 relative rounded-sm border border-ngreen/15 overflow-hidden flex items-center justify-center" style={{ background: 'rgba(0,255,136,.03)' }}>
+          <div className="flex-1 relative rounded-sm border border-ngreen/15 overflow-hidden flex items-center justify-center" style={{ background: 'rgba(48,209,88,.03)' }}>
             <JarvisOrb pulse={calls.length > 0 ? 1 : 0} className="w-full h-full max-h-[280px]" />
             <div className="absolute bottom-4 text-center">
-              <div className="font-orbitron text-[10px] text-ngreen glow-green tracking-[2px]">JARVIS AI · ACTIVE</div>
+              <div className="text-[11px] text-nblue tracking-[0.08em]">JARVIS AI · ACTIVE</div>
             </div>
           </div>
 
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-2">
-            <Kpi label="Live Calls"    value={calls.length} color="#00e5ff" icon={<Phone size={12} />} />
-            <Kpi label="Hot Leads"     value={hot}          color="#ff3366" icon={<Flame size={12} />} />
-            <Kpi label="Agents Online" value={online}       color="#00ff88" icon={<Activity size={12} />} />
-            <Kpi label="Pipeline"      value={data?.total ?? 0} color="#aa44ff" icon={<GitBranch size={12} />} />
+            <Kpi label="Live Calls"    value={calls.length} color="#64d2ff" icon={<Phone size={12} />} />
+            <Kpi label="Hot Leads"     value={hot}          color="#ff453a" icon={<Flame size={12} />} />
+            <Kpi label="Agents Online" value={online}       color="#30d158" icon={<Activity size={12} />} />
+            <Kpi label="Pipeline"      value={data?.total ?? 0} color="#bf5af2" icon={<GitBranch size={12} />} />
           </div>
         </div>
 
         {/* Center: Agent status + calls */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-3 overflow-hidden">
-          <SectionBlock title="Agent Status" color="#ffd700">
+          <SectionBlock title="Agent Status" color="#ff9f0a">
             {agents.map(a => (
               <div key={a.key} className="flex items-center gap-2 py-1.5 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,.05)' }}>
                 <StatusDot status={a.status === 'active' ? 'online' : a.status === 'idle' ? 'idle' : 'offline'} size="sm" />
@@ -93,7 +93,7 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
             ))}
           </SectionBlock>
 
-          <SectionBlock title="Today's Calls" color="#00e5ff">
+          <SectionBlock title="Today's Calls" color="#64d2ff">
             {calls.length === 0 && <div className="text-[9px] text-dimtext italic">No calls yet today</div>}
             {calls.slice(0, 5).map(c => {
               const tc = CALL_TYPE_COLOR[callType(c)];
@@ -117,7 +117,7 @@ export function MissionControl({ onClose, refreshKey }: { onClose: () => void; r
 
         {/* Right: Live activity feed */}
         <div className="col-span-12 lg:col-span-4 overflow-hidden">
-          <SectionBlock title="Live Activity Feed" color="#00ff88" fullHeight>
+          <SectionBlock title="Live Activity Feed" color="#30d158" fullHeight>
             <div className="flex flex-col gap-1.5 overflow-y-auto max-h-full">
               <AnimatePresence>
                 {items.map(item => (

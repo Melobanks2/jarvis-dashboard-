@@ -95,7 +95,7 @@ export function KnowledgeBase() {
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all"
-          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80' }}
+          style={{ background: 'rgba(48,209,88,0.08)', border: '1px solid rgba(48,209,88,0.2)', color: '#30d158' }}
         >
           <BookOpen size={10} />
           Feed Jarvis
@@ -106,14 +106,14 @@ export function KnowledgeBase() {
       {/* How to feed instructions */}
       <div
         className="rounded-xl p-4"
-        style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.12)' }}
+        style={{ background: 'rgba(191,90,242,0.06)', border: '1px solid rgba(191,90,242,0.12)' }}
       >
-        <div className="text-[10px] font-semibold text-[#a78bfa] mb-2 flex items-center gap-1.5">
+        <div className="text-[10px] font-semibold text-[#bf5af2] mb-2 flex items-center gap-1.5">
           <Lightbulb size={10} /> HOW TO FEED JARVIS KNOWLEDGE
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#60a5fa]">
+            <div className="flex items-center gap-1.5 text-[10px] text-[#0a84ff]">
               <Youtube size={10} /> YouTube Videos
             </div>
             <div className="text-[10px] text-dimtext leading-relaxed">
@@ -122,7 +122,7 @@ export function KnowledgeBase() {
             </div>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#4ade80]">
+            <div className="flex items-center gap-1.5 text-[10px] text-[#30d158]">
               <FileText size={10} /> Notes & Text
             </div>
             <div className="text-[10px] text-dimtext leading-relaxed">
@@ -131,7 +131,7 @@ export function KnowledgeBase() {
             </div>
           </div>
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#fbbf24]">
+            <div className="flex items-center gap-1.5 text-[10px] text-[#ff9f0a]">
               <Clock size={10} /> Auto-Research (7am daily)
             </div>
             <div className="text-[10px] text-dimtext leading-relaxed">
@@ -144,9 +144,9 @@ export function KnowledgeBase() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Daily Research', count: dailyCount,   color: '#fbbf24', source: 'daily'   as const },
-          { label: 'Videos Fed',     count: youtubeCount, color: '#60a5fa', source: 'youtube' as const },
-          { label: 'Manual Notes',   count: manualCount,  color: '#4ade80', source: 'manual'  as const },
+          { label: 'Daily Research', count: dailyCount,   color: '#ff9f0a', source: 'daily'   as const },
+          { label: 'Videos Fed',     count: youtubeCount, color: '#0a84ff', source: 'youtube' as const },
+          { label: 'Manual Notes',   count: manualCount,  color: '#30d158', source: 'manual'  as const },
         ].map(s => (
           <button
             key={s.source}
@@ -203,14 +203,14 @@ export function KnowledgeBase() {
                   <div
                     className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
                     style={{
-                      background: entry.source === 'youtube' ? 'rgba(96,165,250,0.12)'
-                        : entry.source === 'daily' ? 'rgba(251,191,36,0.12)'
-                        : 'rgba(74,222,128,0.12)',
+                      background: entry.source === 'youtube' ? 'rgba(10,132,255,0.12)'
+                        : entry.source === 'daily' ? 'rgba(255,159,10,0.12)'
+                        : 'rgba(48,209,88,0.12)',
                     }}
                   >
-                    {entry.source === 'youtube' ? <Youtube size={12} style={{ color: '#60a5fa' }} />
-                      : entry.source === 'daily' ? <Clock size={12} style={{ color: '#fbbf24' }} />
-                      : <FileText size={12} style={{ color: '#4ade80' }} />}
+                    {entry.source === 'youtube' ? <Youtube size={12} style={{ color: '#0a84ff' }} />
+                      : entry.source === 'daily' ? <Clock size={12} style={{ color: '#ff9f0a' }} />
+                      : <FileText size={12} style={{ color: '#30d158' }} />}
                   </div>
 
                   {/* Title + preview */}
@@ -220,12 +220,12 @@ export function KnowledgeBase() {
                       <span
                         className="flex-shrink-0 text-[8px] px-1.5 py-0.5 rounded"
                         style={{
-                          background: entry.source === 'youtube' ? 'rgba(96,165,250,0.1)'
-                            : entry.source === 'daily' ? 'rgba(251,191,36,0.1)'
-                            : 'rgba(74,222,128,0.1)',
-                          color: entry.source === 'youtube' ? '#60a5fa'
-                            : entry.source === 'daily' ? '#fbbf24'
-                            : '#4ade80',
+                          background: entry.source === 'youtube' ? 'rgba(10,132,255,0.1)'
+                            : entry.source === 'daily' ? 'rgba(255,159,10,0.1)'
+                            : 'rgba(48,209,88,0.1)',
+                          color: entry.source === 'youtube' ? '#0a84ff'
+                            : entry.source === 'daily' ? '#ff9f0a'
+                            : '#30d158',
                         }}
                       >
                         {entry.label}

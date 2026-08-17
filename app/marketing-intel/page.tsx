@@ -24,8 +24,9 @@ import {
   Receipt, Clock, BadgeCheck, BadgeX, HelpCircle, Activity,
 } from 'lucide-react';
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
+import { MKT_API } from '@/lib/config';
 
-const API_BASE = 'https://api.jarviscommandcenter.space/marketing-intel';
+const API_BASE = MKT_API;
 const REVENUE_GOAL = 100000;
 
 // ── formatting ───────────────────────────────────────────────────────────
@@ -37,13 +38,13 @@ const pct0 = (n: number) => ((Number(n) || 0) * 100).toFixed(0) + '%';
 const num = (n: number) => (Number(n) || 0).toLocaleString();
 
 const C = {
-  green: '#4ade80', gold: '#fbbf24', red: '#f87171', orange: '#fb923c',
-  blue: '#60a5fa', purple: '#a78bfa', cyan: '#67e8f9', dim: '#52526e',
+  green: '#30d158', gold: '#ff9f0a', red: '#ff453a', orange: '#ff9f0a',
+  blue: '#0a84ff', purple: '#bf5af2', cyan: '#64d2ff', dim: '#52526e',
 };
 const CH = { sarah: C.green, ispeed: C.purple, ppc: C.blue };
 
 const tipStyle = {
-  background: '#121320', border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(16,20,30,0.95)', border: '1px solid rgba(255,255,255,0.10)',
   borderRadius: 8, fontSize: 12, fontFamily: 'Inter, sans-serif',
 };
 
@@ -233,7 +234,7 @@ function GradeHeatmap({ heatmap, onDrill }: { heatmap: any; onDrill: (g: string)
                       className="text-center rounded-sm py-2 px-1 font-spacemono"
                       title={`${r.grade} · week of ${c.week}\n${c.leads} leads · ${c.hot} hot · ${c.deals} deals\nconversion ${pct(c.convRate)}`}
                       style={{
-                        background: c.leads ? `rgba(74,222,128,${(intensity * 0.5).toFixed(3)})` : 'rgba(255,255,255,0.02)',
+                        background: c.leads ? `rgba(48,209,88,${(intensity * 0.5).toFixed(3)})` : 'rgba(255,255,255,0.02)',
                         color: c.leads ? '#e4e4f0' : '#2a2a3e',
                         minWidth: 52,
                       }}>
@@ -324,7 +325,7 @@ export default function MarketingIntelPage() {
         backgroundImage:
           'linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),' +
           'linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px),' +
-          'radial-gradient(900px 480px at 80% -10%, rgba(74,222,128,.06), transparent 60%)',
+          'radial-gradient(900px 480px at 80% -10%, rgba(10,132,255,.06), transparent 60%)',
         backgroundSize: '42px 42px, 42px 42px, 100% 100%',
       }}>
       <div className="max-w-[1440px] mx-auto px-3 sm:px-5 pt-5 pb-24">
@@ -332,7 +333,7 @@ export default function MarketingIntelPage() {
         {/* header */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-ngreen animate-blink" style={{ boxShadow: '0 0 12px #4ade80' }} />
+            <span className="w-2.5 h-2.5 rounded-full bg-ngreen animate-blink" style={{ boxShadow: '0 0 12px #30d158' }} />
             <div>
               <h1 className="font-orbitron font-bold text-lg sm:text-xl tracking-wide m-0">
                 MARKETING <span className="text-ngreen glow-green">INTELLIGENCE</span>
@@ -478,7 +479,7 @@ export default function MarketingIntelPage() {
                           <YAxis stroke="#52526e" fontSize={11} allowDecimals={false} />
                           <Tooltip contentStyle={tipStyle} />
                           <Legend wrapperStyle={{ fontSize: 11 }} />
-                          <Bar dataKey="dials" name="Dials" fill="rgba(74,222,128,0.25)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="dials" name="Dials" fill="rgba(48,209,88,0.25)" radius={[4, 4, 0, 0]} />
                           <Line type="monotone" dataKey="answered" name="Answered" stroke={C.green} strokeWidth={2} dot={{ r: 2 }} />
                         </ComposedChart>
                       </ResponsiveContainer>
@@ -734,7 +735,7 @@ export default function MarketingIntelPage() {
                           <YAxis stroke="#52526e" fontSize={11} allowDecimals={false} />
                           <Tooltip contentStyle={tipStyle} />
                           <Legend wrapperStyle={{ fontSize: 11 }} />
-                          <Area type="monotone" dataKey="leads" name="Purchased" stroke={C.purple} fill="rgba(167,139,250,0.18)" strokeWidth={2} />
+                          <Area type="monotone" dataKey="leads" name="Purchased" stroke={C.purple} fill="rgba(191,90,242,0.18)" strokeWidth={2} />
                           <Line type="monotone" dataKey="hot" name="Hot" stroke={C.red} strokeWidth={2} dot={{ r: 2 }} />
                         </ComposedChart>
                       </ResponsiveContainer>
@@ -764,7 +765,7 @@ export default function MarketingIntelPage() {
 
         <div className="text-center text-[10px] text-dimtext font-spacemono">
           {data?.snapshotAt && <>VPS snapshot {new Date(data.snapshotAt).toLocaleTimeString()} · </>}
-          marketing-intel · api.jarviscommandcenter.space
+          marketing-intel · {MKT_API}
         </div>
       </div>
 

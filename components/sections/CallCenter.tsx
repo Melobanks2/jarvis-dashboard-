@@ -26,8 +26,8 @@ function parseTags(v: unknown): string[] {
 
 // Conversation / voicemail / no-answer badge styling.
 const TYPE_META = {
-  conversation: { label: 'Conversation', color: '#00ff88', Icon: MessageSquare },
-  voicemail:    { label: 'Voicemail',    color: '#ffd700', Icon: Voicemail },
+  conversation: { label: 'Conversation', color: '#30d158', Icon: MessageSquare },
+  voicemail:    { label: 'Voicemail',    color: '#ff9f0a', Icon: Voicemail },
   'no-answer':  { label: 'No answer',     color: '#5a5a80', Icon: PhoneOff },
 } as const;
 
@@ -69,8 +69,8 @@ function InlineAudio({ call }: { call: CallRecord }) {
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  'Hot Follow Up': '#ff3366', 'Warm Follow Up': '#ff8800', 'Decision Pending': '#aa44ff',
-  'Contract Sent': '#00ff88', 'Under Contract': '#00cc66', 'New Lead': '#00aaff', 'Cold Follow Up': '#5a5a88',
+  'Hot Follow Up': '#ff453a', 'Warm Follow Up': '#ff9f0a', 'Decision Pending': '#bf5af2',
+  'Contract Sent': '#30d158', 'Under Contract': '#30d158', 'New Lead': '#0a84ff', 'Cold Follow Up': '#5a5a88',
 };
 function stageColor(s: string) { return STAGE_COLORS[s] || '#5a5a80'; }
 
@@ -105,7 +105,7 @@ function PathTimeline({ steps }: { steps: string[] }) {
       <div className="flex flex-wrap items-center gap-1">
         {steps.map((s, i) => (
           <span key={i} className="flex items-center gap-1">
-            <span className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: '#00e5ff15', color: '#00e5ff', border: '1px solid #00e5ff25' }}>{stepLabel(s)}</span>
+            <span className="text-[8px] px-1.5 py-0.5 rounded-sm" style={{ background: '#64d2ff15', color: '#64d2ff', border: '1px solid #64d2ff25' }}>{stepLabel(s)}</span>
             {i < steps.length - 1 && <ArrowRight size={8} className="text-dimtext" />}
           </span>
         ))}
@@ -176,11 +176,11 @@ export function CallCenter() {
       {/* Metrics row */}
       <motion.div variants={FADE_UP} className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Calls Made',         value: calls.length,    color: '#00e5ff' },
-          { label: 'Conversations',       value: answered,        color: '#00ff88' },
-          { label: 'Voicemails',          value: voicemails,      color: '#ffd700' },
-          { label: 'Hot Leads Found',     value: hotDiscovered,   color: '#ff3366' },
-          { label: 'Recordings Saved',    value: recordings.length, color: '#aa44ff' },
+          { label: 'Calls Made',         value: calls.length,    color: '#64d2ff' },
+          { label: 'Conversations',       value: answered,        color: '#30d158' },
+          { label: 'Voicemails',          value: voicemails,      color: '#ff9f0a' },
+          { label: 'Hot Leads Found',     value: hotDiscovered,   color: '#ff453a' },
+          { label: 'Recordings Saved',    value: recordings.length, color: '#bf5af2' },
         ].map(m => (
           <GlassCard key={m.label} accent="cyan" padding="p-3" hover={false}>
             <div className="text-[8px] text-dimtext font-orbitron tracking-[1px] uppercase mb-1">{m.label}</div>
@@ -198,8 +198,8 @@ export function CallCenter() {
               onClick={() => setTab(t)}
               className="px-4 py-2 text-[10px] font-orbitron tracking-[1px] uppercase border-b-2 transition-all"
               style={{
-                color: tab === t ? '#00e5ff' : '#5a5a80',
-                borderColor: tab === t ? '#00e5ff' : 'transparent',
+                color: tab === t ? '#64d2ff' : '#5a5a80',
+                borderColor: tab === t ? '#64d2ff' : 'transparent',
               }}
             >
               {t === 'today' ? "Today's Calls" : 'Recordings'}
@@ -209,8 +209,8 @@ export function CallCenter() {
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4 pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <Seg label="Type"  opts={TYPE_OPTS}   value={typeFilter}   onChange={setTypeFilter}   color="#00e5ff" />
-          <Seg label="Agent" opts={SOURCE_OPTS} value={sourceFilter} onChange={setSourceFilter} color="#aa44ff" />
+          <Seg label="Type"  opts={TYPE_OPTS}   value={typeFilter}   onChange={setTypeFilter}   color="#64d2ff" />
+          <Seg label="Agent" opts={SOURCE_OPTS} value={sourceFilter} onChange={setSourceFilter} color="#bf5af2" />
         </div>
 
         {tab === 'today' && (
@@ -341,9 +341,9 @@ function RecordingCard({ rec }: { rec: CallRecord }) {
             const stepM = line.match(/^\s*Sarah\s*\[([^\]]+)\]:\s*/i);
             const text  = stepM ? line.replace(/^(\s*Sarah)\s*\[[^\]]+\]:/i, '$1:') : line;
             return (
-              <div key={i} className="mb-0.5" style={{ color: isSarah ? '#00e5ff' : isSeller ? '#00ff88' : '#5a5a80' }}>
+              <div key={i} className="mb-0.5" style={{ color: isSarah ? '#64d2ff' : isSeller ? '#30d158' : '#5a5a80' }}>
                 {stepM && (
-                  <span className="text-[7px] px-1 py-0.5 mr-1 rounded-sm align-middle" style={{ background: '#00e5ff15', color: '#00e5ff' }}>{stepLabel(stepM[1])}</span>
+                  <span className="text-[7px] px-1 py-0.5 mr-1 rounded-sm align-middle" style={{ background: '#64d2ff15', color: '#64d2ff' }}>{stepLabel(stepM[1])}</span>
                 )}
                 {text}
               </div>

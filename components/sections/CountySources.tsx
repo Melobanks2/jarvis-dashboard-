@@ -11,14 +11,14 @@ interface Source { label: string; url: string; kind: Kind; purpose: string }
 interface County { name: string; seat: string; circuit: string; accent: string; sources: Source[] }
 
 const KIND_META: Record<Kind, { Icon: React.ElementType; tone: string }> = {
-  records: { Icon: FileText, tone: '#4ade80' },
-  court:   { Icon: Gavel,    tone: '#a78bfa' },
-  tax:     { Icon: Receipt,  tone: '#fbbf24' },
+  records: { Icon: FileText, tone: '#30d158' },
+  court:   { Icon: Gavel,    tone: '#bf5af2' },
+  tax:     { Icon: Receipt,  tone: '#ff9f0a' },
 };
 
 const COUNTIES: County[] = [
   {
-    name: 'Orange', seat: 'Orlando', circuit: '9th Judicial Circuit', accent: '#4ade80',
+    name: 'Orange', seat: 'Orlando', circuit: '9th Judicial Circuit', accent: '#30d158',
     sources: [
       { label: 'Official Records', url: 'https://selfservice.or.occompt.com/ssweb/user/disclaimer', kind: 'records', purpose: 'Lis Pendens (pre-foreclosure), liens, deeds' },
       { label: 'Court Records',    url: 'https://myeclerk.myorangeclerk.com/',                       kind: 'court',   purpose: 'Probate, evictions, divorce' },
@@ -26,7 +26,7 @@ const COUNTIES: County[] = [
     ],
   },
   {
-    name: 'Seminole', seat: 'Sanford', circuit: '18th Judicial Circuit', accent: '#60a5fa',
+    name: 'Seminole', seat: 'Sanford', circuit: '18th Judicial Circuit', accent: '#0a84ff',
     sources: [
       { label: 'Official Records',   url: 'https://recording.seminoleclerk.org/',                 kind: 'records', purpose: 'Lis Pendens, liens, deeds' },
       { label: 'Court Case Search',  url: 'https://www.seminoleclerk.org/search-for-a-court-case/', kind: 'court',   purpose: 'Probate, evictions, divorce' },
@@ -41,7 +41,7 @@ const COUNTIES: County[] = [
     ],
   },
   {
-    name: 'Lake', seat: 'Tavares', circuit: '5th Judicial Circuit', accent: '#fb923c',
+    name: 'Lake', seat: 'Tavares', circuit: '5th Judicial Circuit', accent: '#ff9f0a',
     sources: [
       { label: 'Official Records', url: 'https://officialrecords.lakecountyclerk.org/', kind: 'records', purpose: 'Lis Pendens, liens, deeds' },
       { label: 'Court Records',    url: 'https://courtrecords.lakecountyclerk.org/',    kind: 'court',   purpose: 'Probate, evictions, divorce' },
@@ -53,8 +53,8 @@ export function CountySources() {
   return (
     <div className="rounded-lg p-5 flex flex-col gap-4" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-start gap-3">
-        <span className="inline-flex w-7 h-7 rounded-md items-center justify-center flex-shrink-0" style={{ background: 'rgba(74,222,128,0.14)', border: '1px solid rgba(74,222,128,0.3)' }}>
-          <Landmark size={14} style={{ color: '#4ade80' }} />
+        <span className="inline-flex w-7 h-7 rounded-md items-center justify-center flex-shrink-0" style={{ background: 'rgba(48,209,88,0.14)', border: '1px solid rgba(48,209,88,0.3)' }}>
+          <Landmark size={14} style={{ color: '#30d158' }} />
         </span>
         <div>
           <div className="text-[13px] font-bold text-textb">Pull a county list</div>
@@ -98,9 +98,9 @@ export function CountySources() {
       </div>
 
       <div className="flex items-center gap-3 text-[10px] text-dimtext flex-wrap">
-        <span className="flex items-center gap-1"><FileText size={11} style={{ color: '#4ade80' }} /> Official Records — liens & pre-foreclosure</span>
-        <span className="flex items-center gap-1"><Gavel size={11} style={{ color: '#a78bfa' }} /> Court — probate & evictions</span>
-        <span className="flex items-center gap-1"><Receipt size={11} style={{ color: '#fbbf24' }} /> Tax — delinquent properties</span>
+        <span className="flex items-center gap-1"><FileText size={11} style={{ color: '#30d158' }} /> Official Records — liens & pre-foreclosure</span>
+        <span className="flex items-center gap-1"><Gavel size={11} style={{ color: '#bf5af2' }} /> Court — probate & evictions</span>
+        <span className="flex items-center gap-1"><Receipt size={11} style={{ color: '#ff9f0a' }} /> Tax — delinquent properties</span>
       </div>
     </div>
   );

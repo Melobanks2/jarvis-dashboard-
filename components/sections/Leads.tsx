@@ -13,11 +13,11 @@ import { useLeads, Lead, Temp, Source, PipelineMeta, LEADS_API } from '@/lib/hoo
 import { timeAgo } from '@/lib/supabase';
 
 const TEMP_COLOR: Record<Temp, string> = {
-  hot:  '#ff3366',
-  warm: '#ff8800',
-  cold: '#00aaff',
+  hot:  '#ff453a',
+  warm: '#ff9f0a',
+  cold: '#0a84ff',
   dead: '#5a5a80',
-  new:  '#67e8f9',
+  new:  '#64d2ff',
 };
 const TEMP_LABEL: Record<Temp, string> = {
   hot: 'HOT', warm: 'WARM', cold: 'COLD', dead: 'DEAD', new: 'NEW',
@@ -25,8 +25,8 @@ const TEMP_LABEL: Record<Temp, string> = {
 
 const SOURCE_META: Record<Source, { label: string; color: string }> = {
   alpha:  { label: '♦️ Alpha Leads', color: '#00d4ff' },
-  sarah:  { label: '🤖 Sarah',       color: '#aa44ff' },
-  ispeed: { label: 'iSpeed',         color: '#ffd700' },
+  sarah:  { label: '🤖 Sarah',       color: '#bf5af2' },
+  ispeed: { label: 'iSpeed',         color: '#ff9f0a' },
 };
 
 function fmtDuration(sec?: number | null) {
@@ -125,7 +125,7 @@ export function Leads() {
   }
 
   const SOURCE_TABS: { key: SourceFilter; label: string; count: number; color: string }[] = [
-    { key: 'all',    label: 'All',            count: stats.total,                color: '#00e5ff' },
+    { key: 'all',    label: 'All',            count: stats.total,                color: '#64d2ff' },
     { key: 'alpha',  label: '♦️ Alpha Leads', count: statsBySource.alpha.total,  color: SOURCE_META.alpha.color },
     { key: 'sarah',  label: '🤖 Sarah',       count: statsBySource.sarah.total,  color: SOURCE_META.sarah.color },
     { key: 'ispeed', label: 'iSpeed',         count: statsBySource.ispeed.total, color: SOURCE_META.ispeed.color },
@@ -137,12 +137,12 @@ export function Leads() {
       {/* ── Stats bar ── */}
       <motion.div variants={FADE_UP} className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { label: 'Total Leads', value: activeStats.total, color: '#00e5ff' },
+          { label: 'Total Leads', value: activeStats.total, color: '#64d2ff' },
           { label: 'Hot',         value: activeStats.hot,   color: TEMP_COLOR.hot },
           { label: 'Warm',        value: activeStats.warm,  color: TEMP_COLOR.warm },
           { label: 'Cold',        value: activeStats.cold,  color: TEMP_COLOR.cold },
-          { label: 'Answer Rate', value: answerRate,        color: '#4ade80', suffix: '%' },
-          { label: 'Calls Today', value: callsToday,        color: '#aa44ff' },
+          { label: 'Answer Rate', value: answerRate,        color: '#30d158', suffix: '%' },
+          { label: 'Calls Today', value: callsToday,        color: '#bf5af2' },
         ].map(m => (
           <GlassCard key={m.label} accent="cyan" padding="p-3" hover={false}>
             <div className="text-[9px] text-dimtext font-orbitron tracking-[0.5px] uppercase mb-1">{m.label}</div>
@@ -183,7 +183,7 @@ export function Leads() {
                 className="px-2.5 py-1.5 text-[10px] font-medium transition-colors"
                 style={{
                   color: range === t.key ? '#0c0d14' : '#52526e',
-                  background: range === t.key ? '#00e5ff' : 'transparent',
+                  background: range === t.key ? '#64d2ff' : 'transparent',
                 }}
               >
                 {t.label}
@@ -199,7 +199,7 @@ export function Leads() {
                 className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium capitalize transition-colors"
                 style={{
                   color: view === v ? '#0c0d14' : '#52526e',
-                  background: view === v ? '#00e5ff' : 'transparent',
+                  background: view === v ? '#64d2ff' : 'transparent',
                 }}
               >
                 <Icon size={11} /> {v}
@@ -243,11 +243,11 @@ export function Leads() {
                   key={c.id}
                   className="flex items-center gap-3 px-3 py-1.5 rounded-md border"
                   style={{
-                    background: c.isLive ? 'rgba(255,51,102,0.06)' : 'rgba(255,255,255,0.02)',
-                    borderColor: c.isLive ? 'rgba(255,51,102,0.3)' : 'var(--border2, rgba(255,255,255,0.06))',
+                    background: c.isLive ? 'rgba(255,69,58,0.06)' : 'rgba(255,255,255,0.02)',
+                    borderColor: c.isLive ? 'rgba(255,69,58,0.3)' : 'var(--border2, rgba(255,255,255,0.06))',
                   }}
                 >
-                  <Radio size={13} style={{ color: c.isLive ? '#ff3366' : '#52526e' }} className={c.isLive ? 'animate-pulse' : ''} />
+                  <Radio size={13} style={{ color: c.isLive ? '#ff453a' : '#52526e' }} className={c.isLive ? 'animate-pulse' : ''} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-medium text-textb truncate">{c.name}</div>
                     {c.address && <div className="text-[9px] text-dimtext truncate">{c.address}</div>}
@@ -345,8 +345,8 @@ function StageBoard({ leads, pipelines, onMove }: { leads: Lead[]; pipelines: Pi
             }}
             className="flex flex-col rounded-lg border transition-colors flex-shrink-0 w-[260px]"
             style={{
-              borderColor: isOver ? '#00e5ff' : 'var(--border2, rgba(255,255,255,0.06))',
-              background: isOver ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.015)',
+              borderColor: isOver ? '#64d2ff' : 'var(--border2, rgba(255,255,255,0.06))',
+              background: isOver ? 'rgba(100,210,255,0.05)' : 'rgba(255,255,255,0.015)',
             }}
           >
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border2">
@@ -488,7 +488,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
           </span>
         )}
         {lead.phone && <span className="flex items-center gap-1"><Phone size={9} /> {lead.phone}</span>}
-        {lead.askingPrice && <span style={{ color: '#4ade80' }}>{lead.askingPrice}</span>}
+        {lead.askingPrice && <span style={{ color: '#30d158' }}>{lead.askingPrice}</span>}
         {lead.callDuration != null && <span className="flex items-center gap-1"><Clock size={9} /> {fmtDuration(lead.callDuration)}</span>}
       </div>
 
@@ -505,7 +505,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-border2">
               <Field label="Motivation" value={lead.pain} />
               <Field label="Timeline"   value={lead.timeline} />
-              <Field label="Asking"     value={lead.askingPrice} color="#4ade80" />
+              <Field label="Asking"     value={lead.askingPrice} color="#30d158" />
               <Field label="Condition"  value={lead.condition} />
               <Field label="ARV"        value={lead.arv} />
               <Field label="Rehab"      value={lead.rehabCost} />
@@ -530,7 +530,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
                 onClick={saveNote}
                 disabled={!note.trim() || !lead.contactId || noteState === 'saving'}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors disabled:opacity-40"
-                style={{ color: '#00e5ff', borderColor: 'rgba(0,229,255,0.3)', background: 'rgba(0,229,255,0.06)' }}
+                style={{ color: '#64d2ff', borderColor: 'rgba(100,210,255,0.3)', background: 'rgba(100,210,255,0.06)' }}
               >
                 {noteState === 'saving' ? <Loader2 size={11} className="animate-spin" /> :
                  noteState === 'saved'  ? <Check size={11} /> : <Send size={11} />}
@@ -551,7 +551,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
                 onClick={togglePlay}
                 disabled={!hasRecording}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors disabled:opacity-30"
-                style={{ color: '#aa44ff', borderColor: 'rgba(170,68,255,0.35)', background: 'rgba(170,68,255,0.08)' }}
+                style={{ color: '#bf5af2', borderColor: 'rgba(191,90,242,0.35)', background: 'rgba(191,90,242,0.08)' }}
               >
                 {playing ? <Pause size={11} /> : <Play size={11} />} {playing ? 'Pause' : 'Recording'}
               </button>
@@ -559,7 +559,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
                 onClick={approveCallback}
                 disabled={!lead.contactId || cbState === 'saving' || cbState === 'done'}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-medium border transition-colors disabled:opacity-50 ml-auto"
-                style={{ color: '#4ade80', borderColor: 'rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.08)' }}
+                style={{ color: '#30d158', borderColor: 'rgba(48,209,88,0.35)', background: 'rgba(48,209,88,0.08)' }}
               >
                 {cbState === 'saving' ? <Loader2 size={11} className="animate-spin" /> :
                  cbState === 'done'   ? <Check size={11} /> :

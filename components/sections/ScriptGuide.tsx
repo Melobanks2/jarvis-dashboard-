@@ -15,7 +15,7 @@ const RAW_KEY   = 'acq_script_raw';
 const NOTES_KEY = 'acq_script_notes';
 
 // Phase accent palette (cycled) — matches the dashboard's tone.
-const PALETTE = ['#4ade80', '#fbbf24', '#60a5fa', '#a78bfa', '#f472b6', '#34d399', '#fb923c'];
+const PALETTE = ['#30d158', '#ff9f0a', '#0a84ff', '#bf5af2', '#f472b6', '#30d158', '#ff9f0a'];
 
 function phaseIcon(title: string): React.ElementType {
   const t = title.toLowerCase();
@@ -170,7 +170,7 @@ export function ScriptGuide() {
             </button>
             <button onClick={saveScript}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[11px] font-bold"
-              style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)', color: '#06140b' }}>
+              style={{ background: 'linear-gradient(135deg,#30d158,#30d158)', color: '#06140b' }}>
               <Save size={13} /> Save script
             </button>
           </div>
@@ -194,10 +194,10 @@ export function ScriptGuide() {
   // ── EMPTY ──
   if (!phase || !step) {
     return (
-      <div className="rounded-lg p-8 text-center" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="rounded-lg p-8 text-center" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="text-[13px] text-dimtext mb-3">No script yet.</div>
         <button onClick={() => { setDraft(raw); setEditing(true); }}
-          className="px-4 py-2 rounded-md text-[12px] font-bold" style={{ background: 'rgba(74,222,128,0.14)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.4)' }}>
+          className="px-4 py-2 rounded-md text-[12px] font-bold" style={{ background: 'rgba(48,209,88,0.14)', color: '#30d158', border: '1px solid rgba(48,209,88,0.4)' }}>
           Paste your script
         </button>
       </div>
@@ -205,7 +205,7 @@ export function ScriptGuide() {
   }
 
   const hold = !!step.hold;
-  const beatAccent = hold ? '#fbbf24' : accent;
+  const beatAccent = hold ? '#ff9f0a' : accent;
 
   return (
     <div className="flex flex-col gap-4">
@@ -218,7 +218,7 @@ export function ScriptGuide() {
           <button onClick={() => setShowRules(v => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium"
             style={showRules
-              ? { background: 'rgba(96,165,250,0.14)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.4)' }
+              ? { background: 'rgba(10,132,255,0.14)', color: '#0a84ff', border: '1px solid rgba(10,132,255,0.4)' }
               : { background: 'rgba(255,255,255,0.05)', color: '#c4c4d6', border: '1px solid rgba(255,255,255,0.1)' }}>
             <ShieldCheck size={12} /> Golden Rules
           </button>
@@ -235,14 +235,14 @@ export function ScriptGuide() {
         {showRules && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden">
-            <div className="rounded-lg p-4" style={{ background: 'rgba(12,16,24,0.7)', border: '1px solid rgba(96,165,250,0.25)' }}>
-              <div className="flex items-center gap-2 mb-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: '#60a5fa' }}>
+            <div className="rounded-lg p-4" style={{ background: 'rgba(12,16,24,0.7)', border: '1px solid rgba(10,132,255,0.25)' }}>
+              <div className="flex items-center gap-2 mb-3 text-[11px] font-bold uppercase tracking-wider" style={{ color: '#0a84ff' }}>
                 <ShieldCheck size={14} /> Golden Rules — read before every session
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                 {GOLDEN_RULES.map((r, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <span className="text-[11px] font-bold" style={{ color: '#60a5fa' }}>{i + 1}.</span>
+                    <span className="text-[11px] font-bold" style={{ color: '#0a84ff' }}>{i + 1}.</span>
                     <span className="text-[12px] text-jtext leading-snug">{r}</span>
                   </div>
                 ))}
@@ -265,7 +265,7 @@ export function ScriptGuide() {
               style={active
                 ? { background: `${c}22`, color: c, border: `1px solid ${c}` }
                 : done
-                  ? { background: 'rgba(74,222,128,0.06)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }
+                  ? { background: 'rgba(48,209,88,0.06)', color: '#30d158', border: '1px solid rgba(48,209,88,0.2)' }
                   : { background: 'rgba(255,255,255,0.03)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)' }}>
               {done ? <Check size={12} /> : <Icon size={12} />}
               {p.title}
@@ -277,15 +277,15 @@ export function ScriptGuide() {
       {/* Teleprompter + checklist */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Teleprompter */}
-        <div className="rounded-lg flex flex-col" style={{ background: hold ? 'rgba(24,18,4,0.7)' : 'rgba(12,12,24,0.7)', border: `1px solid ${beatAccent}${hold ? '66' : '44'}`, minHeight: 340 }}>
+        <div className="rounded-lg flex flex-col" style={{ background: hold ? 'rgba(24,18,4,0.7)' : 'rgba(255,255,255,0.05)', border: `1px solid ${beatAccent}${hold ? '66' : '44'}`, minHeight: 340 }}>
           {/* phase header + step dots */}
           <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div className="flex items-center gap-2">
               <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: beatAccent }}>{phase.title}</div>
               {hold && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.4)' }}>
-                  <Pause size={9} fill="#fbbf24" /> Put them on hold
+                  style={{ background: 'rgba(255,159,10,0.15)', color: '#ff9f0a', border: '1px solid rgba(255,159,10,0.4)' }}>
+                  <Pause size={9} fill="#ff9f0a" /> Put them on hold
                 </span>
               )}
             </div>
@@ -350,7 +350,7 @@ export function ScriptGuide() {
         <OfferCalculator />
 
         {/* Qualify checklist */}
-        <div className="rounded-lg p-4 flex flex-col gap-3" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="rounded-lg p-4 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-center justify-between">
             <div className="text-[10px] uppercase tracking-wider text-dimtext font-semibold">Qualify — jot as you go</div>
             <button title="Clear all"
@@ -362,7 +362,7 @@ export function ScriptGuide() {
           {FIELDS.map(({ key, label, Icon, placeholder }) => (
             <div key={key} className="flex flex-col gap-1">
               <label className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-dimtext">
-                <Icon size={11} style={{ color: '#4ade80' }} /> {label}
+                <Icon size={11} style={{ color: '#30d158' }} /> {label}
               </label>
               <input
                 value={notes[key] || ''}
@@ -378,10 +378,10 @@ export function ScriptGuide() {
       </div>
 
       {/* Objection quick-reference */}
-      <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(12,12,24,0.7)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <button onClick={() => setShowObjections(v => !v)}
           className="w-full flex items-center justify-between px-4 py-3">
-          <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: '#fbbf24' }}>
+          <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: '#ff9f0a' }}>
             <MessageSquareWarning size={14} /> Objection handling
           </span>
           <ChevronDown size={15} className="text-dimtext transition-transform" style={{ transform: showObjections ? 'rotate(180deg)' : 'none' }} />

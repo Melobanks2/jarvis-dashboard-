@@ -1,420 +1,319 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { DollarSign, Target, TrendingUp, MapPin, Receipt, Sparkles } from 'lucide-react';
 import {
-  TrendingUp, TrendingDown, Minus, DollarSign, Users, Target,
-  BarChart2, MapPin, Zap, RefreshCw, AlertCircle,
-} from 'lucide-react';
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+} from 'recharts';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { RoadTo100K } from '@/components/sections/RoadTo100K';
+import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
+import { usePipeline, Lead } from '@/lib/hooks/usePipeline';
+import { useApp } from '@/lib/AppContext';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// All metrics are computed client-side from the live pipeline. The old
+// /api/marketing endpoint read a `marketing_metrics` table that has 0 rows —
+// the real marketing ledger is the pipeline itself: iSpeed purchasePrice IS
+// the ad spend, and source/temp/stage carry the funnel.
+const AVG_FEE = 8500; // expected assignment fee — keep in sync with GoalsVision
 
-interface MonthMetrics {
-  totalLeads: number;
-  totalSpend: number;
-  contacted: number;
-  qualified: number;
-  appointments: number;
-  dealsClosed: number;
-  revenue: number;
-  roi: number;
-  costPerContact: number;
-  costPerQual: number;
-  costPerAppt: number;
-  costPerDeal: number;
+const C = { blue: '#0a84ff', pos: '#30d158', urg: '#ff453a', warn: '#ff9f0a', purple: '#bf5af2', cyan: '#64d2ff' };
+const NUM = 'font-orbitron font-semibold';
+
+const SOURCE_META: Record<string, { label: string; color: string; paid: boolean }> = {
+  alpha:  { label: 'Alpha',  color: C.blue,   paid: false },
+  ispeed: { label: 'iSpeed', color: C.warn,   paid: true },
+  sarah:  { label: 'Sarah',  color: C.purple, paid: false },
+  va:     { label: 'VA',     color: C.cyan,   paid: false },
+};
+
+const DEAL_STAGES = new Set(['Decision Pending', 'Contract Sent', 'Under Contract', 'Closed']);
+const REFUND_EXCLUDE = new Set(['Refund Requested', 'Refund Approved', 'Under Contract', 'Contract Sent', 'Closed', 'Disposition']);
+
+const money = (n: number) => '$' + Math.round(n).toLocaleString();
+const fmtK = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
+const sumPP = (ls: Lead[]) => ls.reduce((a, l) => a + (l.purchasePrice || 0), 0);
+const qualified = (ls: Lead[]) => ls.filter(l => l.temp === 'hot' || l.temp === 'warm');
+
+// "3882 Cardinal Blvd, Port Orange, FL 32127" → "Port Orange"
+function cityOf(l: Lead): string | null {
+  const parts = (l.address || '').split(',').map(s => s.trim());
+  if (parts.length < 2) return null;
+  let city = parts[1].replace(/\s+FL$/i, '').trim();
+  if (!/^[A-Za-z][A-Za-z .'-]{2,}$/.test(city)) return null;
+  if (/^(fl|apt|suite|ste|unit|lot)\b/i.test(city)) return null;
+  return city.toLowerCase().replace(/(^|[\s.'-])[a-z]/g, ch => ch.toUpperCase());
 }
 
-interface SourceRow {
-  name: string;
-  leads: number;
-  contacted: number;
-  qualified: number;
-  appointments: number;
-  deals: number;
-  spend: number;
-  revenue: number;
-  roi: number;
-  qualRate: number;
-  contactRate: number;
-  dealRate: number;
-  costPerDeal: number | null;
-}
+export function MarketingIntelligence() {
+  const { refreshKey } = useApp();
+  const { data, loading, error } = usePipeline(refreshKey);
+  const [view, setView] = useState<'live' | 'model'>('live');
+  const leads = useMemo(() => data?.leads ?? [], [data]);
 
-interface CountyRow {
-  name: string;
-  leads: number;
-  contacted: number;
-  qualified: number;
-  appointments: number;
-  deals: number;
-  spend: number;
-  revenue: number;
-  roi: number;
-  qualRate: number;
-  contactRate: number;
-}
+  const m = useMemo(() => {
+    const bySource: Record<string, Lead[]> = {};
+    for (const l of leads) (bySource[l.source] ||= []).push(l);
 
-interface AgeBucket {
-  label: string;
-  leads: number;
-  qualified: number;
-  deals: number;
-  qualRate: number;
-}
+    const ispeed = bySource['ispeed'] ?? [];
+    const spend = sumPP(ispeed);
+    const deals = leads.filter(l => DEAL_STAGES.has(l.stage));
+    const qualAll = qualified(leads);
 
-interface MarketingData {
-  month: MonthMetrics;
-  week: MonthMetrics;
-  prev: MonthMetrics;
-  trends: Record<string, 'up' | 'down' | 'flat'>;
-  sources: SourceRow[];
-  counties: CountyRow[];
-  ageBuckets: AgeBucket[];
-  updatedAt: string;
-}
+    const recoverable = ispeed.filter(l => l.daysUntilDeadline != null && l.daysUntilDeadline >= 0 && !REFUND_EXCLUDE.has(l.stage));
+    const expired     = ispeed.filter(l => l.daysUntilDeadline != null && l.daysUntilDeadline < 0 && !REFUND_EXCLUDE.has(l.stage));
+    const inRecovery  = ispeed.filter(l => l.stage === 'Refund Requested' || l.stage === 'Refund Approved');
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+    // Source scorecards
+    const sources = Object.entries(SOURCE_META)
+      .map(([key, meta]) => {
+        const ls = bySource[key] ?? [];
+        const q = qualified(ls);
+        const d = ls.filter(l => DEAL_STAGES.has(l.stage));
+        const sSpend = meta.paid ? sumPP(ls) : 0;
+        return {
+          key, ...meta,
+          leads: ls.length,
+          qual: q.length,
+          qualRate: ls.length ? Math.round((q.length / ls.length) * 100) : 0,
+          deals: d.length,
+          spend: sSpend,
+          costPerQual: q.length && sSpend ? sSpend / q.length : null,
+        };
+      })
+      .filter(s => s.leads > 0)
+      .sort((a, b) => b.leads - a.leads);
 
-const fmt$ = (n: number) =>
-  n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toFixed(0)}`;
+    // Weekly lead flow, last 8 weeks, stacked by source
+    const weeks: { label: string; start: number; end: number }[] = [];
+    const today = new Date();
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    for (let i = 7; i >= 0; i--) {
+      const s0 = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * i);
+      const e0 = new Date(s0.getFullYear(), s0.getMonth(), s0.getDate() + 7);
+      weeks.push({ label: `${s0.getMonth() + 1}/${s0.getDate()}`, start: s0.getTime(), end: e0.getTime() });
+    }
+    const flow = weeks.map(w => {
+      const row: Record<string, number | string> = { week: w.label };
+      for (const key of Object.keys(SOURCE_META)) row[key] = 0;
+      for (const l of leads) {
+        const t = l.createdAt ? new Date(l.createdAt).getTime() : NaN;
+        if (t >= w.start && t < w.end && SOURCE_META[l.source]) {
+          row[l.source] = (row[l.source] as number) + 1;
+        }
+      }
+      return row;
+    });
 
-const fmtPct = (n: number) => `${n > 0 ? '+' : ''}${n}%`;
+    // Top cities by qualified interest
+    const cityMap: Record<string, { total: number; qual: number }> = {};
+    for (const l of leads) {
+      const city = cityOf(l);
+      if (!city) continue;
+      const e = (cityMap[city] ||= { total: 0, qual: 0 });
+      e.total++;
+      if (l.temp === 'hot' || l.temp === 'warm') e.qual++;
+    }
+    const cities = Object.entries(cityMap)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.qual - a.qual || b.total - a.total)
+      .slice(0, 6);
 
-function TrendIcon({ dir, invert = false }: { dir?: string; invert?: boolean }) {
-  const up   = invert ? dir === 'down' : dir === 'up';
-  const down = invert ? dir === 'up'   : dir === 'down';
-  if (up)   return <TrendingUp   size={12} style={{ color: '#00ff88' }} />;
-  if (down) return <TrendingDown size={12} style={{ color: '#ff3366' }} />;
-  return <Minus size={12} style={{ color: '#52526e' }} />;
-}
+    const projected = deals.length * AVG_FEE;
+    return {
+      spend, deals, qualAll, sources, flow, cities,
+      recoverable, expired, inRecovery,
+      recoverableSum: sumPP(recoverable), expiredSum: sumPP(expired), inRecoverySum: sumPP(inRecovery),
+      costPerLead: spend > 0 && ispeed.length ? spend / ispeed.length : null,
+      costPerQual: spend > 0 && qualified(ispeed).length ? spend / qualified(ispeed).length : null,
+      projected,
+      roiX: spend > 0 ? projected / spend : null,
+    };
+  }, [leads]);
 
-function MetricCard({
-  label, value, trend, invert = false, accent = '#00aaff',
-}: {
-  label: string;
-  value: string;
-  trend?: string;
-  invert?: boolean;
-  accent?: string;
-}) {
+  if (error) {
+    return <div className="flex items-center justify-center h-64 text-[13px]" style={{ color: C.urg }}>Pipeline offline — {error}</div>;
+  }
+  if (loading && !data) {
+    return <div className="flex items-center justify-center h-64 text-[13px] text-dimtext">Reading the pipeline…</div>;
+  }
+
+  const maxCityQual = Math.max(1, ...m.cities.map(c => c.qual));
+
+  const segBtn = (key: 'live' | 'model', label: string) => (
+    <button onClick={() => setView(key)}
+      className={`tap rounded-lg px-4 py-1.5 text-[13px] transition-colors ${view === key ? 'text-textb bg-white/[0.13]' : 'text-jtext hover:text-textb'}`}
+      style={view === key ? { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 3px rgba(0,0,0,0.3)' } : undefined}>
+      {label}
+    </button>
+  );
+
   return (
-    <div
-      className="rounded-sm border p-3 flex flex-col gap-1"
-      style={{ background: 'rgba(255,255,255,0.03)', borderColor: `${accent}22` }}
-    >
-      <div className="text-[10px] uppercase tracking-wider" style={{ color: '#52526e' }}>{label}</div>
-      <div className="text-[18px] font-bold" style={{ color: accent }}>{value}</div>
-      {trend && (
-        <div className="flex items-center gap-1">
-          <TrendIcon dir={trend} invert={invert} />
-          <span className="text-[10px]" style={{ color: '#52526e' }}>vs last week</span>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-5">
+
+      {/* View switch: live numbers vs the interactive $100K planning model */}
+      <div className="flex items-center">
+        <div className="inline-flex gap-0.5 rounded-xl border border-border p-1 bg-white/[0.06]">
+          {segBtn('live', 'Live performance')}
+          {segBtn('model', 'Road to $100K')}
         </div>
+        {view === 'model' && <span className="ml-3 text-[12px] text-dimtext">Planning model · your dials save automatically</span>}
+      </div>
+
+      {view === 'model' ? (
+        <RoadTo100K live={{ cplRaw: m.costPerLead, cpq: m.costPerQual, dealsInPlay: m.deals.length }} />
+      ) : (
+      <>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        <Kpi icon={<DollarSign size={14} />} color={C.warn} label="Ad spend · iSpeed">
+          <AnimatedCounter target={m.spend} prefix="$" className={`${NUM} text-[30px] leading-none`} style={{ color: C.warn } as React.CSSProperties} />
+          <div className="text-[12px] mt-1.5" style={{ color: C.pos }}>{money(m.recoverableSum)} still refundable</div>
+        </Kpi>
+        <Kpi icon={<Target size={14} />} color={C.blue} label="Cost per qualified">
+          <span className={`${NUM} text-[30px] leading-none`} style={{ color: C.blue }}>{m.costPerQual != null ? fmtK(m.costPerQual) : '—'}</span>
+          <div className="text-[12px] text-dimtext mt-1.5">{m.costPerLead != null ? `${fmtK(m.costPerLead)} per raw lead` : 'no paid leads yet'} · Alpha is free</div>
+        </Kpi>
+        <Kpi icon={<TrendingUp size={14} />} color={C.pos} label="Pipeline value">
+          <AnimatedCounter target={m.projected} prefix="$" className={`${NUM} text-[30px] leading-none`} style={{ color: C.pos } as React.CSSProperties} />
+          <div className="text-[12px] text-dimtext mt-1.5">{m.deals.length} deals × {money(AVG_FEE)} avg fee</div>
+        </Kpi>
+        <Kpi icon={<Sparkles size={14} />} color={C.purple} label="Return on spend">
+          <span className={`${NUM} text-[30px] leading-none`} style={{ color: m.roiX == null ? 'rgba(235,235,245,0.35)' : m.roiX >= 1 ? C.pos : C.urg }}>
+            {m.roiX == null ? '—' : `${m.roiX.toFixed(1)}×`}
+          </span>
+          <div className="text-[12px] text-dimtext mt-1.5">projected pipeline ÷ paid spend</div>
+        </Kpi>
+      </div>
+
+      {/* Source scorecards */}
+      <GlassCard>
+        <p className="text-[16px] font-semibold tracking-[-0.02em] text-textb mb-4">Where leads come from</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {m.sources.map(s => (
+            <div key={s.key} className="rounded-2xl border border-border p-4 bg-bg2" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                <span className="text-[13px] font-medium text-textb">{s.label}</span>
+                <span className="ml-auto text-[11px] rounded-full px-2 py-0.5"
+                  style={{ background: s.paid ? `${C.warn}1a` : `${C.pos}1a`, color: s.paid ? C.warn : C.pos }}>
+                  {s.paid ? 'paid' : 'free'}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className={`${NUM} text-[26px] leading-none text-textb`}>{s.leads}</span>
+                <span className="text-[12px] text-dimtext">leads</span>
+              </div>
+              <div className="flex items-center justify-between text-[12px] mt-2.5 mb-1">
+                <span className="text-jtext">{s.qual} qualified</span>
+                <span style={{ color: s.color }}>{s.qualRate}%</span>
+              </div>
+              <div className="h-1 rounded-full overflow-hidden" style={{ background: `${s.color}18` }}>
+                <motion.div className="h-full rounded-full" style={{ background: s.color }}
+                  initial={{ width: 0 }} animate={{ width: `${s.qualRate}%` }}
+                  transition={{ type: 'spring', stiffness: 90, damping: 24 }} />
+              </div>
+              <div className="text-[12px] text-dimtext mt-2.5">
+                {s.deals} deal{s.deals === 1 ? '' : 's'} in play
+                {s.paid && s.costPerQual != null && <> · {fmtK(s.costPerQual)}/qualified</>}
+                {s.paid && <> · {money(s.spend)} spent</>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Weekly lead flow */}
+        <GlassCard>
+          <p className="text-[16px] font-semibold tracking-[-0.02em] text-textb mb-1">Lead flow</p>
+          <p className="text-[12px] text-dimtext mb-4">New leads per week by source · last 8 weeks</p>
+          <div className="h-[210px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={m.flow} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
+                <XAxis dataKey="week" tick={{ fill: 'rgba(235,235,245,0.35)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'rgba(235,235,245,0.35)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ background: 'rgba(16,20,30,0.95)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, fontSize: 12, color: '#f5f5f7' }} />
+                {Object.entries(SOURCE_META).map(([key, meta]) => (
+                  <Bar key={key} dataKey={key} stackId="flow" fill={meta.color} name={meta.label} radius={key === 'va' ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex gap-4 mt-2">
+            {Object.values(SOURCE_META).map(meta => (
+              <span key={meta.label} className="flex items-center gap-1.5 text-[11px] text-dimtext">
+                <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />{meta.label}
+              </span>
+            ))}
+          </div>
+        </GlassCard>
+
+        {/* Top cities */}
+        <GlassCard>
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin size={14} style={{ color: C.blue }} />
+            <p className="text-[16px] font-semibold tracking-[-0.02em] text-textb">Where the sellers are</p>
+          </div>
+          <p className="text-[12px] text-dimtext mb-4">Cities ranked by hot + warm interest</p>
+          <div className="flex flex-col gap-2.5">
+            {m.cities.map(c => (
+              <div key={c.name} className="flex items-center gap-3">
+                <span className="text-[13px] text-textb font-medium w-32 truncate">{c.name}</span>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: `${C.blue}14` }}>
+                  <motion.div className="h-full rounded-full" style={{ background: C.blue }}
+                    initial={{ width: 0 }} animate={{ width: `${(c.qual / maxCityQual) * 100}%` }}
+                    transition={{ type: 'spring', stiffness: 90, damping: 24 }} />
+                </div>
+                <span className={`${NUM} text-[14px] w-8 text-right`} style={{ color: C.blue }}>{c.qual}</span>
+                <span className="text-[11px] text-dimtext w-14">of {c.total}</span>
+              </div>
+            ))}
+            {m.cities.length === 0 && <div className="text-[13px] text-dimtext py-6 text-center">No city data on leads yet</div>}
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Refund economics */}
+      <GlassCard>
+        <div className="flex items-center gap-2 mb-4">
+          <Receipt size={14} style={{ color: C.warn }} />
+          <p className="text-[16px] font-semibold tracking-[-0.02em] text-textb">iSpeed refund economics</p>
+          <span className="ml-auto text-[12px] text-dimtext">every dollar here was already spent</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <RefundStat color={C.pos} label="Recoverable now" value={m.recoverableSum} sub={`${m.recoverable.length} leads inside the window`} />
+          <RefundStat color={C.blue} label="In recovery" value={m.inRecoverySum} sub={`${m.inRecovery.length} refunds requested or approved`} />
+          <RefundStat color={C.urg} label="Lost to the clock" value={m.expiredSum} sub={`${m.expired.length} leads expired unworked`} />
+        </div>
+      </GlassCard>
+      </>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-const TABS = ['Overview', 'Lead Sources', 'Counties', 'Lead Age'] as const;
-type Tab = typeof TABS[number];
-
-const ACCENT: Record<string, string> = {
-  Google:         '#4285f4',
-  Facebook:       '#1877f2',
-  'Speed To Lead': '#ff8800',
-  'Cold Call':    '#00ff88',
-  'Text Campaign':'#aa44ff',
-  Unknown:        '#52526e',
-  County:         '#67e8f9',
-};
-
-// ── Main Component ────────────────────────────────────────────────────────────
-
-export function MarketingIntelligence() {
-  const [data,      setData]      = useState<MarketingData | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [tab,       setTab]       = useState<Tab>('Overview');
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/marketing');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      setData(json);
-      setLastRefresh(new Date());
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-    const iv = setInterval(load, 30 * 60 * 1000); // 30 min
-    return () => clearInterval(iv);
-  }, [load]);
-
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col items-center justify-center h-48 gap-3">
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#00aaff44', borderTopColor: 'transparent' }} />
-        <span className="text-[11px]" style={{ color: '#52526e' }}>Loading marketing metrics…</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-48 gap-2">
-        <AlertCircle size={20} style={{ color: '#ff3366' }} />
-        <span className="text-[11px]" style={{ color: '#ff3366' }}>{error}</span>
-        <button onClick={load} className="text-[10px] px-3 py-1 rounded border" style={{ color: '#00aaff', borderColor: '#00aaff44' }}>Retry</button>
-      </div>
-    );
-  }
-
-  const m = data!.month;
-  const t = data!.trends;
-
+function Kpi({ icon, color, label, children }: { icon: React.ReactNode; color: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-5">
-
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[15px] font-bold" style={{ color: '#00aaff' }}>Marketing Intelligence</h2>
-          <p className="text-[11px]" style={{ color: '#52526e' }}>
-            Month-to-date · updated {lastRefresh ? lastRefresh.toLocaleTimeString() : '—'}
-          </p>
-        </div>
-        <button
-          onClick={load}
-          className="flex items-center gap-1 px-3 py-1 rounded-sm border text-[11px] transition-opacity hover:opacity-70"
-          style={{ borderColor: '#00aaff33', color: '#00aaff' }}
-        >
-          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+    <GlassCard padding="p-5">
+      <div className="flex items-center gap-2 mb-2.5" style={{ color }}>
+        {icon}
+        <span className="text-[13px] text-jtext">{label}</span>
       </div>
+      {children}
+    </GlassCard>
+  );
+}
 
-      {/* ── Tabs ── */}
-      <div className="flex gap-1 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        {TABS.map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-4 py-2 text-[11px] transition-colors"
-            style={{ color: tab === t ? '#00aaff' : '#52526e', borderBottom: tab === t ? '2px solid #00aaff' : '2px solid transparent' }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Overview Tab ── */}
-      {tab === 'Overview' && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Leads Purchased"    value={String(m.totalLeads)}          trend={t.totalLeads}     accent="#00aaff" />
-            <MetricCard label="Total Spend"        value={fmt$(m.totalSpend)}            trend={t.totalSpend}     accent="#ff8800" invert />
-            <MetricCard label="Leads Contacted"    value={String(m.contacted)}           trend={t.contacted}      accent="#4ade80" />
-            <MetricCard label="Leads Qualified"    value={String(m.qualified)}           trend={t.qualified}      accent="#fbbf24" />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Appointments Set"   value={String(m.appointments)}        trend={t.appointments}   accent="#a78bfa" />
-            <MetricCard label="Deals Closed"       value={String(m.dealsClosed)}         trend={t.dealsClosed}    accent="#00ff88" />
-            <MetricCard label="Revenue Generated"  value={fmt$(m.revenue)}              trend={t.revenue}        accent="#00ff88" />
-            <MetricCard label="ROI"                value={fmtPct(m.roi)}                trend={t.roi}            accent={m.roi >= 0 ? '#00ff88' : '#ff3366'} />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MetricCard label="Cost per Contact"   value={fmt$(m.costPerContact)}        trend={t.costPerContact} accent="#67e8f9" invert />
-            <MetricCard label="Cost per Qualified" value={fmt$(m.costPerQual)}           trend={t.costPerQual}    accent="#67e8f9" invert />
-            <MetricCard label="Cost per Appt"      value={fmt$(m.costPerAppt)}           trend={t.costPerAppt}    accent="#67e8f9" invert />
-            <MetricCard label="Cost per Deal"      value={m.costPerDeal > 0 ? fmt$(m.costPerDeal) : '—'} trend={t.costPerDeal} accent="#67e8f9" invert />
-          </div>
-
-          {/* Empty state hint */}
-          {m.totalLeads === 0 && (
-            <div className="rounded-sm border p-4 text-center" style={{ borderColor: '#00aaff22', background: 'rgba(0,170,255,0.04)' }}>
-              <Zap size={18} style={{ color: '#00aaff', margin: '0 auto 8px' }} />
-              <p className="text-[12px]" style={{ color: '#00aaff' }}>No leads tracked yet</p>
-              <p className="text-[11px] mt-1" style={{ color: '#52526e' }}>
-                Configure GHL to POST new leads to{' '}
-                <code className="px-1 rounded" style={{ background: 'rgba(0,170,255,0.1)', color: '#67e8f9' }}>
-                  YOUR_VPS:3005/new-lead
-                </code>
-              </p>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── Lead Sources Tab ── */}
-      {tab === 'Lead Sources' && (
-        <div className="flex flex-col gap-3">
-          {data!.sources.length === 0 ? (
-            <div className="text-[12px] text-center py-8" style={{ color: '#52526e' }}>No source data yet</div>
-          ) : (
-            <>
-              <p className="text-[11px]" style={{ color: '#52526e' }}>Month-to-date · Best performers highlighted</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: '#52526e' }}>
-                      <th className="text-left py-2 pr-3">Source</th>
-                      <th className="text-right py-2 px-2">Leads</th>
-                      <th className="text-right py-2 px-2">Contact%</th>
-                      <th className="text-right py-2 px-2">Qual%</th>
-                      <th className="text-right py-2 px-2">Deals</th>
-                      <th className="text-right py-2 px-2">Spend</th>
-                      <th className="text-right py-2 px-2">ROI</th>
-                      <th className="text-right py-2 pl-2">CPD</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data!.sources.map((s, i) => {
-                      const accent = ACCENT[s.name] || '#52526e';
-                      const best = i === 0;
-                      return (
-                        <tr key={s.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: best ? 'rgba(0,255,136,0.03)' : 'transparent' }}>
-                          <td className="py-2 pr-3 font-medium" style={{ color: accent }}>
-                            {best && <span className="mr-1">⭐</span>}{s.name}
-                          </td>
-                          <td className="text-right py-2 px-2" style={{ color: '#c8c8d8' }}>{s.leads}</td>
-                          <td className="text-right py-2 px-2" style={{ color: s.contactRate >= 50 ? '#4ade80' : '#c8c8d8' }}>{s.contactRate}%</td>
-                          <td className="text-right py-2 px-2" style={{ color: s.qualRate >= 20 ? '#fbbf24' : '#c8c8d8' }}>{s.qualRate}%</td>
-                          <td className="text-right py-2 px-2" style={{ color: s.deals > 0 ? '#00ff88' : '#52526e' }}>{s.deals}</td>
-                          <td className="text-right py-2 px-2" style={{ color: '#c8c8d8' }}>{fmt$(s.spend)}</td>
-                          <td className="text-right py-2 px-2" style={{ color: s.roi > 0 ? '#00ff88' : s.roi < 0 ? '#ff3366' : '#52526e' }}>
-                            {s.spend > 0 ? fmtPct(s.roi) : '—'}
-                          </td>
-                          <td className="text-right py-2 pl-2" style={{ color: '#67e8f9' }}>
-                            {s.costPerDeal != null ? fmt$(s.costPerDeal) : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Counties Tab ── */}
-      {tab === 'Counties' && (
-        <div className="flex flex-col gap-3">
-          {data!.counties.length === 0 ? (
-            <div className="text-[12px] text-center py-8" style={{ color: '#52526e' }}>No county data yet</div>
-          ) : (
-            <>
-              <p className="text-[11px]" style={{ color: '#52526e' }}>Month-to-date · Orange, Osceola, Seminole focus</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {data!.counties.map((c) => (
-                  <div key={c.name} className="rounded-sm border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <MapPin size={12} style={{ color: '#00aaff' }} />
-                      <span className="text-[12px] font-bold" style={{ color: '#c8c8d8' }}>{c.name} County</span>
-                      {c.deals > 0 && <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#00ff8820', color: '#00ff88' }}>{c.deals} deals</span>}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <div className="text-[10px]" style={{ color: '#52526e' }}>Leads</div>
-                        <div className="text-[14px] font-bold" style={{ color: '#00aaff' }}>{c.leads}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px]" style={{ color: '#52526e' }}>Contact%</div>
-                        <div className="text-[14px] font-bold" style={{ color: c.contactRate >= 50 ? '#4ade80' : '#c8c8d8' }}>{c.contactRate}%</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px]" style={{ color: '#52526e' }}>Qual%</div>
-                        <div className="text-[14px] font-bold" style={{ color: c.qualRate >= 20 ? '#fbbf24' : '#c8c8d8' }}>{c.qualRate}%</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span className="text-[10px]" style={{ color: '#52526e' }}>Spend: {fmt$(c.spend)}</span>
-                      <span className="text-[10px]" style={{ color: c.roi > 0 ? '#00ff88' : c.roi < 0 ? '#ff3366' : '#52526e' }}>
-                        ROI: {c.spend > 0 ? fmtPct(c.roi) : '—'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Lead Age Tab (Coupon Club Optimizer) ── */}
-      {tab === 'Lead Age' && (
-        <div className="flex flex-col gap-4">
-          <div>
-            <h3 className="text-[12px] font-bold mb-1" style={{ color: '#fbbf24' }}>Coupon Club Lead Age Optimizer</h3>
-            <p className="text-[11px]" style={{ color: '#52526e' }}>Which age of lead converts best? Activates full recommendation after 30 leads.</p>
-          </div>
-          {data!.ageBuckets.length === 0 ? (
-            <div className="text-[12px] text-center py-8" style={{ color: '#52526e' }}>No lead age data yet</div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {data!.ageBuckets.map((b) => {
-                const isBest = b.qualRate === Math.max(...data!.ageBuckets.map(x => x.qualRate));
-                return (
-                  <div
-                    key={b.label}
-                    className="rounded-sm border p-3"
-                    style={{
-                      background: isBest ? 'rgba(0,255,136,0.05)' : 'rgba(255,255,255,0.03)',
-                      borderColor: isBest ? '#00ff8833' : 'rgba(255,255,255,0.06)',
-                    }}
-                  >
-                    {isBest && <div className="text-[9px] font-bold mb-1" style={{ color: '#00ff88' }}>⭐ BEST CONVERTING</div>}
-                    <div className="text-[13px] font-bold mb-2" style={{ color: '#c8c8d8' }}>{b.label}</div>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[11px]">
-                        <span style={{ color: '#52526e' }}>Leads</span>
-                        <span style={{ color: '#c8c8d8' }}>{b.leads}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span style={{ color: '#52526e' }}>Qual Rate</span>
-                        <span style={{ color: b.qualRate >= 20 ? '#fbbf24' : '#c8c8d8' }}>{b.qualRate}%</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span style={{ color: '#52526e' }}>Deals</span>
-                        <span style={{ color: b.deals > 0 ? '#00ff88' : '#52526e' }}>{b.deals}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Recommendation bar */}
-          {data!.ageBuckets.length > 0 && (() => {
-            const total = data!.ageBuckets.reduce((s, b) => s + b.leads, 0);
-            const best  = [...data!.ageBuckets].sort((a, b) => b.qualRate - a.qualRate)[0];
-            const worst = [...data!.ageBuckets].sort((a, b) => a.qualRate - b.qualRate)[0];
-            if (total < 10) return (
-              <div className="rounded-sm border p-3 text-[11px]" style={{ borderColor: '#fbbf2422', background: 'rgba(251,191,36,0.04)', color: '#fbbf24' }}>
-                Need {10 - total} more leads for initial pattern detection · {30 - total} more for full Coupon Club recommendation
-              </div>
-            );
-            return (
-              <div className="rounded-sm border p-3" style={{ borderColor: '#00ff8822', background: 'rgba(0,255,136,0.04)' }}>
-                <div className="text-[11px] font-bold mb-1" style={{ color: '#00ff88' }}>AI Recommendation</div>
-                <p className="text-[11px]" style={{ color: '#c8c8d8' }}>
-                  ✅ Prioritize <strong style={{ color: '#00ff88' }}>{best.label}</strong> leads ({best.qualRate}% qual rate) ·{' '}
-                  ⛔ Deprioritize <strong style={{ color: '#ff3366' }}>{worst.label}</strong> leads ({worst.qualRate}% qual rate)
-                </p>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+function RefundStat({ color, label, value, sub }: { color: string; label: string; value: number; sub: string }) {
+  return (
+    <div className="rounded-2xl border border-border p-4 bg-bg2" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.09)' }}>
+      <div className="text-[12px] text-dimtext mb-1.5">{label}</div>
+      <div className={`${NUM} text-[24px] leading-none`} style={{ color }}>{money(value)}</div>
+      <div className="text-[12px] text-dimtext mt-1.5">{sub}</div>
     </div>
   );
 }

@@ -122,7 +122,7 @@ function fmt$(n: number | null | undefined) {
 
 function ScoreBar({ label, value, max = 10 }: { label: string; value: number; max?: number }) {
   const pct = (value / max) * 100;
-  const color = pct >= 70 ? '#4ade80' : pct >= 45 ? '#fbbf24' : '#f87171';
+  const color = pct >= 70 ? '#30d158' : pct >= 45 ? '#ff9f0a' : '#ff453a';
   return (
     <div className="mb-2">
       <div className="flex justify-between mb-1">
@@ -165,9 +165,9 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
   };
 
   const score = item.motivation_score ?? 0;
-  const scoreColor = score >= 7 ? '#4ade80' : score >= 4 ? '#fbbf24' : '#f87171';
+  const scoreColor = score >= 7 ? '#30d158' : score >= 4 ? '#ff9f0a' : '#ff453a';
   const glowStyle = isPending
-    ? { boxShadow: '0 0 0 1px rgba(248,113,113,0.25), 0 0 20px rgba(248,113,113,0.06)' }
+    ? { boxShadow: '0 0 0 1px rgba(255,69,58,0.25), 0 0 20px rgba(255,69,58,0.06)' }
     : {};
 
   return (
@@ -182,14 +182,14 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-[13px] font-semibold" style={{ color: '#e8e8f0' }}>{item.contact_name}</span>
               {isPending && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(255,69,58,0.15)', color: '#ff453a' }}>
                   PENDING
                 </span>
               )}
               {!isPending && (
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{
-                  background: item.status === 'passed' ? 'rgba(82,82,110,0.2)' : 'rgba(74,222,128,0.15)',
-                  color: item.status === 'passed' ? '#52526e' : '#4ade80',
+                  background: item.status === 'passed' ? 'rgba(82,82,110,0.2)' : 'rgba(48,209,88,0.15)',
+                  color: item.status === 'passed' ? '#52526e' : '#30d158',
                 }}>
                   {item.status === 'passed' ? 'PASSED' : item.approved_type?.toUpperCase() || 'APPROVED'}
                 </span>
@@ -208,10 +208,10 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
         {/* ARV + Offers grid */}
         <div className="grid grid-cols-4 gap-2 mb-3">
           {[
-            { label: 'ARV', value: fmt$(item.arv), color: '#60a5fa' },
-            { label: '60%', value: fmt$(item.offer_60), color: '#4ade80' },
-            { label: '65%', value: fmt$(item.offer_65), color: '#fbbf24' },
-            { label: '70%', value: fmt$(item.offer_70), color: '#f87171' },
+            { label: 'ARV', value: fmt$(item.arv), color: '#0a84ff' },
+            { label: '60%', value: fmt$(item.offer_60), color: '#30d158' },
+            { label: '65%', value: fmt$(item.offer_65), color: '#ff9f0a' },
+            { label: '70%', value: fmt$(item.offer_70), color: '#ff453a' },
           ].map(col => (
             <div key={col.label} className="text-center p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <div className="text-[9px] mb-0.5" style={{ color: '#52526e' }}>{col.label}</div>
@@ -221,9 +221,9 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
         </div>
 
         {item.novation_qualified && item.novation_offer && (
-          <div className="mb-3 px-3 py-2 rounded-lg flex items-center justify-between" style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)' }}>
-            <span className="text-[10px] font-bold" style={{ color: '#a78bfa' }}>✦ NOVATION QUALIFIED</span>
-            <span className="text-[11px] font-bold" style={{ color: '#a78bfa' }}>{fmt$(item.novation_offer)}</span>
+          <div className="mb-3 px-3 py-2 rounded-lg flex items-center justify-between" style={{ background: 'rgba(191,90,242,0.08)', border: '1px solid rgba(191,90,242,0.2)' }}>
+            <span className="text-[10px] font-bold" style={{ color: '#bf5af2' }}>✦ NOVATION QUALIFIED</span>
+            <span className="text-[11px] font-bold" style={{ color: '#bf5af2' }}>{fmt$(item.novation_offer)}</span>
           </div>
         )}
 
@@ -238,7 +238,7 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
               target="_blank"
               rel="noreferrer"
               className="text-[9px] font-orbitron px-2 py-1 rounded-sm border transition-colors"
-              style={{ color: '#00aaff', borderColor: 'rgba(0,170,255,0.3)', background: 'rgba(0,170,255,0.06)' }}
+              style={{ color: '#0a84ff', borderColor: 'rgba(10,132,255,0.3)', background: 'rgba(10,132,255,0.06)' }}
             >
               VIEW ASAP REPORT ↗
             </a>
@@ -282,12 +282,12 @@ function ApprovalCard({ item, onDecision }: { item: PendingApproval; onDecision:
         {/* Action buttons */}
         {isPending && (
           <div className="grid grid-cols-3 gap-2">
-            <ActionBtn label="APPROVE CASH" color="#4ade80" loading={loading === 'approve_cash'} onClick={() => handle('approve_cash')} />
+            <ActionBtn label="APPROVE CASH" color="#30d158" loading={loading === 'approve_cash'} onClick={() => handle('approve_cash')} />
             {item.novation_qualified
-              ? <ActionBtn label="APPROVE NOV" color="#a78bfa" loading={loading === 'approve_novation'} onClick={() => handle('approve_novation')} />
+              ? <ActionBtn label="APPROVE NOV" color="#bf5af2" loading={loading === 'approve_novation'} onClick={() => handle('approve_novation')} />
               : <div />
             }
-            <ActionBtn label="PASS" color="#f87171" loading={loading === 'pass'} onClick={() => handle('pass')} dimmed />
+            <ActionBtn label="PASS" color="#ff453a" loading={loading === 'pass'} onClick={() => handle('pass')} dimmed />
           </div>
         )}
       </div>
@@ -363,7 +363,7 @@ function PendingApprovalsTab() {
       )}
       {pending.length > 0 && (
         <>
-          <SectionHeader label={`${pending.length} Pending`} color="#f87171" />
+          <SectionHeader label={`${pending.length} Pending`} color="#ff453a" />
           {pending.map(item => <ApprovalCard key={item.id} item={item} onDecision={handleDecision} />)}
         </>
       )}
@@ -413,7 +413,7 @@ function LiveCallsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionHeader label={`${calls.length} calls (last 48h)`} color="#67e8f9" />
+        <SectionHeader label={`${calls.length} calls (last 48h)`} color="#64d2ff" />
         <div className="flex items-center gap-1.5 text-[9px]" style={{ color: '#52526e' }}>
           <div className="w-1.5 h-1.5 rounded-full bg-ngreen animate-pulse" />
           Live · 15s refresh
@@ -427,7 +427,7 @@ function LiveCallsTab() {
               <div className="text-[10px]" style={{ color: '#52526e' }}>{call.address}</div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold" style={{ color: '#67e8f9' }}>{Math.floor((call.call_duration || 0) / 60)}:{String((call.call_duration || 0) % 60).padStart(2, '0')}</div>
+              <div className="text-[10px] font-bold" style={{ color: '#64d2ff' }}>{Math.floor((call.call_duration || 0) / 60)}:{String((call.call_duration || 0) % 60).padStart(2, '0')}</div>
               <div className="text-[9px]" style={{ color: '#52526e' }}>{timeAgo(call.called_at)}</div>
             </div>
           </div>
@@ -436,10 +436,10 @@ function LiveCallsTab() {
             {call.stage_after && call.stage_after !== call.stage_before && (
               <>
                 <span style={{ color: '#52526e', fontSize: 10 }}>→</span>
-                <Tag label={call.stage_after} color="#4ade80" />
+                <Tag label={call.stage_after} color="#30d158" />
               </>
             )}
-            {call.tags_applied?.map(t => <Tag key={t} label={t} color="#60a5fa" />)}
+            {call.tags_applied?.map(t => <Tag key={t} label={t} color="#0a84ff" />)}
           </div>
           {call.summary && (
             <p className="text-[10px]" style={{ color: '#9090a8' }}>{call.summary}</p>
@@ -552,9 +552,9 @@ function RecordingsTab() {
                 <div className="text-[10px]" style={{ color: '#52526e' }}>{rec.address} · {fmtDate(rec.called_at)}</div>
               </div>
               <div className="flex items-center gap-2">
-                {rec.stage_after && <Tag label={rec.stage_after} color="#a78bfa" />}
+                {rec.stage_after && <Tag label={rec.stage_after} color="#bf5af2" />}
                 {rec.recording_url
-                  ? <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>🎙️ REC</span>
+                  ? <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(48,209,88,0.1)', color: '#30d158', border: '1px solid rgba(48,209,88,0.2)' }}>🎙️ REC</span>
                   : <span className="text-[8px] font-orbitron px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(82,82,110,0.1)', color: '#52526e', border: '1px solid rgba(82,82,110,0.2)' }}>NO REC</span>
                 }
                 <span style={{ color: '#52526e' }}>{isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
@@ -574,7 +574,7 @@ function RecordingsTab() {
                   <div className="border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                     {/* Inline audio player */}
                     {rec.recording_url && (
-                      <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(74,222,128,0.03)' }}>
+                      <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(48,209,88,0.03)' }}>
                         <div className="text-[8px] font-orbitron text-dimtext mb-1.5 tracking-[1px]">CALL RECORDING</div>
                         <audio
                           controls
@@ -595,14 +595,14 @@ function RecordingsTab() {
                           className="px-4 py-2 group"
                           style={{
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
-                            background: isComment ? 'rgba(74,222,128,0.03)' : 'transparent',
+                            background: isComment ? 'rgba(48,209,88,0.03)' : 'transparent',
                           }}
                         >
                           <div className="flex items-start gap-2">
                             <p
                               className="flex-1 text-[10px] leading-relaxed"
                               style={{
-                                color: isDavid ? '#c4c4d6' : isComment ? '#4ade80' : '#9090a8',
+                                color: isDavid ? '#c4c4d6' : isComment ? '#30d158' : '#9090a8',
                                 fontStyle: isComment ? 'italic' : 'normal',
                               }}
                             >
@@ -612,10 +612,10 @@ function RecordingsTab() {
                             {!isComment && (
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                 {[
-                                  { r: 'thumbs_up',   icon: <ThumbsUp size={10} />,   c: '#4ade80' },
-                                  { r: 'thumbs_down', icon: <ThumbsDown size={10} />, c: '#f87171' },
-                                  { r: 'star',        icon: <Star size={10} />,       c: '#fbbf24' },
-                                  { r: 'flag',        icon: <Flag size={10} />,       c: '#60a5fa' },
+                                  { r: 'thumbs_up',   icon: <ThumbsUp size={10} />,   c: '#30d158' },
+                                  { r: 'thumbs_down', icon: <ThumbsDown size={10} />, c: '#ff453a' },
+                                  { r: 'star',        icon: <Star size={10} />,       c: '#ff9f0a' },
+                                  { r: 'flag',        icon: <Flag size={10} />,       c: '#0a84ff' },
                                 ].map(btn => (
                                   <button
                                     key={btn.r}
@@ -632,7 +632,7 @@ function RecordingsTab() {
                                 <button
                                   onClick={() => setComment(prev => ({ ...prev, [`${rec.id}-${idx}`]: '' }))}
                                   className="p-1 rounded transition-colors"
-                                  style={{ color: lineFb?.comment ? '#67e8f9' : '#52526e' }}
+                                  style={{ color: lineFb?.comment ? '#64d2ff' : '#52526e' }}
                                 >
                                   <MessageSquare size={10} />
                                 </button>
@@ -654,14 +654,14 @@ function RecordingsTab() {
                               <button
                                 onClick={() => saveComment(rec.id, idx, line)}
                                 className="text-[9px] px-2 py-1 rounded font-bold"
-                                style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}
+                                style={{ background: 'rgba(48,209,88,0.15)', color: '#30d158' }}
                               >
                                 Save
                               </button>
                             </div>
                           )}
                           {lineFb?.comment && comment[`${rec.id}-${idx}`] === undefined && (
-                            <div className="mt-1 text-[9px] italic px-2 py-1 rounded" style={{ color: '#67e8f9', background: 'rgba(103,232,249,0.06)' }}>
+                            <div className="mt-1 text-[9px] italic px-2 py-1 rounded" style={{ color: '#64d2ff', background: 'rgba(100,210,255,0.06)' }}>
                               💬 {lineFb.comment}
                             </div>
                           )}
@@ -721,8 +721,8 @@ function pctChange(cur: number, prev: number) {
 
 function DeltaBadge({ cur, prev }: { cur: number; prev: number }) {
   const d = pctChange(cur, prev);
-  if (d > 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#4ade80' }}><ArrowUpRight size={10} />+{d}%</span>;
-  if (d < 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#f87171' }}><ArrowDownRight size={10} />{d}%</span>;
+  if (d > 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#30d158' }}><ArrowUpRight size={10} />+{d}%</span>;
+  if (d < 0) return <span className="flex items-center gap-0.5 text-[9px] font-bold" style={{ color: '#ff453a' }}><ArrowDownRight size={10} />{d}%</span>;
   return <span className="flex items-center gap-0.5 text-[9px]" style={{ color: '#52526e' }}><Minus size={10} />0%</span>;
 }
 
@@ -892,12 +892,12 @@ function PerformanceTab() {
 
   // Funnel stages
   const funnelStages = [
-    { label: 'Total Calls',  value: stats.totalCalls,   color: '#67e8f9' },
-    { label: 'Reached',      value: stats.contacted,    color: '#4ade80' },
-    { label: 'Qualified',    value: stats.qualified,    color: '#fbbf24' },
-    { label: 'Offers Made',  value: stats.offersMade,   color: '#fb923c' },
-    { label: 'Contracts',    value: stats.contractsSent,color: '#a78bfa' },
-    { label: 'Closed',       value: stats.dealsClosed,  color: '#4ade80' },
+    { label: 'Total Calls',  value: stats.totalCalls,   color: '#64d2ff' },
+    { label: 'Reached',      value: stats.contacted,    color: '#30d158' },
+    { label: 'Qualified',    value: stats.qualified,    color: '#ff9f0a' },
+    { label: 'Offers Made',  value: stats.offersMade,   color: '#ff9f0a' },
+    { label: 'Contracts',    value: stats.contractsSent,color: '#bf5af2' },
+    { label: 'Closed',       value: stats.dealsClosed,  color: '#30d158' },
   ];
   const funnelMax = stats.totalCalls || 1;
 
@@ -915,7 +915,7 @@ function PerformanceTab() {
             <button key={p} onClick={() => setPeriod(p)}
               className="px-3 py-1 rounded-md text-[9px] font-orbitron uppercase tracking-wider transition-all"
               style={period === p
-                ? { background: 'rgba(103,232,249,0.15)', color: '#67e8f9', border: '1px solid rgba(103,232,249,0.3)' }
+                ? { background: 'rgba(100,210,255,0.15)', color: '#64d2ff', border: '1px solid rgba(100,210,255,0.3)' }
                 : { color: '#52526e', border: '1px solid transparent' }}>
               {p}
             </button>
@@ -926,11 +926,11 @@ function PerformanceTab() {
       {/* KPI cards — 5 across */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: 'Total Calls',     value: stats.totalCalls,          prev: stats.prevCalls,      numVal: stats.totalCalls,   color: '#67e8f9', sub: PERIOD_LABEL[period], icon: <Phone size={13} /> },
-          { label: 'Sellers Reached', value: stats.contacted,           prev: stats.prevContacted,  numVal: stats.contacted,    color: '#4ade80', sub: 'Spoke > 30s',        icon: <CheckCircle2 size={13} /> },
-          { label: 'Offers Made',     value: stats.offersMade,          prev: stats.prevOffersMade, numVal: stats.offersMade,   color: '#fb923c', sub: 'Sent to approval',    icon: <Shield size={13} /> },
-          { label: 'Contact Rate',    value: `${stats.contactRate}%`,   prev: -1,                   numVal: -1,                 color: '#fbbf24', sub: 'Reached / Calls',     icon: <TrendingUp size={13} /> },
-          { label: 'Voicemail Rate',  value: `${stats.vmRate}%`,        prev: -1,                   numVal: -1,                 color: stats.vmRate > 60 ? '#f87171' : '#52526e', sub: 'Lower is better', icon: <Mic size={13} /> },
+          { label: 'Total Calls',     value: stats.totalCalls,          prev: stats.prevCalls,      numVal: stats.totalCalls,   color: '#64d2ff', sub: PERIOD_LABEL[period], icon: <Phone size={13} /> },
+          { label: 'Sellers Reached', value: stats.contacted,           prev: stats.prevContacted,  numVal: stats.contacted,    color: '#30d158', sub: 'Spoke > 30s',        icon: <CheckCircle2 size={13} /> },
+          { label: 'Offers Made',     value: stats.offersMade,          prev: stats.prevOffersMade, numVal: stats.offersMade,   color: '#ff9f0a', sub: 'Sent to approval',    icon: <Shield size={13} /> },
+          { label: 'Contact Rate',    value: `${stats.contactRate}%`,   prev: -1,                   numVal: -1,                 color: '#ff9f0a', sub: 'Reached / Calls',     icon: <TrendingUp size={13} /> },
+          { label: 'Voicemail Rate',  value: `${stats.vmRate}%`,        prev: -1,                   numVal: -1,                 color: stats.vmRate > 60 ? '#ff453a' : '#52526e', sub: 'Lower is better', icon: <Mic size={13} /> },
         ].map(kpi => (
           <div key={kpi.label} className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="flex items-center gap-1.5 mb-3">
@@ -951,7 +951,7 @@ function PerformanceTab() {
         <div className="flex items-center justify-between mb-4">
           <div className="text-[11px] font-semibold" style={{ color: '#e8e8f0' }}>Daily Activity — Last 7 Days</div>
           <div className="flex items-center gap-3">
-            {[{ color: '#67e8f9', label: 'Calls' },{ color: '#4ade80', label: 'Reached' },{ color: '#fb923c', label: 'Offers' },{ color: '#a78bfa', label: 'Qualified' }].map(l => (
+            {[{ color: '#64d2ff', label: 'Calls' },{ color: '#30d158', label: 'Reached' },{ color: '#ff9f0a', label: 'Offers' },{ color: '#bf5af2', label: 'Qualified' }].map(l => (
               <div key={l.label} className="flex items-center gap-1">
                 <div className="w-2.5 h-2.5 rounded-sm" style={{ background: l.color }} />
                 <span className="text-[8px]" style={{ color: '#52526e' }}>{l.label}</span>
@@ -965,10 +965,10 @@ function PerformanceTab() {
             <XAxis dataKey="day" tick={{ fill: '#52526e', fontSize: 9, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: '#52526e', fontSize: 9, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={20} allowDecimals={false} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <Bar dataKey="calls"     name="Calls"     fill="#67e8f9" radius={[3,3,0,0]} opacity={0.85} />
-            <Bar dataKey="contacts"  name="Reached"   fill="#4ade80" radius={[3,3,0,0]} opacity={0.85} />
-            <Bar dataKey="offers"    name="Offers"    fill="#fb923c" radius={[3,3,0,0]} opacity={0.85} />
-            <Bar dataKey="qualified" name="Qualified" fill="#a78bfa" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="calls"     name="Calls"     fill="#64d2ff" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="contacts"  name="Reached"   fill="#30d158" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="offers"    name="Offers"    fill="#ff9f0a" radius={[3,3,0,0]} opacity={0.85} />
+            <Bar dataKey="qualified" name="Qualified" fill="#bf5af2" radius={[3,3,0,0]} opacity={0.85} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -991,7 +991,7 @@ function PerformanceTab() {
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-semibold" style={{ color: s.color }}>{s.label}</span>
                       {i > 0 && dropPct > 0 && (
-                        <span className="text-[8px]" style={{ color: '#f87171' }}>▼ {dropPct}% drop</span>
+                        <span className="text-[8px]" style={{ color: '#ff453a' }}>▼ {dropPct}% drop</span>
                       )}
                     </div>
                     <span className="font-orbitron text-[12px] font-bold" style={{ color: s.color }}>{s.value}</span>
@@ -1009,7 +1009,7 @@ function PerformanceTab() {
           {/* Offer-to-Contact ratio callout */}
           <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
             <span className="text-[9px]" style={{ color: '#9090a8' }}>Offer / Contact ratio</span>
-            <span className="font-orbitron text-[13px] font-bold" style={{ color: stats.offerToContactRate > 20 ? '#4ade80' : stats.offerToContactRate > 10 ? '#fbbf24' : '#f87171' }}>
+            <span className="font-orbitron text-[13px] font-bold" style={{ color: stats.offerToContactRate > 20 ? '#30d158' : stats.offerToContactRate > 10 ? '#ff9f0a' : '#ff453a' }}>
               {stats.offerToContactRate}%
             </span>
           </div>
@@ -1019,15 +1019,15 @@ function PerformanceTab() {
         <div className="p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="text-[11px] font-semibold" style={{ color: '#e8e8f0' }}>Weekly Goals</div>
-            <span className="text-[8px] font-orbitron px-2 py-0.5 rounded" style={{ background: 'rgba(103,232,249,0.1)', color: '#67e8f9', border: '1px solid rgba(103,232,249,0.2)' }}>
+            <span className="text-[8px] font-orbitron px-2 py-0.5 rounded" style={{ background: 'rgba(100,210,255,0.1)', color: '#64d2ff', border: '1px solid rgba(100,210,255,0.2)' }}>
               THIS WEEK
             </span>
           </div>
           {[
-            { label: 'Calls Made',       cur: stats.weekCalls,    goal: WEEKLY_GOALS.calls,    color: '#67e8f9' },
-            { label: 'Sellers Reached',  cur: stats.weekReached,  goal: WEEKLY_GOALS.reached,  color: '#4ade80' },
-            { label: 'Offers Made',      cur: stats.weekOffers,   goal: WEEKLY_GOALS.offers,   color: '#fb923c' },
-            { label: 'Qualified Leads',  cur: stats.weekQualified,goal: WEEKLY_GOALS.qualified,color: '#a78bfa' },
+            { label: 'Calls Made',       cur: stats.weekCalls,    goal: WEEKLY_GOALS.calls,    color: '#64d2ff' },
+            { label: 'Sellers Reached',  cur: stats.weekReached,  goal: WEEKLY_GOALS.reached,  color: '#30d158' },
+            { label: 'Offers Made',      cur: stats.weekOffers,   goal: WEEKLY_GOALS.offers,   color: '#ff9f0a' },
+            { label: 'Qualified Leads',  cur: stats.weekQualified,goal: WEEKLY_GOALS.qualified,color: '#bf5af2' },
           ].map(g => {
             const pct = Math.min(Math.round((g.cur / g.goal) * 100), 100);
             const onTrack = pct >= 50;
@@ -1042,15 +1042,15 @@ function PerformanceTab() {
                 </div>
                 <div className="h-3 rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.06)' }}>
                   <div className="h-full rounded-full transition-all relative overflow-hidden"
-                    style={{ width: `${pct}%`, background: pct >= 100 ? '#4ade80' : g.color + 'bb' }}>
+                    style={{ width: `${pct}%`, background: pct >= 100 ? '#30d158' : g.color + 'bb' }}>
                     {pct >= 100 && (
-                      <div className="absolute inset-0 animate-pulse" style={{ background: 'rgba(74,222,128,0.3)' }} />
+                      <div className="absolute inset-0 animate-pulse" style={{ background: 'rgba(48,209,88,0.3)' }} />
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <div className="h-0.5 flex-1" />
-                  <span className="text-[8px]" style={{ color: onTrack ? '#4ade80' : '#f87171' }}>
+                  <span className="text-[8px]" style={{ color: onTrack ? '#30d158' : '#ff453a' }}>
                     {pct >= 100 ? '✓ GOAL HIT' : `${pct}% — ${g.goal - g.cur} to go`}
                   </span>
                 </div>
@@ -1068,7 +1068,7 @@ function PerformanceTab() {
           <div className="flex items-center justify-between mb-3">
             <div className="text-[11px] font-semibold" style={{ color: '#e8e8f0' }}>Best Hour to Call</div>
             {bestHour && bestHour.calls > 0 && (
-              <span className="text-[8px] font-orbitron px-2 py-0.5 rounded" style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' }}>
+              <span className="text-[8px] font-orbitron px-2 py-0.5 rounded" style={{ background: 'rgba(48,209,88,0.1)', color: '#30d158', border: '1px solid rgba(48,209,88,0.2)' }}>
                 BEST: {bestHour.label}
               </span>
             )}
@@ -1076,12 +1076,12 @@ function PerformanceTab() {
           <div className="text-[8px] mb-3" style={{ color: '#52526e' }}>Contact rate per cron window — last 30 days</div>
           {stats.hourBars.map(h => {
             const isBest = bestHour && h.label === bestHour.label && h.calls > 0;
-            const barColor = isBest ? '#4ade80' : h.rate > 20 ? '#fbbf24' : '#52526e';
+            const barColor = isBest ? '#30d158' : h.rate > 20 ? '#ff9f0a' : '#52526e';
             return (
               <div key={h.label} className="mb-2.5">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-orbitron w-12" style={{ color: isBest ? '#4ade80' : '#9090a8' }}>{h.label}</span>
+                    <span className="text-[9px] font-orbitron w-12" style={{ color: isBest ? '#30d158' : '#9090a8' }}>{h.label}</span>
                     <span className="text-[8px]" style={{ color: '#52526e' }}>{h.calls} calls</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1111,11 +1111,11 @@ function PerformanceTab() {
             .slice(0, 8)
             .map(([stage, count]) => {
               const pct = stats.totalCalls > 0 ? (count / stats.totalCalls) * 100 : 0;
-              const stageColor = stage.includes('Hot') ? '#f87171'
-                : stage.includes('Warm') ? '#fbbf24'
-                : stage.includes('Contract') ? '#a78bfa'
-                : stage.includes('Closed') ? '#4ade80'
-                : stage.includes('Decision') ? '#60a5fa'
+              const stageColor = stage.includes('Hot') ? '#ff453a'
+                : stage.includes('Warm') ? '#ff9f0a'
+                : stage.includes('Contract') ? '#bf5af2'
+                : stage.includes('Closed') ? '#30d158'
+                : stage.includes('Decision') ? '#0a84ff'
                 : '#52526e';
               return (
                 <div key={stage} className="mb-2.5">
@@ -1138,12 +1138,12 @@ function PerformanceTab() {
       {/* Summary strip */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         {[
-          { label: 'Talk Time',       value: fmtDur(stats.totalTalkSec), color: '#67e8f9' },
-          { label: 'Avg Duration',    value: fmtDur(stats.avgDuration),  color: '#60a5fa' },
-          { label: 'Offer/Contact',   value: `${stats.offerToContactRate}%`, color: '#fb923c' },
-          { label: 'Offers Approved', value: String(stats.offersApproved), color: '#fbbf24' },
-          { label: 'Contracts',       value: String(stats.contractsSent), color: '#a78bfa' },
-          { label: 'Deals Closed',    value: String(stats.dealsClosed),   color: '#4ade80' },
+          { label: 'Talk Time',       value: fmtDur(stats.totalTalkSec), color: '#64d2ff' },
+          { label: 'Avg Duration',    value: fmtDur(stats.avgDuration),  color: '#0a84ff' },
+          { label: 'Offer/Contact',   value: `${stats.offerToContactRate}%`, color: '#ff9f0a' },
+          { label: 'Offers Approved', value: String(stats.offersApproved), color: '#ff9f0a' },
+          { label: 'Contracts',       value: String(stats.contractsSent), color: '#bf5af2' },
+          { label: 'Deals Closed',    value: String(stats.dealsClosed),   color: '#30d158' },
         ].map(s => (
           <div key={s.label} className="p-3 rounded-lg text-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div className="font-orbitron text-[14px] font-bold mb-0.5" style={{ color: s.color }}>{s.value}</div>
@@ -1258,9 +1258,9 @@ function TrainingTab() {
           disabled={loading}
           className="w-full py-3 rounded-lg font-bold text-[12px] transition-all"
           style={{
-            background: loading ? 'rgba(74,222,128,0.08)' : 'rgba(74,222,128,0.15)',
-            color: '#4ade80',
-            border: '1px solid rgba(74,222,128,0.3)',
+            background: loading ? 'rgba(48,209,88,0.08)' : 'rgba(48,209,88,0.15)',
+            color: '#30d158',
+            border: '1px solid rgba(48,209,88,0.3)',
             opacity: loading ? 0.7 : 1,
           }}
         >
@@ -1280,7 +1280,7 @@ function TrainingTab() {
                 <div className="text-[11px] font-semibold" style={{ color: '#e8e8f0' }}>Performance Score</div>
                 <div>
                   <span className="text-[9px]" style={{ color: '#52526e' }}>Close Probability </span>
-                  <span className="font-orbitron text-[16px] font-bold" style={{ color: result.score.close_probability >= 60 ? '#4ade80' : result.score.close_probability >= 35 ? '#fbbf24' : '#f87171' }}>
+                  <span className="font-orbitron text-[16px] font-bold" style={{ color: result.score.close_probability >= 60 ? '#30d158' : result.score.close_probability >= 35 ? '#ff9f0a' : '#ff453a' }}>
                     {result.score.close_probability}%
                   </span>
                 </div>
@@ -1300,11 +1300,11 @@ function TrainingTab() {
                 ))}
               </div>
               {result.score.suggestions?.length > 0 && (
-                <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
-                  <div className="text-[10px] font-bold mb-2" style={{ color: '#fbbf24' }}>Coaching Notes</div>
+                <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(255,159,10,0.06)', border: '1px solid rgba(255,159,10,0.15)' }}>
+                  <div className="text-[10px] font-bold mb-2" style={{ color: '#ff9f0a' }}>Coaching Notes</div>
                   {result.score.suggestions.map((s, i) => (
                     <div key={i} className="text-[10px] mb-1 flex gap-2" style={{ color: '#9090a8' }}>
-                      <span style={{ color: '#fbbf24' }}>→</span>{s}
+                      <span style={{ color: '#ff9f0a' }}>→</span>{s}
                     </div>
                   ))}
                 </div>
@@ -1338,7 +1338,7 @@ function TrainingTab() {
                 </div>
                 <div className="flex items-center gap-2">
                   {s.score && (
-                    <span className="font-orbitron text-[13px] font-bold" style={{ color: s.score.overall >= 7 ? '#4ade80' : s.score.overall >= 5 ? '#fbbf24' : '#f87171' }}>
+                    <span className="font-orbitron text-[13px] font-bold" style={{ color: s.score.overall >= 7 ? '#30d158' : s.score.overall >= 5 ? '#ff9f0a' : '#ff453a' }}>
                       {s.score.overall}/10
                     </span>
                   )}
@@ -1376,7 +1376,7 @@ function TrainingTab() {
           outline: none;
         }
         .form-select option { background: #0c0d14; color: #e8e8f0; }
-        .form-select:focus, .form-input:focus { border-color: rgba(74,222,128,0.4); }
+        .form-select:focus, .form-input:focus { border-color: rgba(48,209,88,0.4); }
       `}</style>
     </div>
   );
@@ -1465,9 +1465,9 @@ export function DavidHQ() {
               onClick={() => setActiveTab(tab.id)}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-all flex-1 justify-center"
               style={{
-                background: active ? 'rgba(251,191,36,0.12)' : 'transparent',
-                color: active ? '#fbbf24' : '#52526e',
-                border: active ? '1px solid rgba(251,191,36,0.25)' : '1px solid transparent',
+                background: active ? 'rgba(255,159,10,0.12)' : 'transparent',
+                color: active ? '#ff9f0a' : '#52526e',
+                border: active ? '1px solid rgba(255,159,10,0.25)' : '1px solid transparent',
               }}
             >
               <Icon size={12} />
@@ -1475,7 +1475,7 @@ export function DavidHQ() {
               {hasBadge && (
                 <span
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-bold flex items-center justify-center"
-                  style={{ background: '#f87171', color: '#fff' }}
+                  style={{ background: '#ff453a', color: '#fff' }}
                 >
                   {pendingCount}
                 </span>
