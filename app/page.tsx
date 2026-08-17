@@ -169,9 +169,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Scrollable content */}
-                {activeSection === 'intelligence-chat' ? (
-                  <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                {/* Scrollable content. Chat sections manage their own scroll
+                    and need a height-bounded parent, so they skip the wrapper. */}
+                {activeSection === 'intelligence-chat' || activeSection === 'agent-chat' ? (
+                  <div className="flex-1 overflow-hidden flex flex-col min-h-0 p-6">
                     <SectionContent section={activeSection} />
                   </div>
                 ) : (
