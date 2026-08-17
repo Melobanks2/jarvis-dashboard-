@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { canonicalStage } from '@/lib/stages';
+export { canonicalStage };
 import { DIALER_API } from '@/lib/config';
 
 // Pipeline data is served by the VPS dialer-server (Vercel Hobby is at its 12-function cap).
@@ -69,27 +71,6 @@ export const STAGE_ORDER = [
 
 // Map a messy GHL stage name to a clean canonical bucket. Keyword-based + order-sensitive
 // (specific before generic) so typos / emoji / casing don't matter.
-export function canonicalStage(raw: string): string {
-  const s = (raw || '').toLowerCase();
-  if (s.includes('decision'))        return 'Decision Pending';
-  if (s.includes('contract sent'))   return 'Contract Sent';
-  if (s.includes('under contract'))  return 'Under Contract';
-  if (s.includes('signed'))          return 'Signed Elsewhere';
-  if (s.includes('refund approved')) return 'Refund Approved';
-  if (s.includes('refund') || s.includes('bad lead')) return 'Refund Requested';
-  if (s.includes('hot'))             return 'Hot Follow Up';
-  if (s.includes('warm'))            return 'Warm Follow Up';
-  if (s.includes('cold'))            return 'Cold Follow Up';
-  if (s.includes('dispos'))          return 'Disposition';
-  if (s.includes('closed'))          return 'Closed';
-  if (s.includes('dead'))            return 'Dead';
-  if (s.includes('unrespons') || s.includes('6+')) return 'Unresponsive';
-  if (s.includes('attempt 3'))       return 'Attempt 3-5';
-  if (s.includes('attempt 2'))       return 'Attempt 2';
-  if (s.includes('attempt 1') || s.includes('attempt  1')) return 'Attempt 1';
-  if (s.includes('new'))             return 'New Lead';
-  return raw.replace(/[^a-zA-Z0-9 +-]/g, '').trim() || 'Other';
-}
 
 interface RawLead {
   id: string; contactId: string | null; name?: string; phone?: string | null; address?: string | null;

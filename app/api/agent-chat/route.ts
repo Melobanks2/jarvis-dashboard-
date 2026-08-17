@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { DIALER_API } from '@/lib/config';
+import { stageOf, REFUND_EXCLUDE, IN_MOTION } from '@/lib/stages';
 
 /**
  * Agent Chat backend — talks to the Ollama instance on THIS machine.
@@ -24,7 +25,7 @@ const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'qwen3.6:27b';
 const FETCH_TIMEOUT_MS = 180_000;
 
 interface LeadLike {
-  name?: string; stage?: string; temp?: string; source?: string;
+  name?: string; stage?: string; stageName?: string; temp?: string; source?: string;
   daysInCrm?: number | null; daysInStage?: number | null;
   purchasePrice?: number | null; daysUntilDeadline?: number | null;
   address?: string;
@@ -46,15 +47,14 @@ async function pipelineContext(): Promise<string> {
     const byTemp: Record<string, number> = {};
     const bySource: Record<string, number> = {};
     for (const l of leads) {
-      if (l.stage) byStage[l.stage] = (byStage[l.stage] ?? 0) + 1;
+      const st = stageOf(l); if (st) byStage[st] = (byStage[st] ?? 0) + 1;
       if (l.temp) byTemp[l.temp] = (byTemp[l.temp] ?? 0) + 1;
       if (l.source) bySource[l.source] = (bySource[l.source] ?? 0) + 1;
     }
 
     const ispeed = leads.filter(l => l.source === 'ispeed');
     const spend = ispeed.reduce((a, l) => a + (l.purchasePrice || 0), 0);
-    const EXCLUDE = new Set(['Refund Requested', 'Refund Approved', 'Under Contract', 'Contract Sent', 'Closed', 'Disposition']);
-    const recoverable = ispeed.filter(l => l.daysUntilDeadline != null && l.daysUntilDeadline >= 0 && !EXCLUDE.has(l.stage ?? ''));
+    const recoverable = ispeed.filter(l => l.daysUntilDeadline != null && l.daysUntilDeadline >= 0 && !REFUND_EXCLUDE.has(stageOf(l)));
     const closingSoon = recoverable
       .filter(l => (l.daysUntilDeadline ?? 99) <= 7)
       .sort((a, b) => (a.daysUntilDeadline ?? 0) - (b.daysUntilDeadline ?? 0));
@@ -63,9 +63,9 @@ async function pipelineContext(): Promise<string> {
       .filter(l => l.temp === 'hot')
       .sort((a, b) => (b.daysInCrm ?? 0) - (a.daysInCrm ?? 0))
       .slice(0, 12)
-      .map(l => `${l.name} (${l.stage}, ${l.daysInCrm ?? '?'}d old)`);
+      .map(l => `${l.name} (${stageOf(l)}, ${l.daysInCrm ?? '?'}d old)`);
 
-    const inMotion = leads.filter(l => ['Under Contract', 'Contract Sent', 'Decision Pending'].includes(l.stage ?? ''));
+    const inMotion = leads.filter(l => IN_MOTION.includes(stageOf(l)));
 
     const money = (n: number) => '$' + Math.round(n).toLocaleString();
     const kv = (o: Record<string, number>) =>
@@ -76,7 +76,7 @@ async function pipelineContext(): Promise<string> {
       `- by temperature: ${kv(byTemp)}`,
       `- by source: ${kv(bySource)}`,
       `- by stage: ${kv(byStage)}`,
-      `- deals in motion (${inMotion.length}): ${inMotion.map(l => `${l.name} [${l.stage}]`).join('; ') || 'none'}`,
+      `- deals in motion (${inMotion.length}): ${inMotion.map(l => `${l.name} [${stageOf(l)}]`).join('; ') || 'none'}`,
       `- iSpeed paid spend: ${money(spend)}; still refundable: ${money(recoverable.reduce((a, l) => a + (l.purchasePrice || 0), 0))} across ${recoverable.length} leads`,
       `- refund window closing within 7 days (${closingSoon.length}): ${closingSoon.map(l => `${l.name} in ${l.daysUntilDeadline}d`).join('; ') || 'none'}`,
       `- oldest hot leads: ${hotList.join('; ') || 'none'}`,
