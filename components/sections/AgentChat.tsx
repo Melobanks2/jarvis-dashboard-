@@ -16,7 +16,7 @@ import { buildViz, joinPeople, summarize, type ChatPerson } from '@/lib/chatViz'
 import { usePipeline, type Lead } from '@/lib/hooks/usePipeline';
 import { useApp } from '@/lib/AppContext';
 
-// Talks only to the Ollama instance on this MacBook, via /api/agent-chat.
+// Talks only to the Ollama instance on this MacBook, via /api/jarvis/*.
 // Charts are drawn from the SAME live pipeline the rest of the dashboard reads —
 // the model names a dataset, it never supplies the numbers.
 
@@ -66,7 +66,7 @@ export function AgentChat() {
 
   useEffect(() => {
     let live = true;
-    fetch('/api/agent-chat').then(r => r.json()).then(d => {
+    fetch('/api/jarvis/models').then(r => r.json()).then(d => {
       if (!live) return;
       setOnline(!!d.online); setModels(d.models ?? []); setHost(d.host ?? '');
       setModel(prev => prev || d.defaultModel || d.models?.[0]?.name || '');
@@ -183,7 +183,7 @@ function TodayBriefing({ online, leads }: { online: boolean | null; leads: Lead[
   const load = useCallback(async () => {
     setLoading(true); setErr('');
     try {
-      const res = await fetch('/api/agent-chat/briefing', { method: 'POST' });
+      const res = await fetch('/api/jarvis/briefing', { method: 'POST' });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
       setData(j);
@@ -761,7 +761,7 @@ function ChatView({ online, models, model, setModel, leads }: {
     setBusy(true);
     const ac = new AbortController(); abortRef.current = ac;
     try {
-      const res = await fetch('/api/agent-chat', {
+      const res = await fetch('/api/jarvis/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: outgoing.map(m => ({ role: m.role, content: m.content })), model, think }),
         signal: ac.signal,
