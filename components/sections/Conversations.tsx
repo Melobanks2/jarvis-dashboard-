@@ -45,10 +45,30 @@ interface Entry {
 }
 
 type Source = 'sarah' | 'scout';
+type Lane   = 'ispeed' | 'va_leads' | 'scout' | 'other';
+
+/** The qualification facts, as stored on jarvis_calls.collected (migration 002). */
+interface Facts {
+  motivation?: string | null;
+  timeline_thinking?: string | null;
+  asking_price?: string | null;
+  occupancy_status?: string | null;
+  ownership_length?: string | null;
+  mortgage_payoff?: string | null;
+  condition?: string | null;
+  pain_type?: string | null;
+  deal_type?: string | null;
+  ghl_stage?: string | null;
+}
 
 interface Thread {
   key: string;
   source: Source;
+  lane: Lane;
+  facts: Facts | null;
+  dealType: string | null;
+  photoUrl: string | null;
+  stage: string | null;
   name: string;
   phone: string;
   address: string | null;
@@ -69,6 +89,23 @@ interface Thread {
  */
 const sourceOf = (stageBefore?: string | null): Source =>
   /multi.?dialer/i.test(String(stageBefore || '')) ? 'scout' : 'sarah';
+
+/**
+ * Sarah's leads are not one pool. iSpeed leads are bought per-lead and carry
+ * refund deadlines; va_leads come from the property-lead pipeline. Chris works
+ * them differently, so the view separates them rather than averaging them.
+ */
+const laneOf = (pipeline?: string | null, source?: Source): Lane => {
+  if (source === 'scout') return 'scout';
+  const p = String(pipeline || '').toLowerCase();
+  if (p.includes('ispeed')) return 'ispeed';
+  if (p.includes('va_leads') || p.includes('property')) return 'va_leads';
+  return 'other';
+};
+
+const LANE_LABEL: Record<Lane, string> = {
+  ispeed: 'iSpeed', va_leads: 'Property', scout: 'Scout', other: 'Other',
+};
 
 const VERDICT_COLOR: Record<string, string> = {
   HOT: '#ff453a', WARM: '#ff9f0a', COLD: '#0a84ff', DEAD: '#52526e',
@@ -99,7 +136,7 @@ export function Conversations() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [query, setQuery]     = useState('');
-  const [source, setSource]   = useState<Source | 'all'>('sarah');
+  const [lane, setLane]       = useState<Lane | 'sarah' | 'all'>('sarah');
   const [loading, setLoading] = useState(true);
   const [notes, setNotes]     = useState<string[]>([]);   // which sources are unavailable
   const [tick, setTick]       = useState(0);
@@ -126,7 +163,7 @@ export function Conversations() {
         // binding limit is egress, not storage (49 MB of data was generating
         // 1.2 GB of transfer in six days), and transcripts are ~95% of a call
         // row's bytes. They load on expand instead — see EntryCard.
-        .select('id,contact_name,phone,address,call_duration,stage_after,stage_before,summary,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at')
+        .select('id,contact_name,phone,address,call_duration,stage_after,stage_before,summary,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at,collected,pipeline,deal_type,photo_url')
         .order('called_at', { ascending: false })
         .limit(500);
 
@@ -156,7 +193,8 @@ export function Conversations() {
         if (!k || k === TEST_PHONE) return null;
         let t = map.get(k);
         if (!t) {
-          t = { key: k, source, name: name || 'Unknown', phone: phone || k, address: address || null,
+          t = { key: k, source, lane: 'other', facts: null, dealType: null, photoUrl: null, stage: null,
+                name: name || 'Unknown', phone: phone || k, address: address || null,
                 entries: [], callCount: 0, lastAt: '', lastVerdict: null, appointmentAt: null };
           map.set(k, t);
         }
@@ -169,6 +207,13 @@ export function Conversations() {
         const t = touch(c.phone, c.contact_name, c.address, sourceOf(c.stage_before));
         if (!t) continue;
         t.callCount += 1;
+        // Newest call wins — the query is ordered called_at desc, so the first
+        // row we see for a phone is the most recent thing we know about them.
+        if (!t.facts && c.collected)  t.facts    = c.collected as Facts;
+        if (!t.dealType && c.deal_type) t.dealType = c.deal_type;
+        if (!t.photoUrl && c.photo_url) t.photoUrl = c.photo_url;
+        if (!t.stage && c.stage_before) t.stage    = c.stage_before;
+        if (t.lane === 'other') t.lane = laneOf(c.pipeline, t.source);
         t.entries.push({
           id: `c${c.id}`, kind: 'call', at: c.called_at,
           duration: c.call_duration, verdict: c.stage_after, summary: c.summary,
@@ -210,19 +255,24 @@ export function Conversations() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const bySource = source === 'all' ? threads : threads.filter(t => t.source === source);
-    if (!q) return bySource;
-    return bySource.filter(t =>
+    const inLane = lane === 'all'   ? threads
+                 : lane === 'sarah' ? threads.filter(t => t.source === 'sarah')
+                 : threads.filter(t => t.lane === lane);
+    if (!q) return inLane;
+    return inLane.filter(t =>
       t.name.toLowerCase().includes(q) ||
       t.phone.includes(q.replace(/\D/g, '')) ||
       (t.address || '').toLowerCase().includes(q));
-  }, [threads, query, source]);
+  }, [threads, query, lane]);
 
   const active = threads.find(t => t.key === selected) || null;
   const counts = useMemo(() => ({
-    sarah: threads.filter(t => t.source === 'sarah').length,
-    scout: threads.filter(t => t.source === 'scout').length,
-    all:   threads.length,
+    sarah:    threads.filter(t => t.source === 'sarah').length,
+    ispeed:   threads.filter(t => t.lane === 'ispeed').length,
+    va_leads: threads.filter(t => t.lane === 'va_leads').length,
+    scout:    threads.filter(t => t.source === 'scout').length,
+    other:    threads.filter(t => t.lane === 'other').length,
+    all:      threads.length,
   }), [threads]);
 
   return (
@@ -247,12 +297,12 @@ export function Conversations() {
         {/* ── lead rail ─────────────────────────────────────────────── */}
         <div className="rounded-lg border border-border2 overflow-hidden flex flex-col" style={{ background: 'rgba(255,255,255,0.015)', maxHeight: '70vh' }}>
           <div className="flex border-b border-border2">
-            {([['sarah', 'Sarah'], ['scout', 'Scout'], ['all', 'All']] as const).map(([k, label]) => (
-              <button key={k} onClick={() => setSource(k)}
-                className="flex-1 px-2 py-1.5 text-[10px] transition-colors"
+            {([['sarah', 'All Sarah'], ['ispeed', 'iSpeed'], ['va_leads', 'Property'], ['scout', 'Scout']] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setLane(k)}
+                className="flex-1 px-1.5 py-1.5 text-[9.5px] transition-colors whitespace-nowrap"
                 style={{
-                  color: source === k ? '#64d2ff' : 'var(--dimtext)',
-                  borderBottom: source === k ? '2px solid #64d2ff' : '2px solid transparent',
+                  color: lane === k ? '#64d2ff' : 'var(--dimtext)',
+                  borderBottom: lane === k ? '2px solid #64d2ff' : '2px solid transparent',
                 }}>
                 {label} <span className="tabular-nums opacity-70">{counts[k]}</span>
               </button>
@@ -279,9 +329,17 @@ export function Conversations() {
                   {t.appointmentAt && <CalendarCheck size={11} style={{ color: '#30d158' }} />}
                 </div>
                 <div className="text-[10px] text-dimtext truncate mt-0.5">{t.address || t.phone}</div>
+                {/* One line of why-this-lead-matters, so the rail is scannable
+                    without opening every thread. */}
+                {(t.facts?.motivation || t.facts?.timeline_thinking) && (
+                  <div className="text-[9.5px] truncate mt-0.5" style={{ color: '#64d2ff' }}>
+                    {[t.facts?.motivation, t.facts?.timeline_thinking].filter(Boolean).join(' · ')}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mt-1 text-[9.5px] text-dimtext tabular-nums">
                   <span className="flex items-center gap-1"><Repeat size={9} />{t.callCount}×</span>
                   {t.lastAt && <span>{timeAgo(t.lastAt)}</span>}
+                  <span className="ml-auto opacity-70">{LANE_LABEL[t.lane]}</span>
                 </div>
               </button>
             ))}
@@ -294,25 +352,7 @@ export function Conversations() {
             <div className="text-dimtext text-[11px] italic p-8 text-center">Pick a lead to see the conversation.</div>
           ) : (
             <>
-              <div className="px-4 py-3 border-b border-border2">
-                <div className="text-[13px] font-semibold text-textb">{active.name}</div>
-                <div className="text-[10.5px] text-dimtext">
-                  {active.phone}{active.address ? ` · ${active.address}` : ''}
-                </div>
-                <div className="flex items-center gap-3 mt-1.5 text-[10px] tabular-nums">
-                  <span className="text-dimtext">reached out <span className="text-textb">{active.callCount}</span> {active.callCount === 1 ? 'time' : 'times'}</span>
-                  {active.lastVerdict && (
-                    <span className="px-1.5 py-0.5 rounded" style={{ background: `${verdictColor(active.lastVerdict)}20`, color: verdictColor(active.lastVerdict) }}>
-                      {active.lastVerdict}
-                    </span>
-                  )}
-                  {active.appointmentAt && (
-                    <span className="flex items-center gap-1" style={{ color: '#30d158' }}>
-                      <CalendarCheck size={10} /> {fmtWhen(active.appointmentAt)}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <LeadHeader t={active} />
               <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-2">
                 {active.entries.map(e => <EntryCard key={e.id} entry={e} />)}
               </div>
@@ -320,6 +360,116 @@ export function Conversations() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Everything known about the lead, above the conversation.
+ *
+ * The point is recognition at a glance: Chris should not have to open a
+ * transcript to remember who this is or what they want. Facts come from
+ * jarvis_calls.collected, which the dialer now writes on every call and which
+ * was backfilled from the GHL custom fields for calls made before that.
+ */
+function LeadHeader({ t }: { t: Thread }) {
+  const f = t.facts || {};
+  const money = (v?: string | null) => {
+    if (!v) return null;
+    const n = String(v).replace(/[^0-9.]/g, '');
+    if (!n || Number.isNaN(Number(n))) return String(v);   // "no price given"
+    return '$' + Number(n).toLocaleString('en-US');
+  };
+  const rows: [string, string | null][] = [
+    ['Motivation', f.motivation || f.pain_type || null],
+    ['Timeline',   f.timeline_thinking || null],
+    ['Asking',     money(f.asking_price)],
+    ['Occupancy',  f.occupancy_status || null],
+    ['Owned',      f.ownership_length || null],
+    ['Mortgage',   money(f.mortgage_payoff)],
+    ['Condition',  f.condition || null],
+  ].filter((r): r is [string, string] => Boolean(r[1]));
+
+  return (
+    <div className="px-4 py-3 border-b border-border2">
+      <div className="flex gap-3">
+        <PropertyThumb address={t.address} photoUrl={t.photoUrl} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[13px] font-semibold text-textb">{t.name}</span>
+            {t.lastVerdict && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"
+                    style={{ background: `${verdictColor(t.lastVerdict)}20`, color: verdictColor(t.lastVerdict) }}>
+                {t.lastVerdict}
+              </span>
+            )}
+            {t.dealType && t.dealType !== 'either' && (
+              <span className="px-1.5 py-0.5 rounded text-[9px]"
+                    style={{ background: 'rgba(191,90,242,0.15)', color: '#bf5af2' }}>
+                {t.dealType}
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 rounded text-[9px]"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--dimtext)' }}>
+              {LANE_LABEL[t.lane]}
+            </span>
+          </div>
+          {t.address && <div className="text-[11px] text-jtext mt-0.5">{t.address}</div>}
+          <div className="flex items-center gap-3 mt-1 text-[10px] text-dimtext tabular-nums flex-wrap">
+            <span>{t.phone}</span>
+            <span className="flex items-center gap-1"><Repeat size={9} />{t.callCount}×</span>
+            {t.stage && <span>{t.stage}</span>}
+            {t.appointmentAt && (
+              <span className="flex items-center gap-1" style={{ color: '#30d158' }}>
+                <CalendarCheck size={10} /> {fmtWhen(t.appointmentAt)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {rows.length > 0 ? (
+        <div className="grid gap-x-4 gap-y-1 mt-2.5 pt-2.5 border-t border-border2"
+             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+          {rows.map(([k, v]) => (
+            <div key={k} className="min-w-0">
+              <div className="text-[8.5px] uppercase tracking-wider text-dimtext">{k}</div>
+              <div className="text-[11px] text-textb truncate" title={v || ''}>{v}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2.5 pt-2.5 border-t border-border2 text-[10px] text-dimtext italic">
+          No qualification facts on file for this lead yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Street View thumbnail. Needs NEXT_PUBLIC_GOOGLE_MAPS_KEY; without one we show
+ * the house number on a tinted block, which still gives Chris something to
+ * recognise a lead by at a glance.
+ */
+function PropertyThumb({ address, photoUrl }: { address: string | null; photoUrl: string | null }) {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  const src = photoUrl
+    || (key && address
+        ? `https://maps.googleapis.com/maps/api/streetview?size=200x200&location=${encodeURIComponent(address)}&key=${key}`
+        : null);
+  const houseNo = (address || '').trim().split(/\s+/)[0] || '?';
+
+  if (src) {
+    return <img src={src} alt="" width={64} height={64}
+                className="rounded-lg object-cover flex-shrink-0"
+                style={{ width: 64, height: 64, background: 'rgba(255,255,255,0.04)' }} />;
+  }
+  return (
+    <div className="rounded-lg flex items-center justify-center flex-shrink-0"
+         style={{ width: 64, height: 64, background: 'rgba(100,210,255,0.08)', border: '1px solid var(--border2)' }}
+         title={address || 'No address'}>
+      <span className="text-[13px] font-semibold" style={{ color: '#64d2ff' }}>{houseNo}</span>
     </div>
   );
 }
