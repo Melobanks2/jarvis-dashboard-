@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, MessageSquare, CalendarCheck, ChevronDown, Search, Repeat } from 'lucide-react';
+import { Phone, MessageSquare, CalendarCheck, ChevronDown, Search, Repeat, StickyNote, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const TEST_PHONE = '3479704969';           // Chris's own handset — not a lead
@@ -443,6 +443,95 @@ function LeadHeader({ t }: { t: Thread }) {
           No qualification facts on file for this lead yet.
         </div>
       )}
+
+      <LeadNotes phoneKey={t.key} contactName={t.name} />
+    </div>
+  );
+}
+
+/**
+ * Chris's own notes, separate from the AI call summary.
+ *
+ * The summary is what Sarah heard; this is what Chris concluded. Keeping them
+ * apart matters — an AI summary that quietly absorbed a human correction would
+ * make it impossible to tell which is which later.
+ */
+function LeadNotes({ phoneKey, contactName }: { phoneKey: string; contactName: string }) {
+  const [notes, setNotes]   = useState<{ id: number; body: string; created_at: string }[]>([]);
+  const [draft, setDraft]   = useState('');
+  const [open, setOpen]     = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setNotes([]); setDraft(''); setOpen(false);
+    supabase.from('jarvis_lead_notes')
+      .select('id,body,created_at').eq('phone_key', phoneKey)
+      .order('created_at', { ascending: false }).limit(50)
+      .then(({ data }) => { if (live && data) setNotes(data as typeof notes); });
+    return () => { live = false; };
+  }, [phoneKey]);
+
+  const save = async () => {
+    const body = draft.trim();
+    if (!body || saving) return;
+    setSaving(true);
+    const { data, error } = await supabase.from('jarvis_lead_notes')
+      .insert({ phone_key: phoneKey, contact_name: contactName, body, author: 'chris' })
+      .select('id,body,created_at').single();
+    if (!error && data) { setNotes(n => [data as typeof notes[0], ...n]); setDraft(''); }
+    setSaving(false);
+  };
+
+  const remove = async (id: number) => {
+    await supabase.from('jarvis_lead_notes').delete().eq('id', id);
+    setNotes(n => n.filter(x => x.id !== id));
+  };
+
+  return (
+    <div className="mt-2.5 pt-2.5 border-t border-border2">
+      <button onClick={() => setOpen(o => !o)} className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-dimtext hover:text-textb">
+        <StickyNote size={10} /> Notes
+        {notes.length > 0 && <span className="tabular-nums" style={{ color: '#ff9f0a' }}>{notes.length}</span>}
+        <ChevronDown size={10} className="transition-transform" style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
+      </button>
+
+      {!open && notes.length > 0 && (
+        <div className="text-[10.5px] text-jtext mt-1 truncate">{notes[0].body}</div>
+      )}
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+            <div className="flex gap-1.5 mt-2">
+              <textarea
+                value={draft} onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save(); }}
+                placeholder="What happened on this lead? (⌘↵ to save)"
+                rows={2}
+                className="flex-1 rounded-lg border border-border2 bg-transparent px-2 py-1.5 text-[11px] text-textb placeholder:text-dimtext outline-none resize-none"
+              />
+              <button onClick={save} disabled={!draft.trim() || saving}
+                className="px-2 rounded-lg text-[10px] disabled:opacity-40 self-stretch"
+                style={{ background: 'rgba(100,210,255,0.14)', color: '#64d2ff' }}>
+                <Plus size={12} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-1 mt-2">
+              {notes.map(n => (
+                <div key={n.id} className="group rounded-lg px-2 py-1.5" style={{ background: 'rgba(255,159,10,0.06)' }}>
+                  <div className="flex items-start gap-2">
+                    <p className="text-[11px] text-jtext whitespace-pre-wrap leading-relaxed flex-1">{n.body}</p>
+                    <button onClick={() => remove(n.id)} className="text-[9px] text-dimtext opacity-0 group-hover:opacity-100">✕</button>
+                  </div>
+                  <div className="text-[8.5px] text-dimtext mt-0.5 tabular-nums">{fmtWhen(n.created_at)}</div>
+                </div>
+              ))}
+              {!notes.length && <p className="text-[10px] text-dimtext italic">No notes yet.</p>}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

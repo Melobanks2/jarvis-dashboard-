@@ -406,6 +406,30 @@ function SourceBadge({ source }: { source: Source }) {
   );
 }
 
+/**
+ * Street View thumbnail so a lead is recognisable at a glance. Renders the
+ * photo when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set; otherwise the house number on
+ * a tinted block, which is still a visual anchor.
+ */
+function LeadThumb({ address }: { address?: string | null }) {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  const src = key && address
+    ? `https://maps.googleapis.com/maps/api/streetview?size=120x120&location=${encodeURIComponent(address)}&key=${key}`
+    : null;
+  const houseNo = String(address || '').trim().split(/\s+/)[0] || '?';
+  if (src) {
+    return <img src={src} alt="" className="rounded-md object-cover flex-shrink-0 mr-2"
+                style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.04)' }} />;
+  }
+  return (
+    <div className="rounded-md flex items-center justify-center flex-shrink-0 mr-2"
+         style={{ width: 40, height: 40, background: 'rgba(100,210,255,0.08)', border: '1px solid var(--border2)' }}
+         title={address || 'No address'}>
+      <span className="text-[10px] font-semibold" style={{ color: '#64d2ff' }}>{houseNo}</span>
+    </div>
+  );
+}
+
 function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead; compact?: boolean; startExpanded?: boolean }) {
   const c = TEMP_COLOR[lead.temp];
   const [expanded, setExpanded] = useState(startExpanded);
@@ -451,6 +475,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
     if (playing) { el.pause(); } else { el.play().catch(() => {}); }
   }
 
+  const facts = (lead.collected || {}) as Record<string, string | null>;
   const hasRecording = !!lead.recordingUrl;
   // transcript is fetched lazily by the modal now, so gate on whether a call
   // exists at all rather than on text we deliberately stopped shipping.
@@ -460,6 +485,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
     <GlassCard accent={lead.temp === 'hot' ? 'red' : lead.temp === 'warm' ? 'orange' : 'blue'} padding="p-3" hover={false}>
       {/* header — click to expand/collapse */}
       <button onClick={() => setExpanded(e => !e)} className="w-full flex items-start justify-between gap-2 text-left">
+        <LeadThumb address={lead.address} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <ChevronDown size={12} className="text-dimtext flex-shrink-0 transition-transform" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
@@ -505,16 +531,21 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
             className="overflow-hidden"
           >
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 pt-3 border-t border-border2">
-              <Field label="Motivation" value={lead.pain} />
-              <Field label="Timeline"   value={lead.timeline} />
-              <Field label="Asking"     value={lead.askingPrice} color="#30d158" />
-              <Field label="Condition"  value={lead.condition} />
+              {/* Fall back to what the dialer collected on the call. The GHL
+                  lead record leaves Motivation and Asking empty on every lead
+                  (0 of 156), while jarvis_calls.collected has motivation on
+                  202 calls — so the card was rendering blanks over live data. */}
+              <Field label="Motivation" value={lead.pain        ?? facts.motivation        ?? null} />
+              <Field label="Timeline"   value={lead.timeline    ?? facts.timeline_thinking ?? null} />
+              <Field label="Asking"     value={lead.askingPrice ?? facts.asking_price      ?? null} color="#30d158" />
+              <Field label="Condition"  value={lead.condition   ?? facts.condition         ?? null} />
               <Field label="ARV"        value={lead.arv} />
               <Field label="Rehab"      value={lead.rehabCost} />
               <Field label="Mkt Value"  value={lead.marketValue} />
-              <Field label="Occupancy"  value={lead.occupancy} />
-              <Field label="Mortgage"   value={lead.mortgage} />
-              <Field label="Deal Type"  value={lead.dealType} />
+              <Field label="Occupancy"  value={lead.occupancy ?? facts.occupancy_status ?? null} />
+              <Field label="Mortgage"   value={lead.mortgage  ?? facts.mortgage_payoff  ?? null} />
+              <Field label="Owned"      value={facts.ownership_length ?? null} />
+              <Field label="Deal Type"  value={lead.dealType ?? null} />
               <Field label="Rating"     value={lead.rating} />
               <Field label="Pipeline $" value={lead.value ? `$${lead.value.toLocaleString()}` : null} />
             </div>

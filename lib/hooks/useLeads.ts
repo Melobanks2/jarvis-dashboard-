@@ -9,6 +9,10 @@ export type Source = 'alpha' | 'sarah' | 'ispeed';
 
 export interface Lead {
   callId?: string | number | null;
+  // Facts the dialer collected on the call, distinct from the GHL-sourced
+  // fields below (occupancy/mortgage/dealType) which come from the lead record.
+  collected?: Record<string, string | null> | null;
+  callPipeline?: string | null;
   id: string;
   contactId: string | null;
   source: Source;
@@ -108,6 +112,7 @@ interface CallRow {
   id: string; phone: string | null; contact_name: string | null; address: string | null;
   call_duration: number | null; called_at: string; stage_after: string | null;
   stage_before: string | null; summary: string | null; transcript_full?: string | null;
+  collected?: Record<string, string | null> | null; deal_type?: string | null; pipeline?: string | null;
   recording_url: string | null; telnyx_recording_url: string | null; elevenlabs_recording_url: string | null;
 }
 
@@ -153,7 +158,7 @@ export function useLeads(refreshKey: number) {
         // on most pages, and transcripts are the bulk of a call row — 49 MB of
         // data was producing 1.2 GB of egress in six days. The Leads modal
         // fetches the one transcript it needs when it opens.
-        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at')
+        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at,collected,deal_type,pipeline')
         .order('called_at', { ascending: false })
         .limit(120),
     ]).then(([leadResp, callResp]) => {
@@ -193,6 +198,8 @@ export function useLeads(refreshKey: number) {
             calledAt:     c?.called_at ?? null,
             summary:      c?.summary ?? null,
             callId:       c?.id ?? null,      // modal fetches the transcript by id
+            collected:    c?.collected ?? null,
+            callPipeline: c?.pipeline ?? null,
             transcript:   null,               // not shipped on the polling query
             recordingUrl: c?.telnyx_recording_url || c?.recording_url || c?.elevenlabs_recording_url || null,
             callHistory:  hist.map(toRecord),
