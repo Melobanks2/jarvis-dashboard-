@@ -717,7 +717,7 @@ function CallReview() {
     try {
       let q = supabase
         .from('jarvis_calls')
-        .select('id, contact_name, phone, address, call_duration, stage_after, transcript_text, recording_url, called_at')
+        .select('id, contact_name, phone, address, call_duration, stage_after, transcript_full, recording_url, called_at')
         .neq('phone', EXCLUDED_PHONE)
         .order('called_at', { ascending: false })
         .limit(500);
@@ -740,7 +740,7 @@ function CallReview() {
         address: r.address || '',
         call_duration: r.call_duration ?? 0,
         outcome: callOutcomeFromRecord(r),
-        transcript_text: r.transcript_text || '',
+        transcript_text: r.transcript_full || '',
         recording_url: r.recording_url || '',
         called_at: r.called_at,
       }));

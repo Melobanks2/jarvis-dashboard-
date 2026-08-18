@@ -24,6 +24,7 @@ import { DavidHQ }          from '@/components/sections/DavidHQ';
 import { KnowledgeBase }          from '@/components/sections/KnowledgeBase';
 import { MarketingIntelligence }  from '@/components/sections/MarketingIntelligence';
 import { MultiDialer }            from '@/components/sections/MultiDialer';
+import { Conversations }          from '@/components/sections/Conversations';
 import { Leads }                  from '@/components/sections/Leads';
 import { Acquisitions }           from '@/components/sections/Acquisitions';
 import { ContractCannon }         from '@/components/sections/ContractCannon';
@@ -78,6 +79,7 @@ function SectionContent({ section }: { section: string }) {
     case 'knowledge-base':          return <KnowledgeBase />;
     case 'marketing-intelligence':  return <MarketingIntelligence />;
     case 'multi-dialer':            return <MultiDialer />;
+    case 'conversations':           return <Conversations />;
     case 'leads':                   return <Leads />;
     case 'contract-cannon':         return <ContractCannon />;
     case 'novation-deal':           return <NovationTracker />;

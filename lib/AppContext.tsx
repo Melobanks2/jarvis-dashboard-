@@ -26,7 +26,8 @@ export type Section =
   | 'analytics'
   | 'knowledge-base'
   | 'marketing-intelligence'
-  | 'multi-dialer';
+  | 'multi-dialer'
+  | 'conversations';
 
 interface AppState {
   activeSection: Section;

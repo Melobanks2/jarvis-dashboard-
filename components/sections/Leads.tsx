@@ -10,7 +10,7 @@ import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead, Temp, Source, PipelineMeta, LEADS_API } from '@/lib/hooks/useLeads';
-import { timeAgo } from '@/lib/supabase';
+import { timeAgo, supabase } from '@/lib/supabase';
 
 const TEMP_COLOR: Record<Temp, string> = {
   hot:  '#ff453a',
@@ -452,7 +452,9 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
   }
 
   const hasRecording = !!lead.recordingUrl;
-  const hasTranscript = !!(lead.transcript || lead.summary);
+  // transcript is fetched lazily by the modal now, so gate on whether a call
+  // exists at all rather than on text we deliberately stopped shipping.
+  const hasTranscript = !!(lead.callId || lead.summary || lead.transcript);
 
   return (
     <GlassCard accent={lead.temp === 'hot' ? 'red' : lead.temp === 'warm' ? 'orange' : 'blue'} padding="p-3" hover={false}>
@@ -590,6 +592,19 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
 }
 
 function TranscriptModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  // The lead list no longer carries transcripts — it polls on a timer and they
+  // are the bulk of the payload. Fetch the one we are actually showing.
+  const [transcript, setTranscript] = useState<string | null>(lead.transcript ?? null);
+  const [loadingTx, setLoadingTx]   = useState(false);
+  useEffect(() => {
+    if (transcript !== null || !lead.callId) return;
+    let live = true;
+    setLoadingTx(true);
+    supabase.from('jarvis_calls').select('transcript_full').eq('id', lead.callId).single()
+      .then(({ data }) => { if (live) { setTranscript(data?.transcript_full ?? ''); setLoadingTx(false); } });
+    return () => { live = false; };
+  }, [lead.callId, transcript]);
+
   return (
     <motion.div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
@@ -622,8 +637,10 @@ function TranscriptModal({ lead, onClose }: { lead: Lead; onClose: () => void })
         )}
 
         <SectionTitle accent="green">Full Transcript</SectionTitle>
-        {lead.transcript ? (
-          <pre className="text-[11px] text-jtext leading-relaxed whitespace-pre-wrap font-sans">{lead.transcript}</pre>
+        {loadingTx ? (
+          <p className="text-[11px] text-dimtext italic">Loading transcript…</p>
+        ) : transcript ? (
+          <pre className="text-[11px] text-jtext leading-relaxed whitespace-pre-wrap font-sans">{transcript}</pre>
         ) : (
           <p className="text-[11px] text-dimtext italic">No transcript recorded for this lead.</p>
         )}

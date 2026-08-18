@@ -8,6 +8,7 @@ export type Temp = 'hot' | 'warm' | 'cold' | 'dead' | 'new';
 export type Source = 'alpha' | 'sarah' | 'ispeed';
 
 export interface Lead {
+  callId?: string | number | null;
   id: string;
   contactId: string | null;
   source: Source;
@@ -106,13 +107,13 @@ function pkey(phone?: string | null) {
 interface CallRow {
   id: string; phone: string | null; contact_name: string | null; address: string | null;
   call_duration: number | null; called_at: string; stage_after: string | null;
-  stage_before: string | null; summary: string | null; transcript_full: string | null;
+  stage_before: string | null; summary: string | null; transcript_full?: string | null;
   recording_url: string | null; telnyx_recording_url: string | null; elevenlabs_recording_url: string | null;
 }
 
 const TEST_PHONE = '+13479704969';
 const LIVE_WINDOW_MS = 3 * 60 * 1000; // calls within 3 min are shown as "live/just landed"
-const AUTO_REFRESH_MS = 30 * 1000;    // real-time: re-pull leads + calls every 30s
+const AUTO_REFRESH_MS = 90 * 1000;    // re-pull leads + calls; calls do not land faster than this
 // Leads are served by the VPS backend (Vercel Hobby is at its 12-function cap)
 export const LEADS_API = `${DIALER_API}/dialer`;
 
@@ -131,8 +132,12 @@ export function useLeads(refreshKey: number) {
   const [tick, setTick]     = useState(0);
 
   // 30-second auto-refresh tick (real-time updates as David qualifies leads)
+  // Background tabs used to keep refetching every 30s indefinitely. That is
+  // egress spent on a screen nobody is looking at.
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), AUTO_REFRESH_MS);
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') setTick(t => t + 1);
+    }, AUTO_REFRESH_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -144,7 +149,11 @@ export function useLeads(refreshKey: number) {
       fetch(`${LEADS_API}/leads`).then(r => r.json()).catch(e => ({ error: e.message })),
       supabase
         .from('jarvis_calls')
-        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,transcript_full,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at')
+        // transcript_full is deliberately absent. This query re-runs on a timer
+        // on most pages, and transcripts are the bulk of a call row — 49 MB of
+        // data was producing 1.2 GB of egress in six days. The Leads modal
+        // fetches the one transcript it needs when it opens.
+        .select('id,phone,contact_name,address,call_duration,stage_after,stage_before,summary,recording_url,telnyx_recording_url,elevenlabs_recording_url,called_at')
         .order('called_at', { ascending: false })
         .limit(120),
     ]).then(([leadResp, callResp]) => {
@@ -167,7 +176,7 @@ export function useLeads(refreshKey: number) {
         stageBefore: c.stage_before,
         stageAfter: c.stage_after,
         summary: c.summary,
-        transcript: c.transcript_full,
+        transcript: null,   // loaded on demand by the detail modal
         recordingUrl: c.telnyx_recording_url || c.recording_url || c.elevenlabs_recording_url || null,
       });
 
@@ -183,7 +192,8 @@ export function useLeads(refreshKey: number) {
             callDuration: c?.call_duration ?? null,
             calledAt:     c?.called_at ?? null,
             summary:      c?.summary ?? null,
-            transcript:   c?.transcript_full ?? null,
+            callId:       c?.id ?? null,      // modal fetches the transcript by id
+            transcript:   null,               // not shipped on the polling query
             recordingUrl: c?.telnyx_recording_url || c?.recording_url || c?.elevenlabs_recording_url || null,
             callHistory:  hist.map(toRecord),
           };

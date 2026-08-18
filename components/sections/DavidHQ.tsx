@@ -339,7 +339,8 @@ function PendingApprovalsTab() {
 
   useEffect(() => {
     load();
-    const id = setInterval(load, 15000);
+    // Only poll while the tab is visible — see the egress note in useLeads.
+    const id = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15000);
     return () => clearInterval(id);
   }, [load]);
 
@@ -403,7 +404,8 @@ function LiveCallsTab() {
     setCalls([]);
     setLoading(true);
     load();
-    const id = setInterval(load, 15000);
+    // Only poll while the tab is visible — see the egress note in useLeads.
+    const id = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15000);
     return () => clearInterval(id);
   }, [load]);
 
