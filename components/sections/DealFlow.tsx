@@ -358,12 +358,30 @@ function Refunds({ groups, all }: { groups: Record<string, Lead[]>; all: Lead[] 
   const approved  = groups.approved  || [];
   const sum = (ls: Lead[]) => ls.reduce((n, l) => n + (Number(l.purchasePrice) || 0), 0);
 
-  // Still inside the window and not yet filed — the only ones still winnable.
+  // Still inside the window, not already filed, and going nowhere.
+  //
+  // "Inside the window" alone is the wrong test and gives dangerous advice: a
+  // hot lead and a contract-sent lead both still have days on the clock, and
+  // listing them under "file these" would mean refunding leads that are
+  // actually working out. A refund candidate is one that never went anywhere —
+  // still being attempted, unresponsive, dead or cold.
+  const REFUNDABLE = new Set(['attempt', 'new', 'unresponsive', 'dead', 'cold']);
   const open = all
-    .filter(l => l.source === 'ispeed'
-              && typeof l.daysUntilDeadline === 'number' && l.daysUntilDeadline >= 0
-              && classify(l.stageName).board !== 'refund')
+    .filter(l => {
+      if (l.source !== 'ispeed') return false;
+      if (typeof l.daysUntilDeadline !== 'number' || l.daysUntilDeadline < 0) return false;
+      const c = classify(l.stageName);
+      return c.board !== 'refund' && REFUNDABLE.has(c.key);
+    })
     .sort((a, b) => (a.daysUntilDeadline ?? 0) - (b.daysUntilDeadline ?? 0));
+
+  // Inside the window but worth keeping — surfaced so the gap between "open
+  // windows" and "worth filing" is visible rather than silently dropped.
+  const keeping = all.filter(l =>
+    l.source === 'ispeed'
+    && typeof l.daysUntilDeadline === 'number' && l.daysUntilDeadline >= 0
+    && !REFUNDABLE.has(classify(l.stageName).key)
+    && classify(l.stageName).board !== 'refund').length;
 
   const expired = all.filter(l => typeof l.daysUntilDeadline === 'number' && l.daysUntilDeadline < 0).length;
 
@@ -374,7 +392,8 @@ function Refunds({ groups, all }: { groups: Record<string, Lead[]>; all: Lead[] 
       <div className="flex flex-wrap gap-4 mb-3">
         <Stat label="Filed, awaiting" value={`$${sum(requested).toLocaleString()}`} note={`${requested.length} leads`} color="#ff9f0a" />
         <Stat label="Approved" value={`$${sum(approved).toLocaleString()}`} note={`${approved.length} leads`} color="#30d158" />
-        <Stat label="Window still open" value={String(open.length)} note="can still be filed" color={open.length ? '#64d2ff' : 'var(--dimtext)'} />
+        <Stat label="Worth filing" value={String(open.length)} note="in window, went nowhere" color={open.length ? '#64d2ff' : 'var(--dimtext)'} />
+        <Stat label="Keeping" value={String(keeping)} note="in window but working out" color="var(--dimtext)" />
         <Stat label="Window closed" value={String(expired)} note="past the deadline" color={expired ? '#ff453a' : 'var(--dimtext)'} />
       </div>
 
@@ -404,8 +423,9 @@ function Refunds({ groups, all }: { groups: Record<string, Lead[]>; all: Lead[] 
              style={{ background: 'rgba(255,69,58,0.1)', color: '#ff453a' }}>
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
           <span>
-            No lead is still inside its refund window. Every remaining deadline has passed, so
-            nothing new can be filed — only the {requested.length} already filed are still in play.
+            Nothing worth filing. {keeping > 0
+              ? `${keeping} lead${keeping === 1 ? ' is' : 's are'} still inside the window but actually working out — refunding those would cost you the lead. `
+              : ''}Every other deadline has passed, so only the {requested.length} already filed are still in play.
           </span>
         </div>
       )}
