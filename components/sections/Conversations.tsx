@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, MessageSquare, CalendarCheck, ChevronDown, Search, Repeat, StickyNote, Plus } from 'lucide-react';
+import { Phone, MessageSquare, CalendarCheck, ChevronDown, Search, Repeat, StickyNote, Plus, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { photoUrlFor, uploadPropertyPhoto, removePropertyPhoto } from '@/lib/propertyPhoto';
 
@@ -357,6 +357,7 @@ export function Conversations() {
               <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-2">
                 {active.entries.map(e => <EntryCard key={e.id} entry={e} />)}
               </div>
+              <Composer phone={active.phone} name={active.name} onSent={() => setTick(t => t + 1)} />
             </>
           )}
         </div>
@@ -618,6 +619,66 @@ function PropertyThumb({ address, phone, photoUrl, size = 64 }: {
           style={{ background: 'rgba(255,69,58,0.9)', color: '#fff' }}>×</button>
       )}
       {err && <div className="absolute top-full left-0 mt-1 text-[9px] whitespace-nowrap" style={{ color: '#ff453a' }}>{err}</div>}
+    </div>
+  );
+}
+
+/**
+ * Send a text without leaving the thread.
+ *
+ * Posts to the dialer rather than Telnyx directly: the API key stays on the
+ * server, and dialer-sms owns opt-out checking, the first-message disclosure
+ * and writing the row. A browser that talked to Telnyx itself would have to
+ * duplicate all of that and would drift.
+ */
+function Composer({ phone, name, onSent }: { phone: string; name: string; onSent: () => void }) {
+  const [text, setText]   = useState('');
+  const [busy, setBusy]   = useState(false);
+  const [err, setErr]     = useState<string | null>(null);
+  const [ok, setOk]       = useState(false);
+
+  const API = process.env.NEXT_PUBLIC_DIALER_API || '';
+
+  async function send() {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true); setErr(null); setOk(false);
+    try {
+      const r = await fetch(`${API}/dialer/sms-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: phone, body, contactName: name }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.reason || `HTTP ${r.status}`);
+      setText(''); setOk(true); onSent();
+      setTimeout(() => setOk(false), 2500);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Send failed');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="border-t border-border2 p-2.5">
+      <div className="flex gap-1.5 items-end">
+        <textarea
+          value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          rows={1} placeholder={`Text ${String(name).split(' ')[0] || 'this lead'}…  (Enter to send)`}
+          className="flex-1 rounded-lg border border-border2 bg-transparent px-2.5 py-2 text-[11.5px] text-textb placeholder:text-dimtext outline-none resize-none"
+          style={{ maxHeight: 90 }}
+        />
+        <button onClick={send} disabled={!text.trim() || busy}
+          className="px-2.5 py-2 rounded-lg text-[11px] disabled:opacity-40 flex items-center gap-1"
+          style={{ background: 'rgba(100,210,255,0.14)', color: '#64d2ff' }}>
+          <Send size={12} />{busy ? '…' : ''}
+        </button>
+      </div>
+      {err && <div className="text-[10px] mt-1" style={{ color: '#ff453a' }}>{err}</div>}
+      {ok  && <div className="text-[10px] mt-1" style={{ color: '#30d158' }}>Sent</div>}
+      <div className="text-[9px] text-dimtext mt-1">
+        First message to a number automatically includes the opt-out line. STOP is honored permanently.
+      </div>
     </div>
   );
 }
