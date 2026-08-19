@@ -23,30 +23,9 @@ import { useMemo, useState } from 'react';
 import { MapPin, Phone, Clock, CalendarCheck } from 'lucide-react';
 import { Lead, Source } from '@/lib/hooks/useLeads';
 import { PropertyThumb } from '@/components/ui/PropertyPhotos';
+import { FlowStage, flowStageOf, attemptsOf, norm } from '@/lib/leadStages';
 
-export type FlowStage = 'new' | 'working' | 'closer';
-
-const norm = (s: string) =>
-  String(s || '').toLowerCase().replace(/[^a-z0-9+ -]+/g, ' ').replace(/\s+/g, ' ').trim();
-
-/**
- * Which of the three stages a lead sits in, or null to leave it off the board.
- *
- * Dead, refund-stage and closed-out leads are deliberately absent: this board
- * is a work queue, and a lead nobody will touch again is not work. They stay
- * visible in Deal Flow and the Refund Pipeline.
- */
-export function stageOf(stageName: string): FlowStage | null {
-  const s = norm(stageName);
-  if (s.includes('refund') || s.includes('dead') || s.includes('signed with someone')) return null;
-  if (s.includes('closed') || s.includes('dispostion') || s.includes('disposition')) return null;
-
-  if (s.includes('under contract') || s.includes('contract sent') || s.includes('decision pending'))
-    return 'closer';
-  if (/hot|warm|cold/.test(s) || s.includes('replied')) return 'working';
-  if (/new|attempt|unresponsive/.test(s)) return 'new';
-  return 'new';
-}
+export { flowStageOf as stageOf };
 
 const STAGES: { id: FlowStage; label: string; who: string; note: string; color: string }[] = [
   { id: 'new',     label: 'New',     who: 'Sarah — reach them',     note: 'no conversation yet',        color: '#0a84ff' },
@@ -73,7 +52,7 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
   const grouped = useMemo(() => {
     const g: Record<FlowStage, Lead[]> = { new: [], working: [], closer: [] };
     for (const l of scoped) {
-      const st = stageOf(l.stageName);
+      const st = flowStageOf(l.stageName);
       if (st) g[st].push(l);
     }
     // Closer first by soonest appointment; the others by most recently touched.
@@ -157,7 +136,7 @@ const digits10 = (p?: string | null) => String(p || '').replace(/\D/g, '').slice
 const SRC_COLOR: Record<Source, string> = { ispeed: '#64d2ff', alpha: '#bf5af2', sarah: '#30d158' };
 
 function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: string }) {
-  const attempts = /attempt\s*(\d)/.exec(norm(lead.stageName))?.[1];
+  const attempts = attemptsOf(lead.stageName);
   const unresponsive = norm(lead.stageName).includes('unresponsive');
 
   return (

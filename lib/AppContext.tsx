@@ -7,6 +7,7 @@ export type Section =
   | 'deal-flow'
   | 'refund-pipeline'
   | 'contact-board'
+  | 'marketing-split'
   | 'david-hq'
   | 'ai-agents'
   | 'lead-intelligence'
