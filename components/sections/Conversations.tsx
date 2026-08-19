@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, MessageSquare, CalendarCheck, ChevronDown, Search, Repeat, StickyNote, Plus, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { photoUrlFor, uploadPropertyPhoto, removePropertyPhoto } from '@/lib/propertyPhoto';
+import { PropertyBanner, PropertyThumb } from '@/components/ui/PropertyPhotos';
 
 const TEST_PHONE = '3479704969';           // Chris's own handset — not a lead
 const AUTO_REFRESH_MS = 120_000;   // 2 min; calls do not land faster than that
@@ -393,9 +393,10 @@ function LeadHeader({ t }: { t: Thread }) {
   ].filter((r): r is [string, string] => Boolean(r[1]));
 
   return (
-    <div className="px-4 py-3 border-b border-border2">
-      <div className="flex gap-3">
-        <PropertyThumb address={t.address} phone={t.phone} photoUrl={t.photoUrl} />
+    <div className="border-b border-border2">
+      <PropertyBanner phone={t.phone} address={t.address} height={150} radius={0} hideWhenEmpty />
+      <div className="px-4 py-3 flex gap-3">
+        <PropertyThumb address={t.address} phone={t.phone} size={64} radius={8} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[13px] font-semibold text-textb">{t.name}</span>
@@ -534,91 +535,6 @@ function LeadNotes({ phoneKey, contactName }: { phoneKey: string; contactName: s
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-/**
- * The property photo. Click to attach one, click again to replace it.
- *
- * Street View is still used when a maps key exists AND the address is complete
- * enough to resolve — but 45% of addresses on file are a street name with
- * nothing else, so an uploaded photo is the only thing that works for those.
- * An uploaded photo always wins: Chris chose it deliberately.
- */
-function PropertyThumb({ address, phone, photoUrl, size = 64 }: {
-  address: string | null; phone?: string | null; photoUrl?: string | null; size?: number;
-}) {
-  const [url, setUrl]     = useState<string | null>(photoUrl || photoUrlFor(phone) || null);
-  const [busy, setBusy]   = useState(false);
-  const [err, setErr]     = useState<string | null>(null);
-  const [missing, setMissing] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    setUrl(photoUrl || photoUrlFor(phone) || null);
-    setMissing(false); setErr(null);
-  }, [phone, photoUrl]);
-
-  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-  const resolvable = !!address && /\b\d{5}\b/.test(address);   // needs a ZIP to look up
-  const streetView = mapsKey && resolvable && address
-    ? `https://maps.googleapis.com/maps/api/streetview?size=${size * 3}x${size * 3}&location=${encodeURIComponent(address)}&key=${mapsKey}`
-    : null;
-
-  const shown = (!missing && url) || streetView;
-  const houseNo = String(address || '').trim().split(/\s+/)[0] || '?';
-
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setBusy(true); setErr(null);
-    const r = await uploadPropertyPhoto(phone, file);
-    setBusy(false);
-    if (!r.ok) { setErr(r.error || 'Upload failed'); return; }
-    setMissing(false); setUrl(r.url || photoUrlFor(phone, Date.now()));
-  }
-
-  async function onRemove(e: React.MouseEvent) {
-    e.stopPropagation();
-    setBusy(true);
-    await removePropertyPhoto(phone);
-    setBusy(false); setUrl(null); setMissing(true);
-  }
-
-  return (
-    <div className="relative flex-shrink-0 group" style={{ width: size, height: size }}>
-      <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
-      <button
-        onClick={() => inputRef.current?.click()}
-        title={shown ? 'Click to replace this photo' : 'Click to add a photo'}
-        className="w-full h-full rounded-lg overflow-hidden flex items-center justify-center"
-        style={{
-          background: shown ? 'rgba(255,255,255,0.04)' : 'rgba(100,210,255,0.08)',
-          border: '1px solid var(--border2)',
-        }}>
-        {shown ? (
-          <img src={shown} alt="" onError={() => setMissing(true)}
-               className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-[13px] font-semibold" style={{ color: '#64d2ff' }}>
-            {busy ? '…' : houseNo}
-          </span>
-        )}
-      </button>
-
-      {!shown && !busy && (
-        <span className="absolute inset-x-0 -bottom-4 text-[8px] text-center text-dimtext opacity-0 group-hover:opacity-100 transition-opacity">
-          add photo
-        </span>
-      )}
-      {url && !missing && (
-        <button onClick={onRemove} title="Remove photo"
-          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ background: 'rgba(255,69,58,0.9)', color: '#fff' }}>×</button>
-      )}
-      {err && <div className="absolute top-full left-0 mt-1 text-[9px] whitespace-nowrap" style={{ color: '#ff453a' }}>{err}</div>}
     </div>
   );
 }
