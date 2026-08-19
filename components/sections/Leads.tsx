@@ -11,6 +11,7 @@ import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead, Temp, Source, PipelineMeta, LEADS_API } from '@/lib/hooks/useLeads';
 import { timeAgo, supabase } from '@/lib/supabase';
+import { photoUrlFor, uploadPropertyPhoto, removePropertyPhoto } from '@/lib/propertyPhoto';
 
 const TEMP_COLOR: Record<Temp, string> = {
   hot:  '#ff453a',
@@ -407,25 +408,60 @@ function SourceBadge({ source }: { source: Source }) {
 }
 
 /**
- * Street View thumbnail so a lead is recognisable at a glance. Renders the
- * photo when NEXT_PUBLIC_GOOGLE_MAPS_KEY is set; otherwise the house number on
- * a tinted block, which is still a visual anchor.
+ * Deal-card photo. Click to attach one, click again to replace.
+ *
+ * Falls back to Street View only when a maps key exists AND the address has a
+ * ZIP — 45% of addresses on file are a street name alone, which nothing can
+ * resolve. An uploaded photo always wins over a generated one.
  */
-function LeadThumb({ address }: { address?: string | null }) {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-  const src = key && address
-    ? `https://maps.googleapis.com/maps/api/streetview?size=120x120&location=${encodeURIComponent(address)}&key=${key}`
+function LeadThumb({ address, phone }: { address?: string | null; phone?: string | null }) {
+  const [url, setUrl]         = useState<string | null>(photoUrlFor(phone));
+  const [busy, setBusy]       = useState(false);
+  const [missing, setMissing] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => { setUrl(photoUrlFor(phone)); setMissing(false); }, [phone]);
+
+  const mapsKey    = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  const resolvable = !!address && /\b\d{5}\b/.test(address);
+  const streetView = mapsKey && resolvable && address
+    ? `https://maps.googleapis.com/maps/api/streetview?size=160x160&location=${encodeURIComponent(address)}&key=${mapsKey}`
     : null;
+  const shown   = (!missing && url) || streetView;
   const houseNo = String(address || '').trim().split(/\s+/)[0] || '?';
-  if (src) {
-    return <img src={src} alt="" className="rounded-md object-cover flex-shrink-0 mr-2"
-                style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.04)' }} />;
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    const r = await uploadPropertyPhoto(phone, file);
+    setBusy(false);
+    if (r.ok) { setMissing(false); setUrl(r.url || photoUrlFor(phone, Date.now())); }
   }
+
   return (
-    <div className="rounded-md flex items-center justify-center flex-shrink-0 mr-2"
-         style={{ width: 40, height: 40, background: 'rgba(100,210,255,0.08)', border: '1px solid var(--border2)' }}
-         title={address || 'No address'}>
-      <span className="text-[10px] font-semibold" style={{ color: '#64d2ff' }}>{houseNo}</span>
+    <div className="relative flex-shrink-0 mr-2 group" style={{ width: 40, height: 40 }}
+         onClick={e => e.stopPropagation()}>
+      <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
+      <button onClick={() => inputRef.current?.click()}
+        title={shown ? 'Replace photo' : 'Add a photo'}
+        className="w-full h-full rounded-md overflow-hidden flex items-center justify-center"
+        style={{
+          background: shown ? 'rgba(255,255,255,0.04)' : 'rgba(100,210,255,0.08)',
+          border: '1px solid var(--border2)',
+        }}>
+        {shown
+          ? <img src={shown} alt="" onError={() => setMissing(true)} className="w-full h-full object-cover" />
+          : <span className="text-[10px] font-semibold" style={{ color: '#64d2ff' }}>{busy ? '…' : houseNo}</span>}
+      </button>
+      {url && !missing && (
+        <button
+          onClick={async e => { e.stopPropagation(); setBusy(true); await removePropertyPhoto(phone); setBusy(false); setUrl(null); setMissing(true); }}
+          title="Remove photo"
+          className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full text-[8px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ background: 'rgba(255,69,58,0.9)', color: '#fff' }}>×</button>
+      )}
     </div>
   );
 }
@@ -485,7 +521,7 @@ function LeadCard({ lead, compact = false, startExpanded = false }: { lead: Lead
     <GlassCard accent={lead.temp === 'hot' ? 'red' : lead.temp === 'warm' ? 'orange' : 'blue'} padding="p-3" hover={false}>
       {/* header — click to expand/collapse */}
       <button onClick={() => setExpanded(e => !e)} className="w-full flex items-start justify-between gap-2 text-left">
-        <LeadThumb address={lead.address} />
+        <LeadThumb address={lead.address} phone={lead.phone} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <ChevronDown size={12} className="text-dimtext flex-shrink-0 transition-transform" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
