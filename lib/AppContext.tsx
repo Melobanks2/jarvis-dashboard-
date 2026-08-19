@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 export type Section =
   | 'command-center'
   | 'deal-flow'
+  | 'refund-pipeline'
   | 'david-hq'
   | 'ai-agents'
   | 'lead-intelligence'
