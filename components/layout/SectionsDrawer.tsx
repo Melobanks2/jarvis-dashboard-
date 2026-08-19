@@ -18,6 +18,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'call-center',      label: 'Call Log',          Icon: History,         color: '#64d2ff', desc: 'Play & review every call' },
   { section: 'contract-cannon',  label: 'Contract Cannon',   Icon: Rocket,          color: '#ff453a', desc: 'Fire GHL contracts' },
   { section: 'novation-deal',    label: 'Novation Deal',     Icon: FileSignature,   color: '#30d158', desc: '720 W Taylor Rd — road to close' },
+  { section: 'contact-board',    label: 'Contact Board',     Icon: PhoneOutgoing,   color: '#64d2ff', desc: 'Paid leads not reached yet \u2014 attempts \u0026 refund clock' },
   { section: 'refund-pipeline',  label: 'Refund Pipeline',   Icon: Receipt,         color: '#bf5af2', desc: '21-day clock, filed \u2192 approved' },
   { section: 'ispeed-refunds',   label: 'iSpeed Refunds',    Icon: Receipt,         color: '#30d158', desc: 'Refund windows & recovery' },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#30d158', desc: 'Comp reports' },

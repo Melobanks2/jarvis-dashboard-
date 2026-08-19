@@ -394,24 +394,35 @@ async function handleBriefing() {
   });
 }
 
-// ── dialer proxy ────────────────────────────────────────────────────────────
+// ── local-service proxy ─────────────────────────────────────────────────────
 
 /**
+ * Both local data services are reachable only on this machine's loopback, so
+ * the browser cannot call them directly once the dashboard is served through a
+ * tunnel. These two paths relay to them server-side instead:
+ *
+ *     /api/jarvis/proxy/**  → dialer-server.js   (:3007)
+ *     /api/jarvis/mkt/**    → marketing-intel.js (:3008)
+ *
  * dialer-server.js waves through requests from 127.0.0.1 but requires
  * `x-dialer-secret` for anything remote — and it deliberately counts tunnelled
  * traffic as remote (cloudflared runs on the same host, so a socket-IP check
- * alone would treat the whole internet as local). Once the Mac is exposed
- * through a tunnel, every call needs the secret, and the secret cannot live in
- * a NEXT_PUBLIC_* value because those are inlined into the client bundle.
+ * alone would treat the whole internet as local). The secret cannot live in a
+ * NEXT_PUBLIC_* value because those are inlined into the client bundle, so it
+ * is attached here instead.
  *
- * Enable by pointing the client at this route:
+ * When the Next server runs on the SAME machine as the services (the local-first
+ * setup), the defaults below already point at loopback and no secret is needed —
+ * dialer-server sees a genuine localhost call. DIALER_ORIGIN/DIALER_SECRET only
+ * matter when the dashboard is hosted elsewhere and has to reach in over a
+ * tunnel. Enable either way by pointing the client at these routes:
  *     NEXT_PUBLIC_DIALER_API=/api/jarvis/proxy
- * and configuring the real upstream server-side:
- *     DIALER_ORIGIN=https://<tunnel>.trycloudflare.com
- *     DIALER_SECRET=<value from sarah-dialer/.env>
+ *     NEXT_PUBLIC_MKT_API=/api/jarvis/mkt/marketing-intel
+ *     NEXT_PUBLIC_AUDIO_BASE=/api/jarvis/proxy
  */
 const PROXY_ORIGIN = (process.env.DIALER_ORIGIN || 'http://127.0.0.1:3007').replace(/\/$/, '');
 const PROXY_SECRET = process.env.DIALER_SECRET || '';
+const MKT_ORIGIN = (process.env.MKT_ORIGIN || 'http://127.0.0.1:3008').replace(/\/$/, '');
 const PROXY_TIMEOUT_MS = 45_000;
 
 // Hop-by-hop and identity headers that must not be forwarded upstream.
@@ -424,12 +435,172 @@ const STRIP = new Set([
   'forwarded', 'cf-connecting-ip', 'cf-ray', 'cf-ipcountry', 'x-real-ip', 'x-vercel-id',
 ]);
 
-async function handleProxy(req: NextRequest, rest: string[], method: 'GET' | 'POST' | 'PUT') {
-  const target = `${PROXY_ORIGIN}/${rest.join('/')}${req.nextUrl.search || ''}`;
+// ── the allowlist ───────────────────────────────────────────────────────────
+
+/**
+ * WHY THIS EXISTS — measured on 2026-08-17, not theoretical.
+ *
+ * Stripping the x-forwarded and cf- headers above is what makes the relay work, and it is
+ * also what makes it dangerous: dialer-server's isLocalRequest() then sees a
+ * genuine loopback call and skips its x-dialer-secret gate entirely. Same
+ * request through the dialer's own tunnel → 401, 24 bytes. Through this proxy
+ * → 200, 145,157 bytes of every seller's name, phone and address. DIALER_SECRET
+ * is not set here, so nothing is even attached; the dialer's auth is not
+ * weakened, it is bypassed. That is a confused deputy — the proxy lending its
+ * loopback trust to whoever gets past middleware.ts's basic auth.
+ *
+ * So the proxy forwards ONLY the paths the dashboard actually calls, and 404s
+ * everything else. The lists below were derived by grepping DIALER_API /
+ * MKT_API / AUDIO_BASE across app/, components/ and lib/ — not guessed.
+ *
+ * EXACT PATHS, never prefixes. A prefix rule like "anything under audio/" is
+ * precisely the hole this closes: dialer-server.js:167 mounts the whole
+ * ~/projects/sarah-dialer/audio tree, which holds audio/corpus/_misses.txt
+ * (the corpus-miss log — verbatim seller speech dialer-david-brain.js failed to
+ * match), audio/corpus/corpus.txt, and a full voice-clone backup tarball.
+ *
+ * Adding a call site? Add its path here too, or it 404s. That is the intended
+ * failure mode: loud in dev, never a silent prod breakage. Rejections are
+ * logged with the method and path so a missed entry names itself.
+ */
+
+type Method = 'GET' | 'POST' | 'PUT';
+
+/** Exact paths on dialer-server.js (:3007), keyed by method. */
+const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
+  GET: new Set([
+    'dialer/leads',              // usePipeline, useLeads
+    'dialer/agents-health',      // useAgents
+    'dialer/sarah-live',         // useAgents, SarahBoard
+    'dialer/sarah-transcript',   // SarahBoard
+    'dialer/ispeed-refunds',     // useIspeedRefunds
+    'dialer/novation',           // NovationTracker
+    'dialer/contract/templates', // ContractCannon
+    'dialer/contract/documents', // ContractCannon, NovationTracker
+    'dialer/personal/state',     // Acquisitions
+    'dialer/healthz',            // MultiDialer
+    'dialer/scheduler',          // MultiDialer
+    'dialer/status',             // MultiDialer
+    'dialer/progress',           // MultiDialer
+    'dialer/transcript',         // MultiDialer
+    'dialer/session-summary',    // MultiDialer
+    'dialer/lists',              // MultiDialer
+  ]),
+  POST: new Set([
+    'dialer/lead-action',           // Leads, SarahBoard, SarahMoney
+    'dialer/novation',              // NovationTracker (board save)
+    'dialer/contract/fire',         // ContractCannon
+    'dialer/personal/start',        // Acquisitions
+    'dialer/personal/pause',        // Acquisitions
+    'dialer/personal/resume',       // Acquisitions
+    'dialer/personal/approve',      // Acquisitions
+    'dialer/personal/start-list',   // AcqLists — not on the server yet; it
+                                    // handles the 404 and offers a CSV instead
+    'dialer/ingest-run',            // MultiDialer
+    'dialer/call',                  // MultiDialer
+    'dialer/stop',                  // MultiDialer
+    'dialer/disposition',           // MultiDialer
+    'dialer/list',                  // MultiDialer (create)
+    'dialer/call-one',              // Contact Board — dial one paid lead, one line
+    'dialer/sms-send',              // Conversations composer — the browser must
+                                    // not hold the Telnyx key, so the send goes
+                                    // dashboard -> dialer -> Telnyx
+  ]),
+  PUT: new Set([]),                 // nothing in the dashboard PUTs
+};
+
+/** Exact paths on marketing-intel.js (:3008). */
+const MKT_ALLOW: Record<Method, ReadonlySet<string>> = {
+  GET: new Set([
+    'marketing-intel/api/metrics', // app/marketing-intel/page.tsx
+    'marketing-intel/api/leads',   // app/marketing-intel/page.tsx
+  ]),
+  POST: new Set([]),
+  PUT: new Set([]),
+};
+
+/**
+ * The two shapes whose path genuinely varies, so a literal cannot express them.
+ * Both are pinned to a fixed depth with a constrained final segment — a
+ * <single segment> pattern, never a subtree.
+ */
+
+/** Session/list ids look like `list_1782411013334_f1wwol`. */
+const LIST_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Audio: only pre-rendered .wav clips, only from the two directories
+ * ScriptTraining.tsx actually plays. Filenames vary (54 script-v4 clips), the
+ * directories do not. Requiring a leading alphanumeric and a .wav suffix keeps
+ * out _misses.txt, corpus.txt, RENDER_REPORT.json, dotfiles and the
+ * approved-sarah-voice-backup.tar.gz sitting in APPROVED-FINAL.
+ */
+const AUDIO_DIRS = new Set(['audio/APPROVED-FINAL', 'audio/corpus/sarah/script-v4']);
+const CLIP = /^[A-Za-z0-9][A-Za-z0-9._-]*\.wav$/;
+
+function dialerPatternAllows(method: Method, segs: string[]): boolean {
+  if (method === 'GET') {
+    // audio/<dir…>/<clip>.wav
+    if (segs[0] === 'audio' && segs.length >= 2) {
+      return AUDIO_DIRS.has(segs.slice(0, -1).join('/')) && CLIP.test(segs[segs.length - 1]);
+    }
+    // dialer/list/<listId> and dialer/list/<listId>/queue
+    if (segs[0] === 'dialer' && segs[1] === 'list' && LIST_ID.test(segs[2] ?? '')) {
+      return segs.length === 3 || (segs.length === 4 && segs[3] === 'queue');
+    }
+  }
+  return false;
+}
+
+/**
+ * True when this exact path may be forwarded. Segments arrive already
+ * URL-decoded by Next, so `%2e%2e` has become `..` by the time it is checked.
+ */
+function isAllowed(kind: 'proxy' | 'mkt', method: Method, segs: string[]): boolean {
+  if (!segs.length) return false;
+  // No traversal, no empty segments, no segment that could re-open the URL.
+  for (const s of segs) {
+    if (!s || s === '.' || s === '..' || s.includes('..') || /[?#/\\]/.test(s)) return false;
+  }
+  const path = segs.join('/');
+  if (kind === 'mkt') return MKT_ALLOW[method].has(path);
+  return DIALER_ALLOW[method].has(path) || dialerPatternAllows(method, segs);
+}
+
+/**
+ * Rejections are a bug report, not a security event to swallow quietly: the
+ * only way this fires in normal use is a call site nobody added to the list.
+ * Logged server-side (visible in `pm2 logs jarvis-dashboard`); the client gets
+ * the same 404 shape every unknown /api/jarvis/* route already returns.
+ */
+function rejected(kind: 'proxy' | 'mkt', method: Method, segs: string[]) {
+  const path = segs.join('/');
+  console.warn(
+    `[jarvis-proxy] BLOCKED ${method} /api/jarvis/${kind}/${path} — not in the allowlist. ` +
+    `If the dashboard needs this, add it to ${kind === 'mkt' ? 'MKT_ALLOW' : 'DIALER_ALLOW'} ` +
+    `in app/api/jarvis/[...path]/route.ts.`,
+  );
+  return Response.json(
+    { error: `Not a permitted Jarvis proxy path: ${method} /${path}` },
+    { status: 404 },
+  );
+}
+
+async function handleProxy(
+  req: NextRequest,
+  rest: string[],
+  method: Method,
+  kind: 'proxy' | 'mkt' = 'proxy',
+) {
+  if (!isAllowed(kind, method, rest)) return rejected(kind, method, rest);
+
+  const origin = kind === 'mkt' ? MKT_ORIGIN : PROXY_ORIGIN;
+  const secret = kind === 'mkt' ? '' : PROXY_SECRET;
+  const target = `${origin}/${rest.join('/')}${req.nextUrl.search || ''}`;
 
   const headers = new Headers();
   req.headers.forEach((v, k) => { if (!STRIP.has(k.toLowerCase())) headers.set(k, v); });
-  if (PROXY_SECRET) headers.set('x-dialer-secret', PROXY_SECRET);
+  if (secret) headers.set('x-dialer-secret', secret);
 
   let body: string | undefined;
   if (method !== 'GET') {
@@ -454,8 +625,8 @@ async function handleProxy(req: NextRequest, rest: string[], method: 'GET' | 'PO
   } catch (e) {
     const msg = (e as Error).message;
     const hint = /timeout|abort/i.test(msg)
-      ? `Timed out reaching ${PROXY_ORIGIN}. Is the dialer server running (and the tunnel up, if remote)?`
-      : `Could not reach ${PROXY_ORIGIN}: ${msg}`;
+      ? `Timed out reaching ${origin}. Is that service running (and the tunnel up, if remote)?`
+      : `Could not reach ${origin}: ${msg}`;
     return Response.json({ error: hint }, { status: 502 });
   }
 }
@@ -469,6 +640,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
   const { path } = await ctx.params;
   if (path[0] === 'models') return handleModels();
   if (path[0] === 'proxy') return handleProxy(req, path.slice(1), 'GET');
+  if (path[0] === 'mkt') return handleProxy(req, path.slice(1), 'GET', 'mkt');
   return notFound(path);
 }
 
@@ -477,11 +649,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ path: stri
   if (path[0] === 'chat') return handleChat(req);
   if (path[0] === 'briefing') return handleBriefing();
   if (path[0] === 'proxy') return handleProxy(req, path.slice(1), 'POST');
+  if (path[0] === 'mkt') return handleProxy(req, path.slice(1), 'POST', 'mkt');
   return notFound(path);
 }
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
   if (path[0] === 'proxy') return handleProxy(req, path.slice(1), 'PUT');
+  if (path[0] === 'mkt') return handleProxy(req, path.slice(1), 'PUT', 'mkt');
   return notFound(path);
 }
