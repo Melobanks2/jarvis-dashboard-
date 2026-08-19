@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone, Clock, MapPin, FileText, Check, X, Send, Loader2, Radio,
-  LayoutGrid, List as ListIcon, Play, Pause, ChevronDown, Activity,
+  LayoutGrid, List as ListIcon, Play, Pause, ChevronDown, Activity, Workflow,
 } from 'lucide-react';
 import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
@@ -12,6 +12,7 @@ import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead, Temp, Source, PipelineMeta, LEADS_API } from '@/lib/hooks/useLeads';
 import { timeAgo, supabase } from '@/lib/supabase';
 import { PropertyBanner, PropertyThumb } from '@/components/ui/PropertyPhotos';
+import { LeadFlowBoard } from '@/components/sections/LeadFlowBoard';
 
 const TEMP_COLOR: Record<Temp, string> = {
   hot:  '#ff453a',
@@ -44,7 +45,7 @@ const FADE_UP = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 const STAGGER = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 
 type SourceFilter = 'all' | Source;
-type View = 'board' | 'list';
+type View = 'flow' | 'board' | 'list';
 type TimeRange = 'all' | 'today' | '7d' | '30d';
 
 const RANGE_TABS: { key: TimeRange; label: string }[] = [
@@ -72,12 +73,33 @@ export function Leads() {
   const { leads, stats, statsBySource, pipelines, live, callsToday, loading, error } = useLeads(refreshKey);
 
   const [source, setSource] = useState<SourceFilter>('all');
-  const [view, setView]     = useState<View>('board');
+  const [view, setView]     = useState<View>('flow');
   const [range, setRange]   = useState<TimeRange>('all');
 
   // Local mirror so board drag-drop can update stage optimistically.
   const [localLeads, setLocalLeads] = useState<Lead[]>([]);
   useEffect(() => { setLocalLeads(leads); }, [leads]);
+
+  // Booked times, keyed by the last 10 phone digits — the Closer column shows
+  // when Chris is due to call. Empty until a call books something.
+  const [appts, setAppts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let live = true;
+    supabase.from('jarvis_appointments')
+      .select('phone, starts_at, status')
+      .in('status', ['scheduled', 'confirmed'])
+      .order('starts_at')
+      .then(({ data }) => {
+        if (!live || !data) return;
+        const m: Record<string, string> = {};
+        for (const r of data as { phone?: string; starts_at?: string }[]) {
+          const k = String(r.phone || '').replace(/\D/g, '').slice(-10);
+          if (k && r.starts_at && !m[k]) m[k] = r.starts_at;
+        }
+        setAppts(m);
+      });
+    return () => { live = false; };
+  }, [refreshKey]);
 
   const activeStats = source === 'all' ? stats : statsBySource[source];
 
@@ -193,7 +215,7 @@ export function Leads() {
           </div>
           <button onClick={refresh} className="text-[10px] text-dimtext hover:text-ncyan transition-colors px-2">↻ Refresh</button>
           <div className="flex items-center rounded-md border border-border2 overflow-hidden">
-            {([['board', LayoutGrid], ['list', ListIcon]] as const).map(([v, Icon]) => (
+            {([['flow', Workflow], ['board', LayoutGrid], ['list', ListIcon]] as const).map(([v, Icon]) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -271,6 +293,13 @@ export function Leads() {
         <div className="flex items-center gap-2 text-dimtext text-[11px] py-8 justify-center">
           <Loader2 size={14} className="animate-spin" /> Loading leads from GHL…
         </div>
+      )}
+
+      {/* ── Flow view: three stages by who owns the lead next ── */}
+      {view === 'flow' && !loading && (
+        <motion.div variants={FADE_UP}>
+          <LeadFlowBoard leads={bySource} appointments={appts} />
+        </motion.div>
       )}
 
       {/* ── Board view (mirrors GHL pipeline stages) ── */}
