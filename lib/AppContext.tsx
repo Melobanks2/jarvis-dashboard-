@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export type Section =
   | 'command-center'
+  | 'deal-flow'
   | 'david-hq'
   | 'ai-agents'
   | 'lead-intelligence'

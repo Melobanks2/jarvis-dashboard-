@@ -13,6 +13,7 @@ import { CommandCenter }       from '@/components/sections/CommandCenter';
 import { AIAgents }         from '@/components/sections/AIAgents';
 import { CallCenter }       from '@/components/sections/CallCenter';
 import { Pipeline }         from '@/components/sections/Pipeline';
+import { DealFlow }         from '@/components/sections/DealFlow';
 import { ProspectsHub }     from '@/components/sections/ProspectsHub';
 import { GoalsVision }      from '@/components/sections/GoalsVision';
 import { IdeasLab }         from '@/components/sections/IdeasLab';
@@ -42,6 +43,7 @@ const SECTION_TITLES: Record<string, string> = {
   'call-center':       'Call Center',
   'lead-intelligence': 'Leads',
   'pipeline':          'Pipeline',
+  'deal-flow':         'Deal Flow',
   'acquisitions':      'Acquisitions',
   'prospects-hub':     'Prospects Hub',
   'goals-vision':      'Goals & Vision',
@@ -69,6 +71,7 @@ function SectionContent({ section }: { section: string }) {
     case 'lead-intelligence': return <Leads />; {/* retired — consolidated into Leads board */}
     case 'acquisitions':      return <Acquisitions />;
     case 'pipeline':          return <Pipeline />;
+    case 'deal-flow':         return <DealFlow />;
     case 'prospects-hub':     return <ProspectsHub />;
     case 'goals-vision':      return <GoalsVision />;
     case 'ideas-lab':         return <IdeasLab />;

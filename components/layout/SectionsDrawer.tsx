@@ -10,6 +10,7 @@ import { useApp, Section } from '@/lib/AppContext';
 const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: string; desc: string }[] = [
   { section: 'command-center',    label: 'Command Center',    Icon: LayoutDashboard, color: '#0a84ff', desc: 'AI brain overview' },
   { section: 'conversations',    label: 'Conversations',     Icon: MessagesSquare,  color: '#64d2ff', desc: 'Sarah: calls, texts & appointments per lead' },
+  { section: 'deal-flow',        label: 'Deal Flow',         Icon: Users,           color: '#0a84ff', desc: 'Qualifying \u2192 working \u2192 closing \u2192 parked' },
   { section: 'leads',            label: 'Leads',             Icon: Users,           color: '#30d158', desc: 'Live GHL pipeline board' },
   { section: 'david-hq',         label: 'Sarah HQ',          Icon: Shield,          color: '#ff9f0a', desc: 'Qualify & track leads' },
   { section: 'ai-agents',        label: 'AI Agents',         Icon: Bot,             color: '#ff9f0a', desc: 'Agent management' },
