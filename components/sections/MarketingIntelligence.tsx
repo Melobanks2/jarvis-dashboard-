@@ -10,6 +10,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { RoadTo100K } from '@/components/sections/RoadTo100K';
 import { MarketingSplit } from '@/components/sections/MarketingSplit';
 import { SpeedToLead } from '@/components/sections/SpeedToLead';
+import { LeadQuality } from '@/components/sections/LeadQuality';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { usePipeline, Lead } from '@/lib/hooks/usePipeline';
 import { useApp } from '@/lib/AppContext';
@@ -171,6 +172,7 @@ export function MarketingIntelligence() {
         <div className="flex flex-col gap-5">
           <SpeedToLead />
           <MarketingSplit />
+          <LeadQuality />
         </div>
       ) : (
       <>
