@@ -21,6 +21,7 @@ import { flowStageOf, groupOf, FlowStage } from '@/lib/leadStages';
 import { refundStatusOf, ATTEMPTS_REQUIRED, WINDOW_DAYS } from '@/lib/refundRules';
 import { followUpOf, CADENCE_DAYS } from '@/lib/followUp';
 import { DIALER_API } from '@/lib/config';
+import { openRefunds } from '@/components/sections/Refunds';
 
 const money = (n: number) => '$' + Math.round(n || 0).toLocaleString('en-US');
 
@@ -221,7 +222,7 @@ export function StageMap() {
             <Rule>Reach a human and eligibility is gone — you got what you paid for.</Rule>
             <Rule>Bonus-funded and raw leads never refund. Real balance only.</Rule>
           </ul>
-          <button onClick={() => setActiveSection('refund-pipeline')}
+          <button onClick={() => { openRefunds('before'); setActiveSection('refunds'); }}
                   className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
                   style={{ color: '#ff9f0a' }}>
             Open Refund Pipeline <ArrowRight size={11} />
@@ -266,7 +267,7 @@ export function StageMap() {
             </Rule>
             <Rule>Vendor is a field, not a hard-code — <b className="text-textb">property leads drop straight in</b>.</Rule>
           </ul>
-          <button onClick={() => setActiveSection('refund-desk')}
+          <button onClick={() => { openRefunds('after'); setActiveSection('refunds'); }}
                   className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
                   style={{ color: '#bf5af2' }}>
             <Receipt size={11} /> Open Refund Desk <ArrowRight size={11} />

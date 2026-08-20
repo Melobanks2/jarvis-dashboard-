@@ -17,6 +17,7 @@ import { DealFlow }         from '@/components/sections/DealFlow';
 import { RefundPipeline }   from '@/components/sections/RefundPipeline';
 import { RefundDesk }       from '@/components/sections/RefundDesk';
 import { StageMap }         from '@/components/sections/StageMap';
+import { Refunds }          from '@/components/sections/Refunds';
 import { ContactBoard }     from '@/components/sections/ContactBoard';
 import { MarketingSplit }   from '@/components/sections/MarketingSplit';
 import { ProspectsHub }     from '@/components/sections/ProspectsHub';
@@ -52,6 +53,7 @@ const SECTION_TITLES: Record<string, string> = {
   'refund-pipeline':   'Refund Pipeline',
   'refund-desk':       'Refund Desk',
   'stage-map':         'Stage Map',
+  'refunds':           'Refunds',
   'contact-board':     'Contact Board',
   'marketing-split':   'Marketing',
   'acquisitions':      'Acquisitions',
@@ -82,9 +84,10 @@ function SectionContent({ section }: { section: string }) {
     case 'acquisitions':      return <Acquisitions />;
     case 'pipeline':          return <Pipeline />;
     case 'deal-flow':         return <DealFlow />;
-    case 'refund-pipeline':   return <RefundPipeline />;
-    case 'refund-desk':       return <RefundDesk />;
+    case 'refund-pipeline':   return <Refunds />;
+    case 'refund-desk':       return <Refunds />;
     case 'stage-map':         return <StageMap />;
+    case 'refunds':           return <Refunds />;
     case 'contact-board':     return <ContactBoard />;
     case 'marketing-split':   return <MarketingSplit />;
     case 'prospects-hub':     return <ProspectsHub />;
@@ -101,7 +104,7 @@ function SectionContent({ section }: { section: string }) {
     case 'leads':                   return <Leads />;
     case 'contract-cannon':         return <ContractCannon />;
     case 'novation-deal':           return <NovationTracker />;
-    case 'ispeed-refunds':          return <IspeedRefunds />;
+    case 'ispeed-refunds':          return <Refunds />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon
