@@ -41,9 +41,24 @@ export function groupOf(stageName: string): StageGroup {
   return 'new';
 }
 
-/** Which of the three work stages, or null for leads nobody will touch again. */
-export function flowStageOf(stageName: string): FlowStage | null {
+/**
+ * Which of the three work stages, or null for leads nobody will touch again.
+ *
+ * `hasAppointment` OVERRIDES the CRM stage, and that is the whole point: per
+ * Chris (2026-08-20) a booked appointment is a deal, not a follow-up. GHL has
+ * no appointment stage in either pipeline, so Sarah files a booked lead under
+ * "Hot fallow ups" — which read as `working` here and left real appointments
+ * sitting in Sarah's follow-up queue where a cadence could call them again.
+ * Jarvis owns the stage; the CRM stage name is only a mirror.
+ */
+export function flowStageOf(stageName: string, hasAppointment = false): FlowStage | null {
   const g = groupOf(stageName);
+  // Dead / lost / won / refunded still win: a stale appointment row must not
+  // drag a closed or refunded lead back onto the board.
+  if (hasAppointment &&
+      !['dead', 'lost', 'won', 'refund_requested', 'refund_approved'].includes(g)) {
+    return 'closer';
+  }
   if (g === 'refund_requested' || g === 'refund_approved') return null;
   if (g === 'dead' || g === 'lost' || g === 'won')         return null;
   if (g === 'decision' || g === 'sent' || g === 'under')   return 'closer';
@@ -67,7 +82,12 @@ export const wasReached = (stageName: string) => {
 };
 
 /** A lead that turned into real pipeline — the outcome worth paying for. */
-export const isQualified = (stageName: string) =>
-  ['hot', 'decision', 'sent', 'under', 'won'].includes(groupOf(stageName));
+export const isQualified = (stageName: string, hasAppointment = false) =>
+  hasAppointment || ['hot', 'decision', 'sent', 'under', 'won'].includes(groupOf(stageName));
+
+/** Booked: an appointment exists and the lead has not since died or closed. */
+export const isBooked = (stageName: string, hasAppointment: boolean) =>
+  hasAppointment && flowStageOf(stageName, true) === 'closer' &&
+  !['decision', 'sent', 'under'].includes(groupOf(stageName));
 
 export const isRefund = (stageName: string) => groupOf(stageName).startsWith('refund');

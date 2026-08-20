@@ -37,6 +37,10 @@ export interface Lead {
   attempts: number | null;
   mortgage: string | null;
   status: string;
+  tags?: string[] | null;
+  /** Backend-side "📅 appointment set" tag — a booked deal even if the
+   *  jarvis_appointments insert failed. Either signal puts it in Closer. */
+  hasAppointment?: boolean | null;
   createdAt?: string | null;
   updatedAt: string | null;
   // ── iSpeed lead economics (backend serves these only for source === 'ispeed') ──

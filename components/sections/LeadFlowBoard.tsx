@@ -23,14 +23,14 @@ import { useMemo, useState } from 'react';
 import { MapPin, Phone, Clock, CalendarCheck } from 'lucide-react';
 import { Lead, Source } from '@/lib/hooks/useLeads';
 import { PropertyThumb } from '@/components/ui/PropertyPhotos';
-import { FlowStage, flowStageOf, attemptsOf, norm } from '@/lib/leadStages';
+import { FlowStage, flowStageOf, attemptsOf, norm, isBooked } from '@/lib/leadStages';
 
 export { flowStageOf as stageOf };
 
 const STAGES: { id: FlowStage; label: string; who: string; note: string; color: string }[] = [
   { id: 'new',     label: 'New',     who: 'Sarah — reach them',     note: 'no conversation yet',        color: '#0a84ff' },
   { id: 'working', label: 'Working', who: 'Sarah — follow up',      note: 'reached and rated',          color: '#ff9f0a' },
-  { id: 'closer',  label: 'Closer',  who: 'Chris — call and close', note: 'appointment or contract out', color: '#30d158' },
+  { id: 'closer',  label: 'Closer',  who: 'Chris — call and close', note: 'appointment booked or contract out', color: '#30d158' },
 ];
 
 const SRC: { id: Source; label: string; color: string }[] = [
@@ -52,7 +52,10 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
   const grouped = useMemo(() => {
     const g: Record<FlowStage, Lead[]> = { new: [], working: [], closer: [] };
     for (const l of scoped) {
-      const st = flowStageOf(l.stageName);
+      // An appointment moves the lead to Closer whatever the CRM stage says.
+      // Two independent signals, either one counts: the appointments table, or
+      // the backend's "appointment set" tag if that insert did not land.
+      const st = flowStageOf(l.stageName, !!appointments[digits10(l.phone)] || !!l.hasAppointment);
       if (st) g[st].push(l);
     }
     // Closer first by soonest appointment; the others by most recently touched.
@@ -138,6 +141,10 @@ const SRC_COLOR: Record<Source, string> = { ispeed: '#64d2ff', alpha: '#bf5af2',
 function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: string }) {
   const attempts = attemptsOf(lead.stageName);
   const unresponsive = norm(lead.stageName).includes('unresponsive');
+  // Booked = Sarah set a time and nothing has moved past it yet. Called out on
+  // the card because "appointment set" and "contract sent" are both Closer but
+  // are not the same job.
+  const booked = isBooked(lead.stageName, !!when || !!lead.hasAppointment);
 
   return (
     <div className="rounded-[10px] p-2 flex gap-2"
@@ -146,6 +153,10 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="text-[11.5px] font-medium text-textb truncate">{lead.name}</span>
+          {booked && (
+            <span className="flex-shrink-0 text-[8.5px] font-semibold px-1 py-[1px] rounded tracking-[0.4px]"
+                  style={{ background: 'rgba(48,209,88,0.16)', color: '#30d158' }}>BOOKED</span>
+          )}
           <span className="ml-auto flex-shrink-0 w-1.5 h-1.5 rounded-full"
                 style={{ background: SRC_COLOR[lead.source] }} title={lead.source} />
         </div>
