@@ -21,6 +21,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'marketing-split',  label: 'Marketing',         Icon: BarChart2,       color: '#bf5af2', desc: 'Cost per qualified lead by tier, channel \u0026 provider' },
   { section: 'contact-board',    label: 'Contact Board',     Icon: PhoneOutgoing,   color: '#64d2ff', desc: 'Paid leads not reached yet \u2014 attempts \u0026 refund clock' },
   { section: 'refund-pipeline',  label: 'Refund Pipeline',   Icon: Receipt,         color: '#bf5af2', desc: '21-day clock, filed \u2192 approved' },
+  { section: 'refund-desk',      label: 'Refund Desk',       Icon: Receipt,         color: '#ff453a', desc: 'claims + vendor replies' },
   { section: 'ispeed-refunds',   label: 'iSpeed Refunds',    Icon: Receipt,         color: '#30d158', desc: 'Refund windows & recovery' },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#30d158', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#ff9f0a', desc: 'Revenue targets' },

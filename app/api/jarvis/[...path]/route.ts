@@ -485,6 +485,7 @@ const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
     'dialer/transcript',         // MultiDialer
     'dialer/session-summary',    // MultiDialer
     'dialer/lists',              // MultiDialer
+    'dialer/refund-desk',        // RefundDesk — claims + vendor threads
   ]),
   POST: new Set([
     'dialer/lead-action',           // Leads, SarahBoard, SarahMoney
@@ -502,6 +503,7 @@ const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
     'dialer/disposition',           // MultiDialer
     'dialer/list',                  // MultiDialer (create)
     'dialer/call-one',              // Contact Board — dial one paid lead, one line
+    'dialer/refund-desk',           // RefundDesk — create / status / reply / delete
     'dialer/sms-send',              // Conversations composer — the browser must
                                     // not hold the Telnyx key, so the send goes
                                     // dashboard -> dialer -> Telnyx

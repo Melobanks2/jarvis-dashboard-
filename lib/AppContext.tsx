@@ -6,6 +6,7 @@ export type Section =
   | 'command-center'
   | 'deal-flow'
   | 'refund-pipeline'
+  | 'refund-desk'
   | 'contact-board'
   | 'marketing-split'
   | 'david-hq'

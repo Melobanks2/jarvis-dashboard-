@@ -15,6 +15,7 @@ import { CallCenter }       from '@/components/sections/CallCenter';
 import { Pipeline }         from '@/components/sections/Pipeline';
 import { DealFlow }         from '@/components/sections/DealFlow';
 import { RefundPipeline }   from '@/components/sections/RefundPipeline';
+import { RefundDesk }       from '@/components/sections/RefundDesk';
 import { ContactBoard }     from '@/components/sections/ContactBoard';
 import { MarketingSplit }   from '@/components/sections/MarketingSplit';
 import { ProspectsHub }     from '@/components/sections/ProspectsHub';
@@ -48,6 +49,7 @@ const SECTION_TITLES: Record<string, string> = {
   'pipeline':          'Pipeline',
   'deal-flow':         'Deal Flow',
   'refund-pipeline':   'Refund Pipeline',
+  'refund-desk':       'Refund Desk',
   'contact-board':     'Contact Board',
   'marketing-split':   'Marketing',
   'acquisitions':      'Acquisitions',
@@ -79,6 +81,7 @@ function SectionContent({ section }: { section: string }) {
     case 'pipeline':          return <Pipeline />;
     case 'deal-flow':         return <DealFlow />;
     case 'refund-pipeline':   return <RefundPipeline />;
+    case 'refund-desk':       return <RefundDesk />;
     case 'contact-board':     return <ContactBoard />;
     case 'marketing-split':   return <MarketingSplit />;
     case 'prospects-hub':     return <ProspectsHub />;
