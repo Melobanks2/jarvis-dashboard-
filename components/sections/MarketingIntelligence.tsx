@@ -8,6 +8,8 @@ import {
 } from 'recharts';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { RoadTo100K } from '@/components/sections/RoadTo100K';
+import { MarketingSplit } from '@/components/sections/MarketingSplit';
+import { SpeedToLead } from '@/components/sections/SpeedToLead';
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter';
 import { usePipeline, Lead } from '@/lib/hooks/usePipeline';
 import { useApp } from '@/lib/AppContext';
@@ -49,7 +51,7 @@ function cityOf(l: Lead): string | null {
 export function MarketingIntelligence() {
   const { refreshKey } = useApp();
   const { data, loading, error } = usePipeline(refreshKey);
-  const [view, setView] = useState<'live' | 'model'>('live');
+  const [view, setView] = useState<'live' | 'economics' | 'model'>('live');
   const leads = useMemo(() => data?.leads ?? [], [data]);
 
   const m = useMemo(() => {
@@ -141,7 +143,7 @@ export function MarketingIntelligence() {
 
   const maxCityQual = Math.max(1, ...m.cities.map(c => c.qual));
 
-  const segBtn = (key: 'live' | 'model', label: string) => (
+  const segBtn = (key: 'live' | 'economics' | 'model', label: string) => (
     <button onClick={() => setView(key)}
       className={`tap rounded-lg px-4 py-1.5 text-[13px] transition-colors ${view === key ? 'text-textb bg-white/[0.13]' : 'text-jtext hover:text-textb'}`}
       style={view === key ? { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 3px rgba(0,0,0,0.3)' } : undefined}>
@@ -156,13 +158,20 @@ export function MarketingIntelligence() {
       <div className="flex items-center">
         <div className="inline-flex gap-0.5 rounded-xl border border-border p-1 bg-white/[0.06]">
           {segBtn('live', 'Live performance')}
+          {segBtn('economics', 'Lead economics')}
           {segBtn('model', 'Road to $100K')}
         </div>
         {view === 'model' && <span className="ml-3 text-[12px] text-dimtext">Planning model · your dials save automatically</span>}
+        {view === 'economics' && <span className="ml-3 text-[12px] text-dimtext">What each place you buy leads from actually returns</span>}
       </div>
 
       {view === 'model' ? (
         <RoadTo100K live={{ cplRaw: m.costPerLead, cpq: m.costPerQual, dealsInPlay: m.deals.length }} />
+      ) : view === 'economics' ? (
+        <div className="flex flex-col gap-5">
+          <SpeedToLead />
+          <MarketingSplit />
+        </div>
       ) : (
       <>
 
