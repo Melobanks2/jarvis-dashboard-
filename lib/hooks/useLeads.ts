@@ -53,6 +53,8 @@ export interface Lead {
   purchasedAt?: number | null;       // epoch ms
   daysSincePurchase?: number | null;
   fundingSource?: string | null;
+  /** Refund claim state from the backend: requested | approved | denied. */
+  refund?: 'requested' | 'approved' | 'denied' | null;
   refundEligible?: string | null;
   refundDeadline?: number | null;    // epoch ms
   daysUntilDeadline?: number | null; // negative = past refund window

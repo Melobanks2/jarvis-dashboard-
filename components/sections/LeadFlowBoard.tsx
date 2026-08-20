@@ -24,6 +24,7 @@ import { MapPin, Phone, Clock, CalendarCheck } from 'lucide-react';
 import { Lead, Source } from '@/lib/hooks/useLeads';
 import { PropertyThumb } from '@/components/ui/PropertyPhotos';
 import { FlowStage, flowStageOf, attemptsOf, norm, isBooked } from '@/lib/leadStages';
+import { refundStatusOf, REFUND_COLOR, ATTEMPTS_REQUIRED } from '@/lib/refundRules';
 
 export { flowStageOf as stageOf };
 
@@ -145,6 +146,7 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
   // the card because "appointment set" and "contract sent" are both Closer but
   // are not the same job.
   const booked = isBooked(lead.stageName, !!when || !!lead.hasAppointment);
+  const rf = refundStatusOf(lead);
 
   return (
     <div className="rounded-[10px] p-2 flex gap-2"
@@ -172,6 +174,22 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
             <span style={{ color: unresponsive ? '#ff9f0a' : undefined }}>
               {unresponsive ? '6+ attempts' : attempts ? `attempt ${attempts}` : 'never called'}
             </span>
+          )}
+          {/* iSpeed refund clock. Two numbers, because either one alone lies:
+              attempts-to-five and days-to-deadline. Red when the calls owed no
+              longer fit in the days left — that lead is about to expire unfiled. */}
+          {stage === 'new' && rf.state && rf.state !== 'on_track' && (
+            <span className="px-1 py-[1px] rounded font-semibold"
+                  style={{ background: `${REFUND_COLOR[rf.state]}22`, color: REFUND_COLOR[rf.state] }}>
+              {rf.state === 'ready'   ? `refund ready · ${rf.daysLeft}d`
+             : rf.state === 'behind'  ? `${rf.attemptsLeft} calls in ${rf.daysLeft}d`
+             : rf.state === 'expired' ? 'window closed'
+             : rf.state === 'filed'   ? 'refund filed'
+             : rf.state}
+            </span>
+          )}
+          {stage === 'new' && rf.state === 'on_track' && (
+            <span title={rf.why}>{rf.attempts}/{ATTEMPTS_REQUIRED} · {rf.daysLeft}d left</span>
           )}
           {stage !== 'new' && lead.askingPrice && <span style={{ color: '#30d158' }}>{lead.askingPrice}</span>}
           {lead.phone && <span className="flex items-center gap-1"><Phone size={8} />{lead.phone}</span>}

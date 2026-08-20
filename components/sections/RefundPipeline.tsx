@@ -22,6 +22,7 @@ import { GlassCard, SectionTitle } from '@/components/ui/GlassCard';
 import { useApp } from '@/lib/AppContext';
 import { useLeads, Lead } from '@/lib/hooks/useLeads';
 import { classify } from '@/components/sections/DealFlow';
+import { refundStatusOf, ATTEMPTS_REQUIRED } from '@/lib/refundRules';
 
 const WINDOW_DAYS = 21;
 
@@ -31,9 +32,13 @@ const REFUNDABLE = new Set(['attempt', 'new', 'unresponsive', 'dead', 'cold']);
 const money = (n: number) => '$' + Math.round(n).toLocaleString('en-US');
 const sum = (ls: Lead[]) => ls.reduce((n, l) => n + (Number(l.purchasePrice) || 0), 0);
 
-type ColId = 'working' | 'decide' | 'last' | 'filed' | 'approved' | 'expired';
+type ColId = 'behind' | 'working' | 'decide' | 'last' | 'filed' | 'approved' | 'expired';
 
 const COLS: { id: ColId; label: string; sub: string; color: string }[] = [
+  // 'behind' is the column the day-clock alone cannot produce: iSpeed wants
+  // FIVE documented attempts, so a lead with two calls and three days left is
+  // already unfileable unless somebody dials it today.
+  { id: 'behind',   label: 'Behind on calls', sub: `needs ${ATTEMPTS_REQUIRED} attempts — not enough days left`, color: '#ff453a' },
   { id: 'working',  label: 'Clock running', sub: '8+ days left',       color: '#30d158' },
   { id: 'decide',   label: 'Decide',        sub: '3–7 days left',      color: '#ff9f0a' },
   { id: 'last',     label: 'Last call',     sub: '0–2 days left',      color: '#ff453a' },
@@ -49,7 +54,7 @@ export function RefundPipeline() {
 
   const cols = useMemo(() => {
     const c: Record<ColId, Lead[]> = {
-      working: [], decide: [], last: [], filed: [], approved: [], expired: [],
+      behind: [], working: [], decide: [], last: [], filed: [], approved: [], expired: [],
     };
     for (const l of leads) {
       if (l.source !== 'ispeed') continue;
@@ -59,6 +64,9 @@ export function RefundPipeline() {
 
       const d = l.daysUntilDeadline;
       if (typeof d !== 'number') continue;      // no purchase record — no clock to show
+      // Attempts owed vs days left comes first: a lead that cannot reach five
+      // attempts in time is the urgent one, whatever its raw day count says.
+      if (d >= 0 && refundStatusOf(l).state === 'behind') { c.behind.push(l); continue; }
       if (d < 0)      c.expired.push(l);
       else if (d <= 2) c.last.push(l);
       else if (d <= 7) c.decide.push(l);
@@ -74,9 +82,11 @@ export function RefundPipeline() {
   if (error)   return <div className="text-[12px] p-4" style={{ color: '#ff453a' }}>{error}</div>;
 
   // Only leads going nowhere are actually worth filing.
-  const actionable = [...cols.last, ...cols.decide, ...cols.working]
+  const actionable = [...cols.behind, ...cols.last, ...cols.decide, ...cols.working]
     .filter(l => REFUNDABLE.has(classify(l.stageName).key));
-  const keeping = [...cols.last, ...cols.decide, ...cols.working].length - actionable.length;
+  const keeping = [...cols.behind, ...cols.last, ...cols.decide, ...cols.working].length - actionable.length;
+  // Leads that will expire unfiled unless they get dialed now.
+  const behindValue = cols.behind.reduce((n, l) => n + (Number(l.purchasePrice) || 0), 0);
 
   return (
     <div className="space-y-4">
@@ -88,6 +98,9 @@ export function RefundPipeline() {
                 color={actionable.length ? '#64d2ff' : 'var(--dimtext)'} />
           <Stat label="Filed, unpaid" value={money(sum(cols.filed))} note={`${cols.filed.length} leads`} color="#bf5af2" />
           <Stat label="Recovered" value={money(sum(cols.approved))} note={`${cols.approved.length} approved`} color="#30d158" />
+          <Stat label="Behind on calls" value={money(behindValue)}
+                note={cols.behind.length ? `${cols.behind.length} short of ${ATTEMPTS_REQUIRED} attempts` : 'none'}
+                color={cols.behind.length ? '#ff453a' : 'var(--dimtext)'} />
           <Stat label="Aged out" value={money(sum(cols.expired))} note={`${cols.expired.length} past ${WINDOW_DAYS} days`} color="#ff453a" />
           <Stat label="Keeping" value={String(keeping)} note="in window but working out" color="var(--dimtext)" />
         </div>
@@ -106,9 +119,11 @@ export function RefundPipeline() {
 
       {/* the clock, before filing */}
       <div>
-        <SectionTitle accent="orange">Before filing — the {WINDOW_DAYS}-day clock</SectionTitle>
+        <SectionTitle accent="orange">
+          Before filing — {ATTEMPTS_REQUIRED} attempts inside {WINDOW_DAYS} days
+        </SectionTitle>
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-          {COLS.filter(c => ['working', 'decide', 'last'].includes(c.id)).map(c => (
+          {COLS.filter(c => ['behind', 'working', 'decide', 'last'].includes(c.id)).map(c => (
             <Column key={c.id} meta={c} leads={cols[c.id]} showVerdict />
           ))}
         </div>
@@ -136,7 +151,7 @@ export function RefundPipeline() {
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
-                <Column meta={COLS[5]} leads={cols.expired} limit={40} />
+                <Column meta={COLS[COLS.length - 1]} leads={cols.expired} limit={40} />
               </div>
             </motion.div>
           )}
