@@ -25,6 +25,7 @@ import { Lead, Source } from '@/lib/hooks/useLeads';
 import { PropertyThumb } from '@/components/ui/PropertyPhotos';
 import { FlowStage, flowStageOf, attemptsOf, norm, isBooked } from '@/lib/leadStages';
 import { refundStatusOf, REFUND_COLOR, ATTEMPTS_REQUIRED } from '@/lib/refundRules';
+import { followUpOf, byUrgency, appointmentLabel, hoursUntil } from '@/lib/followUp';
 
 export { flowStageOf as stageOf };
 
@@ -59,11 +60,24 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
       const st = flowStageOf(l.stageName, !!appointments[digits10(l.phone)] || !!l.hasAppointment);
       if (st) g[st].push(l);
     }
-    // Closer first by soonest appointment; the others by most recently touched.
+    // Each lane sorts by its own job, not by a shared default.
+    // Closer: soonest appointment — that is the running order of the day.
     g.closer.sort((a, b) => {
       const ka = appointments[digits10(a.phone)] || '9';
       const kb = appointments[digits10(b.phone)] || '9';
       return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+    // Working: most overdue against its own cadence. A hot seller uncalled for
+    // nine days has to sit above a cold one that is not due for another week.
+    g.working.sort(byUrgency);
+    // New: the refund clock decides. 'behind' first (calls owed no longer fit
+    // the days left), then whoever is closest to their deadline.
+    g.new.sort((a, b) => {
+      const ra = refundStatusOf(a), rb = refundStatusOf(b);
+      const rank = (s: string | null) => (s === 'behind' ? 0 : s === 'ready' ? 1 : 2);
+      const d = rank(ra.state) - rank(rb.state);
+      if (d) return d;
+      return (ra.daysLeft ?? 9999) - (rb.daysLeft ?? 9999);
     });
     return g;
   }, [scoped, appointments]);
@@ -147,6 +161,12 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
   // are not the same job.
   const booked = isBooked(lead.stageName, !!when || !!lead.hasAppointment);
   const rf = refundStatusOf(lead);
+  const fu = followUpOf(lead);
+  const hrs = hoursUntil(when);
+  const soon = hrs != null && hrs >= 0 && hrs <= 12;   // today's calls
+  // One line of context for the closer: what she got out of them.
+  const prep = [lead.pain, lead.timeline, lead.askingPrice, lead.condition]
+    .filter(Boolean).join(' · ') || null;
 
   return (
     <div className="rounded-[10px] p-2 flex gap-2"
@@ -195,16 +215,28 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
           {lead.phone && <span className="flex items-center gap-1"><Phone size={8} />{lead.phone}</span>}
         </div>
 
-        {stage === 'closer' && (
+        {/* Working: the only number that matters here is how late this call is. */}
+        {stage === 'working' && (
           <div className="mt-1 flex items-center gap-1 text-[9.5px]"
-               style={{ color: when ? '#64d2ff' : '#ff9f0a' }}>
-            {when ? <CalendarCheck size={8} /> : <Clock size={8} />}
-            {when
-              ? new Date(when).toLocaleString('en-US', {
-                  weekday: 'short', month: 'short', day: 'numeric',
-                  hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
-              : 'no appointment set'}
+               style={{ color: fu.overdue ? '#ff453a' : fu.dueInDays === 0 ? '#ff9f0a' : 'var(--dimtext)' }}>
+            <Clock size={8} />
+            {fu.label}
+            {fu.everyDays != null && (
+              <span className="opacity-60">· every {fu.everyDays}d</span>
+            )}
           </div>
+        )}
+
+        {stage === 'closer' && (
+          <>
+            <div className="mt-1 flex items-center gap-1 text-[9.5px] font-semibold"
+                 style={{ color: soon ? '#30d158' : when ? '#64d2ff' : '#ff9f0a' }}>
+              {when ? <CalendarCheck size={8} /> : <Clock size={8} />}
+              {appointmentLabel(when) || 'no appointment set'}
+            </div>
+            {/* What Chris needs in his hand when he dials — not a second click away. */}
+            {prep && <div className="mt-0.5 text-[9px] text-dimtext truncate" title={prep}>{prep}</div>}
+          </>
         )}
       </div>
     </div>
