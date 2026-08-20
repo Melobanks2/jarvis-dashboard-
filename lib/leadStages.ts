@@ -91,3 +91,60 @@ export const isBooked = (stageName: string, hasAppointment: boolean) =>
   !['decision', 'sent', 'under'].includes(groupOf(stageName));
 
 export const isRefund = (stageName: string) => groupOf(stageName).startsWith('refund');
+
+// ── Sub-stages inside a lane ────────────────────────────────────────────────
+// The three lanes answer "whose job is this". Opening one asks the next
+// question — "where exactly in that job" — so each lane expands into its own
+// column set. Kept here with the rest of the stage model so the boards and the
+// Stage Map cannot disagree about what a column contains.
+
+export interface SubStage { id: string; label: string; note?: string }
+
+export const SUB_STAGES: Record<FlowStage, SubStage[]> = {
+  new: [
+    { id: 'new',        label: 'New lead',    note: 'never dialed' },
+    { id: 'attempt-1',  label: 'Attempt 1' },
+    { id: 'attempt-2',  label: 'Attempt 2' },
+    { id: 'attempt-3',  label: 'Attempt 3' },
+    { id: 'attempt-4',  label: 'Attempt 4' },
+    { id: 'attempt-5',  label: 'Attempt 5' },
+    { id: 'unresponsive', label: 'Unresponsive', note: '6+ attempts' },
+  ],
+  working: [
+    { id: 'hot',      label: 'Hot',      note: 'every 3d' },
+    { id: 'warm',     label: 'Warm',     note: 'every 7d' },
+    { id: 'cold',     label: 'Cold',     note: 'every 14d' },
+    { id: 'callback', label: 'Callback', note: 'she calls back' },
+    { id: 'replied',  label: 'Replied',  note: 'needs a response' },
+  ],
+  closer: [
+    { id: 'appointment', label: 'Appointment set', note: 'date + time' },
+    { id: 'decision',    label: 'Decision pending' },
+    { id: 'sent',        label: 'Contract sent' },
+    { id: 'under',       label: 'Under contract' },
+    { id: 'won',         label: 'Closed' },
+  ],
+};
+
+/** Which column inside its lane a lead belongs to. Null = lane has no slot. */
+export function subStageOf(lead: { stageName: string; hasAppointment?: boolean | null }): string | null {
+  const lane = flowStageOf(lead.stageName, !!lead.hasAppointment);
+  if (!lane) return null;
+  const g = groupOf(lead.stageName);
+  const s = norm(lead.stageName);
+
+  if (lane === 'new') {
+    if (g === 'unresponsive') return 'unresponsive';
+    const n = attemptsOf(lead.stageName);
+    return n >= 1 && n <= 5 ? `attempt-${n}` : 'new';
+  }
+  if (lane === 'working') {
+    if (s.includes('callback')) return 'callback';
+    if (g === 'replied') return 'replied';
+    return ['hot', 'warm', 'cold'].includes(g) ? g : 'hot';
+  }
+  // Closer: a booked appointment outranks the CRM stage until the deal moves on.
+  if (lead.hasAppointment && !['decision', 'sent', 'under', 'won'].includes(g)) return 'appointment';
+  if (['decision', 'sent', 'under', 'won'].includes(g)) return g;
+  return 'appointment';
+}

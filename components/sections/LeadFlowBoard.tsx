@@ -20,10 +20,13 @@
  */
 
 import { useMemo, useState } from 'react';
-import { MapPin, Phone, Clock, CalendarCheck } from 'lucide-react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { MapPin, Phone, Clock, CalendarCheck, ChevronLeft, Maximize2 } from 'lucide-react';
 import { Lead, Source } from '@/lib/hooks/useLeads';
 import { PropertyThumb } from '@/components/ui/PropertyPhotos';
-import { FlowStage, flowStageOf, attemptsOf, norm, isBooked } from '@/lib/leadStages';
+import {
+  FlowStage, flowStageOf, attemptsOf, norm, isBooked, SUB_STAGES, subStageOf,
+} from '@/lib/leadStages';
 import { refundStatusOf, REFUND_COLOR, ATTEMPTS_REQUIRED } from '@/lib/refundRules';
 import { followUpOf, byUrgency, appointmentLabel, hoursUntil } from '@/lib/followUp';
 
@@ -45,6 +48,10 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
   leads: Lead[]; appointments?: Record<string, string>;
 }) {
   const [src, setSrc] = useState<Source | 'all'>('all');
+  // Clicking a lane opens it into its own job board — the lane answers "whose
+  // job", the opened board answers "where exactly". One at a time: three lanes
+  // times seven columns is not a board anyone can read.
+  const [openLane, setOpenLane] = useState<FlowStage | null>(null);
 
   const scoped = useMemo(
     () => leads.filter(l => src === 'all' || l.source === src),
@@ -106,14 +113,31 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
         })}
       </div>
 
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+      <LayoutGroup>
+      <AnimatePresence mode="wait" initial={false}>
+      {openLane ? (
+        <ExpandedLane key={`open-${openLane}`}
+                      meta={STAGES.find(s => s.id === openLane)!}
+                      leads={grouped[openLane]}
+                      appointments={appointments}
+                      onClose={() => setOpenLane(null)} />
+      ) : (
+      <motion.div key="lanes" className="grid gap-3"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
         {STAGES.map(st => (
-          <div key={st.id} className="rounded-[18px] border border-border overflow-hidden flex flex-col"
+          <motion.div key={st.id} layoutId={`lane-${st.id}`}
+               onClick={() => setOpenLane(st.id)}
+               whileHover={{ y: -2 }}
+               className="rounded-[18px] border border-border overflow-hidden flex flex-col cursor-pointer group"
                style={{ background: 'rgba(255,255,255,0.03)' }}>
             <div className="px-3.5 py-2.5 border-b border-border"
                  style={{ background: `linear-gradient(180deg, ${st.color}1f, transparent)` }}>
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] font-semibold" style={{ color: st.color }}>{st.label}</span>
+                <Maximize2 size={10} className="opacity-0 group-hover:opacity-60 transition-opacity"
+                           style={{ color: st.color }} />
                 <span className="ml-auto text-[13px] font-semibold tabular-nums text-textb">{grouped[st.id].length}</span>
               </div>
               <div className="text-[10px] text-dimtext mt-0.5">{st.who} · {st.note}</div>
@@ -142,10 +166,88 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
                 <FlowCard key={l.id} lead={l} stage={st.id} when={appointments[digits10(l.phone)]} />
               ))}
             </div>
-          </div>
+            <div className="px-3.5 py-2 border-t border-border text-[9.5px] text-dimtext
+                            opacity-0 group-hover:opacity-100 transition-opacity">
+              Click to open the job board
+            </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
+      </LayoutGroup>
     </div>
+  );
+}
+
+/**
+ * One lane, opened into its own job board: a column per stage inside it.
+ * Reuses the same cards, so a lead reads identically whichever view it is in.
+ */
+function ExpandedLane({ meta, leads, appointments, onClose }: {
+  meta: typeof STAGES[number]; leads: Lead[];
+  appointments: Record<string, string>; onClose: () => void;
+}) {
+  const cols = useMemo(() => {
+    const m: Record<string, Lead[]> = {};
+    for (const sub of SUB_STAGES[meta.id]) m[sub.id] = [];
+    for (const l of leads) {
+      const k = subStageOf(l);
+      if (k && m[k]) m[k].push(l);
+    }
+    return m;
+  }, [leads, meta.id]);
+
+  return (
+    <motion.div layoutId={`lane-${meta.id}`}
+                className="rounded-[18px] border border-border overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.03)' }}>
+      <div className="px-4 py-3 border-b border-border flex items-center gap-3"
+           style={{ background: `linear-gradient(180deg, ${meta.color}1f, transparent)` }}>
+        <button onClick={onClose}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10.5px] font-medium transition-colors hover:bg-white/5"
+                style={{ color: meta.color, border: `1px solid ${meta.color}44` }}>
+          <ChevronLeft size={11} /> All lanes
+        </button>
+        <div>
+          <div className="text-[15px] font-semibold" style={{ color: meta.color }}>{meta.label}</div>
+          <div className="text-[10px] text-dimtext">{meta.who} · {meta.note}</div>
+        </div>
+        <span className="ml-auto text-[17px] font-semibold tabular-nums text-textb">{leads.length}</span>
+      </div>
+
+      <motion.div className="p-2.5 grid gap-2.5 overflow-x-auto"
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08, duration: 0.2 }}
+                  style={{ gridTemplateColumns: `repeat(${SUB_STAGES[meta.id].length}, minmax(190px, 1fr))` }}>
+        {SUB_STAGES[meta.id].map((sub, i) => (
+          <motion.div key={sub.id}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + i * 0.035, duration: 0.2 }}
+                      className="rounded-[14px] border border-border flex flex-col"
+                      style={{ background: 'rgba(255,255,255,0.025)' }}>
+            <div className="px-2.5 py-2 border-b border-border">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[11.5px] font-semibold text-textb">{sub.label}</span>
+                <span className="ml-auto text-[11.5px] font-semibold tabular-nums"
+                      style={{ color: cols[sub.id].length ? meta.color : 'var(--dimtext)' }}>
+                  {cols[sub.id].length}
+                </span>
+              </div>
+              {sub.note && <div className="text-[9px] text-dimtext mt-0.5">{sub.note}</div>}
+            </div>
+            <div className="p-1.5 space-y-1.5 overflow-y-auto" style={{ maxHeight: 520 }}>
+              {cols[sub.id].length === 0
+                ? <div className="text-[10px] text-dimtext text-center py-4">—</div>
+                : cols[sub.id].map(l => (
+                    <FlowCard key={l.id} lead={l} stage={meta.id}
+                              when={appointments[digits10(l.phone)]} />
+                  ))}
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+    </motion.div>
   );
 }
 
