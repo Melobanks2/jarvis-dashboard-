@@ -464,7 +464,7 @@ const STRIP = new Set([
  * logged with the method and path so a missed entry names itself.
  */
 
-type Method = 'GET' | 'POST' | 'PUT';
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 /** Exact paths on dialer-server.js (:3007), keyed by method. */
 const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
@@ -507,6 +507,7 @@ const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
                                     // dashboard -> dialer -> Telnyx
   ]),
   PUT: new Set([]),                 // nothing in the dashboard PUTs
+  DELETE: new Set([]),              // only the dialer/list/<id> pattern below
 };
 
 /** Exact paths on marketing-intel.js (:3008). */
@@ -517,6 +518,7 @@ const MKT_ALLOW: Record<Method, ReadonlySet<string>> = {
   ]),
   POST: new Set([]),
   PUT: new Set([]),
+  DELETE: new Set([]),
 };
 
 /**
@@ -548,6 +550,12 @@ function dialerPatternAllows(method: Method, segs: string[]): boolean {
     if (segs[0] === 'dialer' && segs[1] === 'list' && LIST_ID.test(segs[2] ?? '')) {
       return segs.length === 3 || (segs.length === 4 && segs[3] === 'queue');
     }
+  }
+  // MultiDialer's list delete — dialer-server exposes app.delete('/dialer/list/:listId').
+  // Until 2026-08-20 the dashboard sent this and got Next's 405: no DELETE export.
+  if (method === 'DELETE') {
+    return segs[0] === 'dialer' && segs[1] === 'list' &&
+           LIST_ID.test(segs[2] ?? '') && segs.length === 3;
   }
   return false;
 }
@@ -657,5 +665,11 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ path: strin
   const { path } = await ctx.params;
   if (path[0] === 'proxy') return handleProxy(req, path.slice(1), 'PUT');
   if (path[0] === 'mkt') return handleProxy(req, path.slice(1), 'PUT', 'mkt');
+  return notFound(path);
+}
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+  const { path } = await ctx.params;
+  if (path[0] === 'proxy') return handleProxy(req, path.slice(1), 'DELETE');
   return notFound(path);
 }
