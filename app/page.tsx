@@ -38,6 +38,7 @@ import { Acquisitions }           from '@/components/sections/Acquisitions';
 import { ContractCannon }         from '@/components/sections/ContractCannon';
 import { NovationTracker }        from '@/components/sections/NovationTracker';
 import { IspeedRefunds }          from '@/components/sections/IspeedRefunds';
+import { PropertyLeads }          from '@/components/sections/PropertyLeads';
 
 const MissionControl = dynamic(
   () => import('@/components/sections/MissionControl').then(m => ({ default: m.MissionControl })),
@@ -75,6 +76,7 @@ const SECTION_TITLES: Record<string, string> = {
   'contract-cannon':        'Contract Cannon',
   'novation-deal':          'Novation Deal',
   'ispeed-refunds':         'iSpeed Refunds',
+  'property-leads':         'Property Leads',
 };
 
 function SectionContent({ section }: { section: string }) {
@@ -108,6 +110,7 @@ function SectionContent({ section }: { section: string }) {
     case 'contract-cannon':         return <ContractCannon />;
     case 'novation-deal':           return <NovationTracker />;
     case 'ispeed-refunds':          return <Refunds />;
+    case 'property-leads':          return <PropertyLeads />;
     default: return (
       <div className="flex items-center justify-center h-64 text-dimtext text-[11px]">
         Coming soon

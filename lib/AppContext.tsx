@@ -9,6 +9,7 @@ export type Section =
   | 'refund-desk'
   | 'stage-map'
   | 'refunds'
+  | 'property-leads'
   | 'workday'
   | 'contact-board'
   | 'marketing-split'

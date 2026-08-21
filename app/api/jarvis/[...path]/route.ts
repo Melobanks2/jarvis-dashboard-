@@ -474,6 +474,7 @@ const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
     'dialer/sarah-live',         // useAgents, SarahBoard
     'dialer/sarah-transcript',   // SarahBoard
     'dialer/ispeed-refunds',     // useIspeedRefunds
+    'dialer/property-leads',     // usePropertyLeads — Property Leads scoreboard
     'dialer/novation',           // NovationTracker
     'dialer/contract/templates', // ContractCannon
     'dialer/contract/documents', // ContractCannon, NovationTracker
