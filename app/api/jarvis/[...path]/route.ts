@@ -486,6 +486,7 @@ const DIALER_ALLOW: Record<Method, ReadonlySet<string>> = {
     'dialer/session-summary',    // MultiDialer
     'dialer/lists',              // MultiDialer
     'dialer/refund-desk',        // RefundDesk — claims + vendor threads
+    'dialer/workday',            // Workday — the day's blocks and their guards
   ]),
   POST: new Set([
     'dialer/lead-action',           // Leads, SarahBoard, SarahMoney

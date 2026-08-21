@@ -22,6 +22,7 @@ const ITEMS: { section: Section; label: string; Icon: React.ElementType; color: 
   { section: 'contact-board',    label: 'Contact Board',     Icon: PhoneOutgoing,   color: '#64d2ff', desc: 'Paid leads not reached yet \u2014 attempts \u0026 refund clock' },
   { section: 'stage-map',        label: 'Stage Map',         Icon: Map,             color: '#0a84ff', desc: 'every stage, live counts' },
   { section: 'refunds',          label: 'Refunds',           Icon: Receipt,         color: '#ff453a', desc: 'money back, clock, claims' },
+  { section: 'workday',          label: 'Workday',           Icon: History,         color: '#30d158', desc: "Sarah + Scout's daily schedule" },
   { section: 'asap-scraper',     label: 'ASAP ARV',          Icon: Map,             color: '#30d158', desc: 'Comp reports' },
   { section: 'goals-vision',     label: 'Goals & Vision',    Icon: Target,          color: '#ff9f0a', desc: 'Revenue targets' },
   { section: 'ideas-lab',        label: 'Ideas Lab',         Icon: Lightbulb,       color: '#bf5af2', desc: 'Feature backlog' },
