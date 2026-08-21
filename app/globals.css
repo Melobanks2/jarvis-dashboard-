@@ -154,3 +154,49 @@ select option { background-color: #10141e; color: #f5f5f7; }
 .jarvis-content .jv-code-lang      { font-size: 10px; font-weight: 600; color: rgba(235,235,245,0.35); padding: 6px 12px 0; text-transform: uppercase; letter-spacing: 1px; }
 .jarvis-content .jv-code-block pre { padding: 10px 12px; overflow-x: auto; }
 .jarvis-content .jv-code-block code{ background: transparent; color: rgba(235,235,245,0.62); font-size: 12px; line-height: 1.7; padding: 0; border-radius: 0; }
+
+/* ── Live-call aura ──────────────────────────────────────────────────────────
+   Chris asked to SEE that Sarah is working — a soft glow on the lane she is
+   working in, and a brighter one on the lead she is on the phone with right
+   now. Two intensities, so at a glance you can tell "something is happening
+   over there" from "this is the call".
+
+   Colour comes from --aura so one keyframe serves any lane colour. Animating
+   box-shadow only (never width/height) keeps it off the layout path, so a
+   board of 150 cards does not judder.
+
+   prefers-reduced-motion drops the animation but keeps a static ring: the
+   information must survive even when the movement does not. */
+
+@keyframes jarvis-aura-soft {
+  0%, 100% { box-shadow: 0 0 0 1px var(--aura-line), 0 0 10px -2px var(--aura); }
+  50%      { box-shadow: 0 0 0 1px var(--aura-line), 0 0 20px 1px var(--aura); }
+}
+
+@keyframes jarvis-aura-live {
+  0%, 100% { box-shadow: 0 0 0 1.5px var(--aura), 0 0 16px 0px var(--aura), 0 0 34px 2px var(--aura-far); }
+  50%      { box-shadow: 0 0 0 1.5px var(--aura), 0 0 30px 4px var(--aura), 0 0 60px 10px var(--aura-far); }
+}
+
+.aura-soft {
+  animation: jarvis-aura-soft 2.6s ease-in-out infinite;
+  border-color: var(--aura-line) !important;
+}
+
+.aura-live {
+  animation: jarvis-aura-live 1.5s ease-in-out infinite;
+  border-color: var(--aura) !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ringing is a faster, thinner pulse — the phone has not been picked up yet,
+   and it should read as anticipation rather than as a conversation. */
+.aura-ringing { animation-duration: 0.9s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aura-soft, .aura-live, .aura-ringing {
+    animation: none;
+    box-shadow: 0 0 0 1.5px var(--aura), 0 0 18px 0 var(--aura);
+  }
+}

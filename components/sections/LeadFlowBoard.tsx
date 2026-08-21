@@ -29,6 +29,7 @@ import {
 } from '@/lib/leadStages';
 import { refundStatusOf, REFUND_COLOR, ATTEMPTS_REQUIRED } from '@/lib/refundRules';
 import { followUpOf, byUrgency, appointmentLabel, hoursUntil } from '@/lib/followUp';
+import { useLiveCalls, LiveCall } from '@/lib/hooks/useLiveCalls';
 
 export { flowStageOf as stageOf };
 
@@ -52,6 +53,9 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
   // job", the opened board answers "where exactly". One at a time: three lanes
   // times seven columns is not a board anyone can read.
   const [openLane, setOpenLane] = useState<FlowStage | null>(null);
+  // Who Sarah is on the phone with, refreshed every 3s independently of the
+  // lead list — the aura has to be live even when GHL data is minutes stale.
+  const live = useLiveCalls();
 
   const scoped = useMemo(
     () => leads.filter(l => src === 'all' || l.source === src),
@@ -92,6 +96,18 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
   const countBySource = (stage: FlowStage, s: Source) =>
     grouped[stage].filter(l => l.source === s).length;
 
+  // A lane glows softly when any lead inside it is on a call right now.
+  const laneLive = useMemo(() => {
+    const m: Record<FlowStage, LiveCall | null> = { new: null, working: null, closer: null };
+    (Object.keys(grouped) as FlowStage[]).forEach(k => {
+      for (const l of grouped[k]) {
+        const c = live.forPhone(l.phone);
+        if (c) { m[k] = c; break; }
+      }
+    });
+    return m;
+  }, [grouped, live]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -120,6 +136,7 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
                       meta={STAGES.find(s => s.id === openLane)!}
                       leads={grouped[openLane]}
                       appointments={appointments}
+                      live={live}
                       onClose={() => setOpenLane(null)} />
       ) : (
       <motion.div key="lanes" className="grid gap-3"
@@ -130,14 +147,28 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
           <motion.div key={st.id} layoutId={`lane-${st.id}`}
                onClick={() => setOpenLane(st.id)}
                whileHover={{ y: -2 }}
-               className="rounded-[18px] border border-border overflow-hidden flex flex-col cursor-pointer group"
-               style={{ background: 'rgba(255,255,255,0.03)' }}>
+               className={`rounded-[18px] border border-border overflow-hidden flex flex-col cursor-pointer group${laneLive[st.id] ? ' aura-soft' : ''}`}
+               style={{
+                 background: 'rgba(255,255,255,0.03)',
+                 ...(laneLive[st.id] ? {
+                   ['--aura' as string]: `${st.color}`,
+                   ['--aura-line' as string]: `${st.color}88`,
+                 } : {}),
+               }}>
             <div className="px-3.5 py-2.5 border-b border-border"
                  style={{ background: `linear-gradient(180deg, ${st.color}1f, transparent)` }}>
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] font-semibold" style={{ color: st.color }}>{st.label}</span>
                 <Maximize2 size={10} className="opacity-0 group-hover:opacity-60 transition-opacity"
                            style={{ color: st.color }} />
+                {laneLive[st.id] && (
+                  <span className="text-[8.5px] font-semibold px-1.5 py-0.5 rounded tracking-[0.4px] flex items-center gap-1"
+                        style={{ background: `${st.color}26`, color: st.color }}>
+                    <span className="w-1 h-1 rounded-full aura-live"
+                          style={{ background: st.color, ['--aura' as string]: st.color, ['--aura-far' as string]: 'transparent' }} />
+                    {laneLive[st.id]!.phase === 'connected' ? 'ON A CALL' : 'DIALING'}
+                  </span>
+                )}
                 <span className="ml-auto text-[13px] font-semibold tabular-nums text-textb">{grouped[st.id].length}</span>
               </div>
               <div className="text-[10px] text-dimtext mt-0.5">{st.who} · {st.note}</div>
@@ -163,7 +194,8 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
                 <div className="text-[11px] text-dimtext text-center py-6">Nothing here.</div>
               )}
               {grouped[st.id].map(l => (
-                <FlowCard key={l.id} lead={l} stage={st.id} when={appointments[digits10(l.phone)]} />
+                <FlowCard key={l.id} lead={l} stage={st.id} when={appointments[digits10(l.phone)]}
+                          live={live.forPhone(l.phone)} color={st.color} />
               ))}
             </div>
             <div className="px-3.5 py-2 border-t border-border text-[9.5px] text-dimtext
@@ -184,9 +216,11 @@ export function LeadFlowBoard({ leads, appointments = {} }: {
  * One lane, opened into its own job board: a column per stage inside it.
  * Reuses the same cards, so a lead reads identically whichever view it is in.
  */
-function ExpandedLane({ meta, leads, appointments, onClose }: {
+function ExpandedLane({ meta, leads, appointments, live, onClose }: {
   meta: typeof STAGES[number]; leads: Lead[];
-  appointments: Record<string, string>; onClose: () => void;
+  appointments: Record<string, string>;
+  live: ReturnType<typeof useLiveCalls>;
+  onClose: () => void;
 }) {
   const cols = useMemo(() => {
     const m: Record<string, Lead[]> = {};
@@ -241,7 +275,8 @@ function ExpandedLane({ meta, leads, appointments, onClose }: {
                 ? <div className="text-[10px] text-dimtext text-center py-4">—</div>
                 : cols[sub.id].map(l => (
                     <FlowCard key={l.id} lead={l} stage={meta.id}
-                              when={appointments[digits10(l.phone)]} />
+                              when={appointments[digits10(l.phone)]}
+                              live={live.forPhone(l.phone)} color={meta.color} />
                   ))}
             </div>
           </motion.div>
@@ -255,7 +290,9 @@ const digits10 = (p?: string | null) => String(p || '').replace(/\D/g, '').slice
 
 const SRC_COLOR: Record<Source, string> = { ispeed: '#64d2ff', alpha: '#bf5af2', sarah: '#30d158' };
 
-function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: string }) {
+function FlowCard({ lead, stage, when, live, color = '#0a84ff' }: {
+  lead: Lead; stage: FlowStage; when?: string; live?: LiveCall | null; color?: string;
+}) {
   const attempts = attemptsOf(lead.stageName);
   const unresponsive = norm(lead.stageName).includes('unresponsive');
   // Booked = Sarah set a time and nothing has moved past it yet. Called out on
@@ -270,9 +307,22 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
   const prep = [lead.pain, lead.timeline, lead.askingPrice, lead.condition]
     .filter(Boolean).join(' · ') || null;
 
+  // The lead Sarah is on the phone with RIGHT NOW gets the bright aura.
+  // Ringing pulses faster and thinner than connected — anticipation vs
+  // conversation — so the two states are distinguishable without reading.
+  const ringing = live?.phase === 'ringing';
+  const auraColor = live ? (ringing ? '#ff9f0a' : '#30d158') : null;
+
   return (
-    <div className="rounded-[10px] p-2 flex gap-2"
-         style={{ background: 'rgba(255,255,255,0.045)', border: '1px solid var(--border)' }}>
+    <div className={`rounded-[10px] p-2 flex gap-2${live ? ` aura-live${ringing ? ' aura-ringing' : ''}` : ''}`}
+         style={{
+           background: live ? `${auraColor}14` : 'rgba(255,255,255,0.045)',
+           border: '1px solid var(--border)',
+           ...(live ? {
+             ['--aura' as string]: auraColor!,
+             ['--aura-far' as string]: `${auraColor}55`,
+           } : {}),
+         }}>
       <PropertyThumb phone={lead.phone} address={lead.address} size={34} radius={6} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -284,6 +334,14 @@ function FlowCard({ lead, stage, when }: { lead: Lead; stage: FlowStage; when?: 
           <span className="ml-auto flex-shrink-0 w-1.5 h-1.5 rounded-full"
                 style={{ background: SRC_COLOR[lead.source] }} title={lead.source} />
         </div>
+
+        {live && (
+          <div className="flex items-center gap-1.5 mt-1 text-[9.5px] font-semibold"
+               style={{ color: auraColor! }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: auraColor! }} />
+            {ringing ? 'Ringing…' : `Sarah is talking — ${live.duration}s`}
+          </div>
+        )}
 
         {lead.address && (
           <div className="text-[9.5px] text-dimtext truncate flex items-center gap-1 mt-0.5">
